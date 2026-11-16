@@ -26,9 +26,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * The phone through iCode's accessibility service (docs/phone-agent-plan.md §5.1, §5.4): node actions
+ * The phone through iCode's accessibility service (docs/voice-and-phone-control.md): node actions
  * first — no coordinates, no gesture to animate — a gesture where a node has none, and Shizuku's real
- * input where Android refuses both (§5.11). After an act the screen is given time to settle: until a
+ * input where Android refuses both. After an act the screen is given time to settle: until a
  * window changes, then until they are quiet, never a fixed wait.
  */
 internal class AndroidPhoneControl(
@@ -186,7 +186,7 @@ internal class AndroidPhoneControl(
     }
 
     /**
-     * The screen settled (§5.4): a window changed after [since] — or none did within [START_MILLIS], the
+     * The screen settled: a window changed after [since] — or none did within [START_MILLIS], the
      * act changing nothing — then [QUIET_MILLIS] passed with no change; at most [CAP_MILLIS] in all.
      */
     private suspend fun settle(since: Long) {

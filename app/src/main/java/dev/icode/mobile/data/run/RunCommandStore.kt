@@ -10,7 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The commands saved on the Run tab (docs/run-tab-plan.md §2.2), by the user or the assistant, per
+ * The commands saved on the Run tab (docs/runtime-and-terminal.md), by the user or the assistant, per
  * workspace, in iCode's own storage rather than the project: `{"<workspace>": [{"id", "name",
  * "command"}]}`. A file that cannot be read holds nothing; the next save writes it whole again.
  */

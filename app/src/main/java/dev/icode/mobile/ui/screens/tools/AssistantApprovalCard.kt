@@ -42,10 +42,10 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * A call waiting for the user (docs/assistant-permissions-plan.md §4.3), in a box as the composer's,
+ * A call waiting for the user (docs/assistant-and-mcp.md), in a box as the composer's,
  * above it and aligned with it — its text where the composer's is: what it asks, the command (or the
  * file) on one line, what it reaches outside [workspace] when it does, and its answers. A tap on what
- * it asks [onDetails]: its step's sheet, with all it will do (docs/assistant-sheets-plan.md §2.3).
+ * it asks [onDetails]: its step's sheet, with all it will do (docs/assistant-and-mcp.md).
  */
 @Composable
 internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: String?, modifier: Modifier, onDetails: (() -> Unit)?) {
@@ -99,7 +99,7 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
 }
 
 /**
- * A turn waiting between its steps (docs/phone-agent-plan.md L5): its question, why, and Stop or go on —
+ * A turn waiting between its steps (docs/voice-and-phone-control.md): its question, why, and Stop or go on —
  * Continue past the step limit, Done after a step the user took.
  */
 @Composable

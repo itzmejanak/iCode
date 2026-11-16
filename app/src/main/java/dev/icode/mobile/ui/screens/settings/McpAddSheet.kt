@@ -37,7 +37,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Add Server (docs/mcp-plan.md §4.1): a pasted configuration, a local command, a remote address, or a
+ * Add Server (docs/assistant-and-mcp.md): a pasted configuration, a local command, a remote address, or a
  * server found in the MCP Registry, which opens its page filled in to check before it is added.
  */
 @Composable

@@ -113,7 +113,7 @@ class AndroidWorkspacePreferencesRepositoryTest {
             repository.setLineNumbers(false)
             repository.setMinimap(true)
             repository.setBracketMatching(false)
-            // On until turned off (docs/syntax-highlighting-plan.md D8).
+            // On until turned off (docs/editor-and-language-services.md).
             assertTrue(repository.values(null).first().editor.semanticHighlighting)
             repository.setSemanticHighlighting(false)
             repository.setIndentSizeOverride("/root/one", 6)

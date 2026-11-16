@@ -14,7 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The MCP servers the user added, and what iCode keeps for every server (docs/mcp-plan.md §5.4): the
+ * The MCP servers the user added, and what iCode keeps for every server (docs/assistant-and-mcp.md): the
  * preferences `icode.mcp`. A secret value, a sign-in's tokens and nothing else are encrypted, by a
  * Keystore key of their own; none of them is ever in what [servers] returns.
  */
@@ -72,7 +72,7 @@ internal class McpServerStore(
 
     /**
      * A workspace's server as its file declares it, with the user's own choices over it — on or off,
-     * each tool's — and its secret values said saved or not (M6).
+     * each tool's — and its secret values said saved or not.
      */
     fun declared(server: McpServer): McpServer = synchronized(lock) {
         val saved = preferences.getString(choicesKey(server.id), null)?.let(::JSONObject)
@@ -86,7 +86,7 @@ internal class McpServerStore(
         }
     }
 
-    /** A sign-in's tokens (M5), as [McpSignIn] keeps them; null when signed out. */
+    /** A sign-in's tokens, as [McpSignIn] keeps them; null when signed out. */
     fun signIn(id: String): String? = synchronized(lock) { preferences.getString(signInKey(id), null)?.let(decrypt) }
 
     fun signedIn(id: String): Boolean = synchronized(lock) { preferences.contains(signInKey(id)) }
@@ -97,7 +97,7 @@ internal class McpServerStore(
         }
     }
 
-    /** The sign-in on its way through the browser (M5): one at a time, kept so a process restarted meanwhile still finishes it. */
+    /** The sign-in on its way through the browser: one at a time, kept so a process restarted meanwhile still finishes it. */
     fun pendingSignIn(): String? = synchronized(lock) { preferences.getString(KEY_PENDING, null)?.let(decrypt) }
 
     fun savePendingSignIn(pending: String?) = synchronized(lock) {
@@ -106,7 +106,7 @@ internal class McpServerStore(
         }
     }
 
-    /** The configuration a workspace's server was trusted with, as [McpWorkspaceServers.fingerprint] says it (M6). */
+    /** The configuration a workspace's server was trusted with, as [McpWorkspaceServers.fingerprint] says it. */
     fun trusted(id: String): String? = synchronized(lock) { preferences.getString(trustKey(id), null) }
 
     fun trust(id: String, fingerprint: String?) = synchronized(lock) {

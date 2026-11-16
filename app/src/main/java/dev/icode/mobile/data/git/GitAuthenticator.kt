@@ -13,10 +13,9 @@ import java.io.File
 /**
  * Makes the user's credentials available to the real `git` binary.
  *
- * The application does not implement an account system of its own
- * (architecture.md section 15.3): it configures the mechanisms Git already
+ * The application does not implement an account system of its own. It configures the mechanisms Git already
  * has — a credentials file for HTTPS, an ordinary key pair for SSH, and gpg's
- * own keys for signing (docs/gpg-signing-plan.md §7) — and then stays out of
+ * own keys for signing (docs/source-control.md) — and then stays out of
  * the way.
  */
 internal class GitAuthenticator(

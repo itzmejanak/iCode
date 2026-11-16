@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import android.content.Context
 
 /**
- * The licences runtime tools accept (docs/android-toolchain-plan.md §4.2), each exactly as its owner
+ * The licences runtime tools accept (docs/runtime-and-terminal.md), each exactly as its owner
  * publishes it: `assets/runtime/licences/<id>.txt`. The License Agreement shows this text, and what
  * records its acceptance is derived from the same bytes, so the two cannot differ.
  */

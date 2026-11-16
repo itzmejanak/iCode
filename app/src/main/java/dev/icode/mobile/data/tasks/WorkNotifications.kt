@@ -11,13 +11,13 @@ import dev.icode.mobile.data.runtime.TerminalNotifications
 import dev.icode.mobile.domain.BackgroundItem
 
 /**
- * Background work in the notification drawer (docs/long-operations-plan.md §6), as the reference
+ * Background work in the notification drawer (docs/runtime-and-terminal.md), as the reference
  * shows it: per piece of work a silent progress notification — "Deleting… (1207 / 11813)", the item
  * in hand, a bar, Cancel where the work allows it. Work that waits on the user (the assistant asking
  * before a change) pops its question up while iCode is out of view. A tap opens iCode on the work.
  * [RuntimeForegroundService] posts them; progress rows sit in its group, under its summary, with the
  * terminal sessions. Work that stops short is told as a Problem notice, posted once
- * (docs/notices-redesign-plan.md D7). Each is keyed by its work's own key.
+ * (docs/engineering-rules.md). Each is keyed by its work's own key.
  */
 internal class WorkNotifications(private val shade: IcodeNotifications) {
     /** What each progress notification shows now, so an unchanged one is not posted again. */

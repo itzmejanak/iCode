@@ -41,8 +41,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * The explorers' operations on temporary Private and Shared folders (docs/explorer-gaps-plan.md §6,
- * F3): many copied, moved and duplicated; each answer to the question; a merge leaving `.git`;
+ * The explorers' operations on temporary Private and Shared folders (docs/workspaces-and-files.md):
+ * many copied, moved and duplicated; each answer to the question; a merge leaving `.git`;
  * Trash and restore with folders gone and names taken; undo and redo, and their refusal once
  * something changed; Recent and Favorites following.
  */

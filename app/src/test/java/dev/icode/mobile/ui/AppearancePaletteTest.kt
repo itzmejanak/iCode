@@ -8,7 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 
-/** The one place a palette is chosen (docs/theme-variants-plan.md D2). */
+/** The one place a palette is chosen (docs/design-and-navigation.md). */
 class AppearancePaletteTest {
     @Test fun `before the settings are read the app is drawn in iCode's dark`() {
         assertSame(IcodePalette.Dark, appearancePalette(null, systemDark = false))

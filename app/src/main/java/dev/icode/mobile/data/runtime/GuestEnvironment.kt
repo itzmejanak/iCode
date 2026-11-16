@@ -8,7 +8,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * The user's login environment (docs/runtime-contract-plan.md §3.3): what a fresh terminal's login
+ * The user's login environment (docs/runtime-and-terminal.md): what a fresh terminal's login
  * shell exports, for what runs on the user's behalf without one. Read with the user's own login shell,
  * interactive, so what an installer added to `~/.bashrc` is in it too; read again only when a profile
  * file changed. [of] gives each [GuestContext] its variables.

@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import java.io.File
 
 /**
- * iCode's shell integration (docs/agent-control-plan.md §3 A3): the file every bash tab iCode starts
+ * iCode's shell integration (docs/assistant-and-mcp.md): the file every bash tab iCode starts
  * runs as its rcfile, `bash --rcfile` [RCFILE] `-i`. It reads what a login bash reads — `/etc/profile`,
  * then the first of `~/.bash_profile`, `~/.bash_login` and `~/.profile` — so the user's own setup, a
  * prompt of theirs included, is as it was. Then it adds the marks a terminal reads ([TerminalMarks]):

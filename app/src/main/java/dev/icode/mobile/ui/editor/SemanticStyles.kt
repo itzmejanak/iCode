@@ -11,7 +11,7 @@ import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 
 /**
  * The grammar's [raw] styles as the editor draws them with a language server's runs over them
- * (docs/syntax-highlighting-plan.md D8). Sora 0.24 draws only what its analyzer sets, so the editor is
+ * (docs/editor-and-language-services.md). Sora 0.24 draws only what its analyzer sets, so the editor is
  * given these in its place: everything is [raw]'s but the spans, which read [raw]'s and lay [lines]'
  * runs over them. The analyzer goes on writing [raw]'s spans as it always does. Main thread.
  */

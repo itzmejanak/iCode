@@ -16,7 +16,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * RaTeX's own library on the phone (docs/markdown-rendering-plan.md §2.4, M3): the owner's formulas lay
+ * RaTeX's own library on the phone (docs/editor-and-language-services.md): the owner's formulas lay
  * out, refused LaTeX says why, and what would run away is stopped, not crashed on. The release is built
  * with `panic = "abort"`: a panic here would end the test process, so this run is the check.
  */

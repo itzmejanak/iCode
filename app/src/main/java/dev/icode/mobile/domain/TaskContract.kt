@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Long operations (docs/long-operations-plan.md): one model for every operation a user starts
+// Long operations (docs/runtime-and-terminal.md): one model for every operation a user starts
 // and may send to the background — its sheet, its notification and its result.
 
 /** A long operation the user started, while it runs, or after it failed until the user has seen why. */

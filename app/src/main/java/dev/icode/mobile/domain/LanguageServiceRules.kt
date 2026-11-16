@@ -1,8 +1,9 @@
 package dev.icode.mobile.domain
 
 /**
- * A language server as the user (or the assistant) set it up (docs/lsp-plan.md §5.1, architecture
- * §10.8). Each field is kept as the form edits it; [LanguageServiceRules] reads them. Process state is
+ * A language server as the user (or the assistant) set it up
+ * (docs/editor-and-language-services.md and docs/architecture.md). Each field is kept as the form edits
+ * it; [LanguageServiceRules] reads them. Process state is
  * never persisted.
  */
 data class LanguageServiceConfiguration(
@@ -155,7 +156,7 @@ object LanguageServiceRules {
 
     /**
      * Whether a server is asked for completions with [before] — the character before the caret, null at
-     * the file's start — just typed (docs/editor-completion-plan.md D2): a word's letter, or one of its
+     * the file's start — just typed (docs/editor-and-language-services.md): a word's letter, or one of its
      * own [triggers] (`.`, `"`, `<`). After a space or `;` it is not: the list closes there, as VS Code's.
      */
     fun asksCompletion(before: String?, triggers: Collection<String>): Boolean =

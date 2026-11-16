@@ -14,7 +14,7 @@ import java.io.File
 import dev.icode.mobile.domain.notices.FileNotices
 
 /**
- * iCode's files as other apps receive them (docs/open-with-plan.md): through its one FileProvider,
+ * iCode's files as other apps receive them (docs/workspaces-and-files.md): through its one FileProvider,
  * a URI for one file, granted for one hand-off — Android's Open with, its share sheet, or the camera
  * writing the assistant's photo.
  */
@@ -25,7 +25,7 @@ internal object SharedFiles {
 
     /**
      * Android's Open with: the apps that show [location]'s kind of file; one it cannot hand out is
-     * said through [dispatch]. One handed out is in Recent (docs/explorer-gaps-plan.md §3.14).
+     * said through [dispatch]. One handed out is in Recent (docs/workspaces-and-files.md).
      */
     fun open(context: Context, location: String, dispatch: (ICodeIntent) -> Unit) {
         val file = File(location)
@@ -36,7 +36,7 @@ internal object SharedFiles {
     }
 
     /**
-     * Android's share sheet, [locations] attached: many files in one share (§3.3). One it cannot hand
+     * Android's share sheet, [locations] attached: many files in one share. One it cannot hand
      * out is said through [dispatch], and nothing is shared.
      */
     fun share(context: Context, locations: List<String>, dispatch: (ICodeIntent) -> Unit) {

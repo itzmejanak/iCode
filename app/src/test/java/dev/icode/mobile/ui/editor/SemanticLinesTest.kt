@@ -16,7 +16,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** A server's tokens as runs over the editor's lines, kept through edits and laid over the grammar's spans (S7). */
+/** A server's tokens as runs over the editor's lines, kept through edits and laid over the grammar's spans. */
 class SemanticLinesTest {
     private val variable = SyntaxStyle(SyntaxRole.Variable)
     private val attribute = SyntaxStyle(SyntaxRole.Attribute)

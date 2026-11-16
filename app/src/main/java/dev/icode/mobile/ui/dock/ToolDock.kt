@@ -40,7 +40,7 @@ import dev.icode.mobile.ui.icon
 import dev.icode.mobile.ui.tint
 
 /**
- * The tool dock's state over every screen (docs/dock-navigation-plan.md D6, D8): whether its row is
+ * The tool dock's state over every screen (docs/design-and-navigation.md): whether its row is
  * open, and its suggestion, followed snapshot by snapshot even while the dock is hidden.
  */
 @Stable
@@ -74,13 +74,12 @@ internal fun rememberToolDock(snapshot: ICodeSnapshot, shown: WorkspaceTool?): T
 }
 
 /**
- * The dock in the floating stack, at its foot nearest the thumb unless the user moved it (D6, D11,
- * D13): in the workspace its place is kept, so the pills beside it never move, and it shows on the
+ * The dock in the floating stack, at its foot nearest the thumb unless the user moved it. In the workspace its place is kept, so the pills beside it never move, and it shows on the
  * tools' main screens only. Closed, it is its own icon, in the suggestion's tone; tapped, the six
  * tools open in one row from it, [DOCK_ORDER] from the icon outward. A tap switches to a tool as it
  * was left — the one suggested, to where the suggestion is — and closes the dock; its icon, Back, a
  * touch outside or a few seconds untouched close it too. Its icon tapped twice, or double tapped
- * closed, switches to the tool used before (D9).
+ * closed, switches to the tool used before.
  */
 @Composable
 internal fun ToolDock(dock: ToolDockState, navigation: NavigationState) {

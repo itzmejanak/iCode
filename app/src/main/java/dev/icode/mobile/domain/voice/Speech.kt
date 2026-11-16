@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.voice
 
-// Speech recognition and reading aloud with any provider (docs/speech-plan.md, docs/tts-plan.md): what
+// Speech recognition and reading aloud with any provider (docs/voice-and-phone-control.md): what
 // kinds of provider there are, a provider as the user set it up, and what a hearing or a speech
 // session that failed says, the same for every one.
 
@@ -49,7 +49,7 @@ enum class SpeechProviderKind(
      */
     OpenAI(
         "OpenAI", live = true, needsKey = true, asksAddress = false, models = listOf("gpt-live-transcribe", "gpt-transcribe"), host = "api.openai.com",
-        // Its Speech API shuts down on 2027-01-06; its spec sends new integrations to gpt-realtime-2.1-mini (docs/tts-plan.md §9 D3).
+        // Its Speech API shuts down on 2027-01-06; its spec sends new integrations to gpt-realtime-2.1-mini (docs/voice-and-phone-control.md).
         speaking = SpeakingKind(
             host = "api.openai.com",
             voices = Voices.Fixed(SpeakingKind.OPENAI_VOICES),
@@ -77,7 +77,7 @@ enum class SpeechProviderKind(
         speaking = SpeakingKind(host = "texttospeech.googleapis.com", voices = Voices.Listed, speeds = SpeakingKind.SPEEDS),
     ),
 
-    /** Azure AI Speech's text-to-speech REST API, with a resource's key and region. It does not listen yet (docs/speech-plan.md §9 D2). */
+    /** Azure AI Speech's text-to-speech REST API, with a resource's key and region. It does not listen yet (docs/voice-and-phone-control.md). */
     Azure(
         "Azure AI Speech", live = false, needsKey = true, asksAddress = false, models = emptyList(), host = null, hears = false,
         speaking = SpeakingKind(host = "{region}.tts.speech.microsoft.com", voices = Voices.Listed, regions = Regions.Typed("eastus")),
@@ -152,10 +152,10 @@ data class SpeechProvider(
     }
 }
 
-/** The two ways a provider serves: it hears the user, or it reads the answers aloud (docs/tts-plan.md). */
+/** The two ways a provider serves: it hears the user, or it reads the answers aloud (docs/voice-and-phone-control.md). */
 enum class SpeechWay { Listening, Speaking }
 
-/** Why a hearing heard nothing, or a speech session said nothing, the same for every provider (docs/speech-plan.md §4.6). */
+/** Why a hearing heard nothing, or a speech session said nothing, the same for every provider (docs/voice-and-phone-control.md). */
 enum class SpeechFailure {
     NoKey,
     KeyRefused,

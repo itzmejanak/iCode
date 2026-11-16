@@ -17,7 +17,7 @@ import java.util.UUID
 import org.json.JSONObject
 
 /**
- * Trash, one per place (docs/explorer-gaps-plan.md §3.7), so a delete is a rename on the item's own
+ * Trash, one per place (docs/workspaces-and-files.md), so a delete is a rename on the item's own
  * volume, never a copy: Private's beside the workspaces, outside what the runtime, the assistant and
  * Android's Files app see; Shared's in `Android/media/<package>/Trash`, which Android removes with
  * iCode, a `.nomedia` keeping trashed pictures out of galleries. Each item is `files/<id>`, the item

@@ -26,7 +26,7 @@ import dev.icode.mobile.domain.KeyRows
 import dev.icode.mobile.ui.LeftToRight
 
 /**
- * A keys row's settings (docs/editor-plan.md §4.1), the editor's or the terminal's. Closed, the card
+ * A keys row's settings (docs/editor-and-language-services.md), the editor's or the terminal's. Closed, the card
  * shows how many keys the row has and the row itself, in its order. Open, it holds the row's keys,
  * every one the same size: hold one and drag it to move it, tap one to take it out. Below them are the
  * keys left out, each added at the row's end with a tap, and Reset to Default: all of [all], in their

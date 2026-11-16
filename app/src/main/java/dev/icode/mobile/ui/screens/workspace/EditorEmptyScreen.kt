@@ -49,7 +49,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.parentName
 
 /**
- * The editor with no file open (docs/screens-polish-plan.md D2): one list that scrolls above the
+ * The editor with no file open (docs/design-and-navigation.md): one list that scrolls above the
  * Terminal and Problems bar — four ways in as equal tiles, then every file of this workspace opened
  * lately, as the explorer lists files. The mark and its words only while there are none yet.
  */
@@ -64,7 +64,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
         IcodeTopBar(
             title = state.activeWorkspace,
             subtitle = state.activePath,
-            // Back as anywhere (docs/dock-navigation-plan.md D4): the tool used before, then the Launcher.
+            // Back as anywhere (docs/design-and-navigation.md): the tool used before, then the Launcher.
             onBack = actions.back,
         )
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = IcodeSpacing.SectionGap)) {

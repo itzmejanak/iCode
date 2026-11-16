@@ -13,7 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** docs/assistant-permissions-plan.md §4.2, row by row: what each call asks in each mode. */
+/** docs/assistant-and-mcp.md, row by row: what each call asks in each mode. */
 class AssistantPermissionsTest {
     private fun asks(kind: AssistantToolKind, outside: Boolean) =
         listOf(AskFirst, AutoInWorkspace, FullAccess).map { AssistantPermissions.ask(it, kind, outside) }
@@ -50,7 +50,7 @@ class AssistantPermissionsTest {
         assertEquals(AskFirst, AssistantPermissions.effective(AskFirst, allowedInWorkspace = false))
         assertEquals(AutoInWorkspace, AssistantPermissions.effective(AutoInWorkspace, allowedInWorkspace = true))
         assertEquals(FullAccess, AssistantPermissions.effective(FullAccess, allowedInWorkspace = false))
-        // In no workspace there is none to run in without asking: only Full access asks nothing (docs/home-plan.md §2).
+        // In no workspace there is none to run in without asking: only Full access asks nothing (docs/design-and-navigation.md).
         assertEquals(AskFirst, AssistantPermissions.effective(AutoInWorkspace, allowedInWorkspace = false, inWorkspace = false))
         assertEquals(AskFirst, AssistantPermissions.effective(AskFirst, allowedInWorkspace = true, inWorkspace = false))
         assertEquals(FullAccess, AssistantPermissions.effective(FullAccess, allowedInWorkspace = false, inWorkspace = false))

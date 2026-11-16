@@ -10,7 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The servers a workspace's `.mcp.json` declares (docs/mcp-plan.md M6), read as a paste is
+ * The servers a workspace's `.mcp.json` declares (docs/assistant-and-mcp.md), read as a paste is
  * ([McpRules.import]). One starts only once the user trusts it, and trust is kept with a hash of its
  * configuration: a changed one asks again. `${VAR}` is filled from the user's login environment, a
  * value the user kept in iCode coming first.

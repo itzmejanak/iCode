@@ -30,7 +30,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * The editor's Git change markers (docs/editor-plan.md §3): each open file's version in its
+ * The editor's Git change markers (docs/editor-and-language-services.md): each open file's version in its
  * repository's index, read when the file opens and again when the index file changes, and the
  * file's changes against it, computed again 200 ms after its text changes, as VS Code waits.
  */

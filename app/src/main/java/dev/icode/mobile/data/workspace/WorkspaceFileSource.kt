@@ -39,9 +39,9 @@ internal data class WorkspaceDocument(
 internal class ChangedOnDiskException : IOException("The file changed on disk since it was opened")
 
 /**
- * Files as iCode reads and writes them (docs/workspace-storage-plan.md): the Explorer's listing of a
+ * Files as iCode reads and writes them (docs/workspaces-and-files.md): the Explorer's listing of a
  * workspace, where a link leading out of it is not shown; the editor's and the assistant's reading
- * and saving, the assistant's anywhere in the runtime (docs/runtime-contract-plan.md §4.3); new files
+ * and saving, the assistant's anywhere in the runtime (docs/runtime-and-terminal.md); new files
  * and folders.
  */
 internal class WorkspaceFileSource(private val guest: GuestPaths) {

@@ -39,8 +39,8 @@ import kotlinx.serialization.SerializationException
 internal typealias KoogRequest = suspend AIAgentLLMWriteSession.() -> Message.Assistant
 
 /**
- * One turn on Koog's agent (§12 R1): its strategy, its requests, and what it reports
- * (docs/runtime-foundation-plan.md §3.8).
+ * One turn on Koog's agent: its strategy, its requests, and what it reports
+ * (docs/runtime-and-terminal.md).
  */
 internal object KoogTurn {
     /**
@@ -61,7 +61,7 @@ internal object KoogTurn {
         val request by node<String, Message.Assistant> { llm.writeSession { stream?.invoke(this) ?: requestLLM() } }
         val runTools by nodeExecuteTools()
         // Koog's nodeLLMSendToolResults: the results as one user message, then the next request. The
-        // screen the step's calls left goes with them, where the client takes a picture (L2).
+        // screen the step's calls left goes with them, where the client takes a picture.
         val sendResults by node<ReceivedToolResults, Message.Assistant> { received ->
             // Taken whether or not it is sent, so a later step never sends an older one.
             val screen = picture()?.takeIf { place != PicturePlace.None }?.let(::screenPart)
@@ -98,7 +98,7 @@ internal object KoogTurn {
         edge(sendResults forwardTo nodeFinish onTextMessage { true })
     }
 
-    /** Where a step's picture goes for the model a turn asks (docs/phone-agent-plan.md §3.6, read in Koog's clients). */
+    /** Where a step's picture goes for the model a turn asks (docs/voice-and-phone-control.md, read in Koog's clients). */
     enum class PicturePlace {
         /** A model that sees no pictures: it is dropped. */
         None,
@@ -142,7 +142,7 @@ internal object KoogTurn {
     }
 
     /**
-     * Whether [kind]'s replies stream (docs/runtime-foundation-plan.md §1.1, D8): Koog's streams are
+     * Whether [kind]'s replies stream (docs/runtime-and-terminal.md): Koog's streams are
      * sound for OpenRouter and for OpenAI's Chat Completions, which every OpenAI-compatible server
      * speaks; for Anthropic, Gemini and Ollama they lose what a turn needs.
      */

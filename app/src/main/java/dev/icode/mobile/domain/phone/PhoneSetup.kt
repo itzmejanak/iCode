@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.phone
 
 /**
- * Settings › Assistant › Phone control (docs/phone-agent-plan.md §5.9, P7): the steps that turn it on,
+ * Settings › Assistant › Phone control (docs/voice-and-phone-control.md): the steps that turn it on,
  * each with whether it is done, read from [PhoneAccess] alone. Restricted settings cannot be read
  * back from Android, so that step counts as done once the service is on.
  */

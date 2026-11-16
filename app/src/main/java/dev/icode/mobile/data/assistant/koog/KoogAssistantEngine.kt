@@ -35,7 +35,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The assistant on Koog (§4.2, §12 R1): Koog's standard agent — model, tools, results, model again,
+ * The assistant on Koog: Koog's standard agent — model, tools, results, model again,
  * until a reply calls no tool — built per turn over the chat so far ([KoogTurn]). Its events tell the
  * page each reply, as it is written where it streams, each call as it starts and ends, and the
  * tokens used.

@@ -35,7 +35,7 @@ import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileNews
 
 /**
- * The undo pill's state, kept over every screen as the bell's is (docs/explorer-gaps-plan.md §3.8):
+ * The undo pill's state, kept over every screen as the bell's is (docs/workspaces-and-files.md):
  * the change it tells, and whether it is awake — after a change, for its time — or at rest, faded
  * until touched. Each change is told once: the last one told is kept as the screen turns, and not
  * told again.
@@ -99,7 +99,7 @@ internal fun rememberUndoPill(news: FileNews?): UndoPillState {
  * in its edge on its time, which counts only while the stack is shown ([shownFor]): a change made
  * under a sheet wakes it for its time once the sheet closes, and a sheet opened while it is awake
  * stops its time, which then runs on from where it stopped. A tap opens its sheet ([UndoSheet])
- * and changes nothing (owner's choice, 2026-11-11: docs/notices-redesign-plan.md D5). TalkBack reads
+ * and changes nothing (owner's choice, 2026-11-11: docs/engineering-rules.md). TalkBack reads
  * the change told. The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
  */
 @Composable
@@ -124,7 +124,7 @@ internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
 }
 
 /**
- * What the undo pill opens (docs/notices-redesign-plan.md D5): the change last made or undone, and
+ * What the undo pill opens (docs/engineering-rules.md): the change last made or undone, and
  * where — "Moved notes.md to Trash", "phone · src" — then what Undo and what Redo would do, each with
  * its button. A look never changes a file; a button closes the sheet, and the pill tells what it did.
  * It closes by itself once there is nothing left to undo or redo.

@@ -45,7 +45,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant › Voice › Speech Providers (docs/speech-plan.md §5, docs/tts-plan.md §5): the
+ * Settings › Assistant › Voice › Speech Providers (docs/voice-and-phone-control.md): the
  * providers that hear the user or read the answers aloud, Android's first, the one that listens and the
  * one that speaks marked; + adds one, by its kind.
  */
@@ -125,7 +125,7 @@ internal val SpeechWay.doing: String
     }
 
 /**
- * Who serves [way], as a sheet from the bottom of the Voice page (docs/tts-plan.md §5): the providers that
+ * Who serves [way], as a sheet from the bottom of the Voice page (docs/voice-and-phone-control.md): the providers that
  * can, the one chosen checked, and Providers › at its foot, where one is added or changed.
  */
 @Composable

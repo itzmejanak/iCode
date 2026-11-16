@@ -28,9 +28,8 @@ import org.json.JSONObject
 /**
  * Installs and verifies the Ubuntu root filesystem.
  *
- * Nothing is reported as ready until a command actually runs inside it
- * (architecture.md section 14.1: "never reports readiness before health checks
- * pass"). A partial download or a failed extraction leaves the runtime marked
+ * Nothing is reported as ready until a command actually runs inside it. A partial download or a
+ * failed extraction leaves the runtime marked
  * not-installed rather than broken-but-ready.
  */
 internal class RuntimeInstaller(

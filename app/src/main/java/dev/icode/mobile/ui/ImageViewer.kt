@@ -38,7 +38,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * A picture in a sheet, its name for the title (docs/file-viewers-plan.md): whole, in the height the
+ * A picture in a sheet, its name for the title (docs/workspaces-and-files.md): whole, in the height the
  * sheet leaves; two fingers pinch it up to [MAX_ZOOM] times larger and move it while it is; a double
  * tap goes to [DOUBLE_TAP_ZOOM] and back. Decoded as large as the screen, off the main thread; one
  * that cannot be read is [onUnreadable].

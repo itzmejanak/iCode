@@ -20,9 +20,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * What the editor, the pages and the assistant ask of the servers (docs/lsp-plan.md §5.5): each request
+ * What the editor, the pages and the assistant ask of the servers (docs/editor-and-language-services.md): each request
  * goes to the ready servers that serve the file and said they offer it, after the file's text has
- * reached them, bounded by its own time (D7).
+ * reached them, bounded by its own time.
  */
 internal class LanguageRequests(
     private val stateHolder: ICodeStateHolder,
@@ -41,7 +41,7 @@ internal class LanguageRequests(
         val text = stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text.orEmpty()
         val before = text.getOrNull(LspText.offsetOf(text, position) - 1)?.toString()
         return serving(location, { it.completion }) { sessions -> sessions.flatMap { session ->
-            // A space, `;`, `(` asks nothing: a word is typed, or the server's own trigger (docs/editor-completion-plan.md D2).
+            // A space, `;`, `(` asks nothing: a word is typed, or the server's own trigger (docs/editor-and-language-services.md).
             if (!LanguageServiceRules.asksCompletion(before, session.capabilities.completionTriggers)) return@flatMap emptyList()
             val trigger = before?.takeIf { it in session.capabilities.completionTriggers }
             val result = runCatching {
@@ -214,7 +214,7 @@ internal class LanguageRequests(
         problem.code?.let { put("code", it) }
     }
 
-    /** A server's `workspace/applyEdit`, applied as iCode's own edits are (§5.7). */
+    /** A server's `workspace/applyEdit`, applied as iCode's own edits are. */
     suspend fun applyServerEdit(session: LanguageServerSession, edit: JsonObject): Boolean = edits.apply(session, edit) == null
 
     companion object {

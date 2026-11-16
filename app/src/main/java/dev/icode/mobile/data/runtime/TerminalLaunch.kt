@@ -16,7 +16,7 @@ internal class TerminalLaunch private constructor(
     val title: String? = null,
     /** The process whose output the tab shows; null for a shell. */
     val follows: String? = null,
-    /** The chat whose tab it is (docs/agent-control-plan.md §3 A4); null for the user's. */
+    /** The chat whose tab it is (docs/assistant-and-mcp.md); null for the user's. */
     val assistant: String? = null,
 ) {
     companion object {
@@ -41,7 +41,7 @@ internal class TerminalLaunch private constructor(
         }
 
         /**
-         * A chat's tab (docs/agent-control-plan.md §3 A4): bash with iCode's integration, whatever the
+         * A chat's tab (docs/assistant-and-mcp.md): bash with iCode's integration, whatever the
          * login shell, in [workspaceHostPath] — in no workspace, where a login starts, `$HOME` — where
          * nothing pages. Null when the runtime is not installed.
          */
@@ -64,7 +64,7 @@ internal class TerminalLaunch private constructor(
         }
 
         /**
-         * A tab of [output]'s own (docs/runtime-foundation-plan.md §6 P3): `tail -F` of its log, from
+         * A tab of [output]'s own (docs/runtime-and-terminal.md): `tail -F` of its log, from
          * as many lines back as the terminal keeps, then everything it prints. Null when the runtime
          * is not installed.
          */

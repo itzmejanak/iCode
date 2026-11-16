@@ -51,7 +51,7 @@ class GitCommandLineTest {
 
     @Test
     fun `no ownership check is waived - under PRoot's fake root every repository is root's own`() {
-        // docs/runtime-contract-plan.md F10: the user's Git configuration decides, as on any Linux.
+        // docs/runtime-and-terminal.md: the user's Git configuration decides, as on any Linux.
         assertTrue(GitCommandLine.argv(listOf("status")).none { it.startsWith("safe.directory") })
     }
 

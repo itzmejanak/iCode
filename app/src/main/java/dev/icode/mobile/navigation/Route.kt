@@ -18,7 +18,7 @@ enum class Route(
     /** Drawn as a sheet over the live screen below it, not as a page of its own. */
     val sheet: Boolean = false,
     /**
-     * The tool whose main screen this is (docs/dock-navigation-plan.md D1): asked for, that tool is
+     * The tool whose main screen this is (docs/design-and-navigation.md): asked for, that tool is
      * switched to rather than a page pushed. Null for a page, which opens in the tool it is opened from.
      */
     val tool: WorkspaceTool? = null,
@@ -30,19 +30,19 @@ enum class Route(
     Splash("3:11", "Splash", RouteGroup.ENTRY),
     RuntimeInstalling("3:27", "Runtime installing", RouteGroup.ENTRY),
     PermissionExplanation("3:90", "Permission explanation", RouteGroup.ENTRY),
-    // Owner's request (2026-10-29): ask once whether to share anonymous device info (docs/device-telemetry-plan.md).
+    // Owner's request (2026-10-29): ask once whether to share anonymous device info (PRIVACY.md).
     DeviceInfoConsent(null, "Device info", RouteGroup.ENTRY),
     LauncherHome("3:124", "Launcher home", RouteGroup.ENTRY, leavesWorkspace = true),
     LauncherEmpty("3:202", "Launcher empty", RouteGroup.ENTRY, leavesWorkspace = true),
     // Owner's request (2026-09-25): notices move off the launcher onto their own page.
     Notifications(null, "Notifications", RouteGroup.ENTRY),
     // Owner's request (2026-09-30): choose the runtime's tools, as Android Studio's setup does
-    // (docs/runtime-tools-plan.md §3.5).
+    // (docs/runtime-and-terminal.md).
     RuntimeTools(null, "Runtime tools", RouteGroup.ENTRY),
     // Owner's request (2026-10-01, 2026-10-14): every workspace, managed in one place, and phone storage
-    // beside it — the file explorer of both places, drawing Open Folder's frame (docs/storage-explorer-plan.md).
+    // beside it — the file explorer of both places, drawing Open Folder's frame (docs/workspaces-and-files.md).
     Workspaces("2003:117", "Workspaces", RouteGroup.ENTRY),
-    // The same file explorer, choosing where a clone goes (workspace-destinations-plan.md §2.2).
+    // The same file explorer, choosing where a clone goes (docs/workspaces-and-files.md).
     ChooseDestination(null, "Choose where", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
     CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY, makesWorkspace = true),
@@ -55,9 +55,9 @@ enum class Route(
     QuickOpen("3:760", "Quick open", RouteGroup.TOOLS, tool = WorkspaceTool.Search),
     BranchSelector("3:796", "Branch selector", RouteGroup.TOOLS, sheet = true),
     // Owner's request (2026-10-01): the repository is chosen as the branch is, from Source Control's
-    // bottom bar (workspace-destinations-plan.md D7).
+    // bottom bar (docs/workspaces-and-files.md).
     RepositorySelector(null, "Repository selector", RouteGroup.TOOLS, sheet = true),
-    // Owner's request (2026-10-22): HEAD's history from Last Commit's corner (docs/git-history-plan.md).
+    // Owner's request (2026-10-22): HEAD's history from Last Commit's corner (docs/source-control.md).
     GitHistory(null, "Commit history", RouteGroup.TOOLS, sheet = true),
     EditorFind("3:835", "Editor find", RouteGroup.TOOLS),
     TerminalExpanded("3:1070", "Terminal expanded", RouteGroup.TOOLS, tool = WorkspaceTool.Terminal),
@@ -80,36 +80,36 @@ enum class Route(
     TerminalSettings("2003:500", "Terminal settings", RouteGroup.SETTINGS),
     StorageSettings("2003:575", "Storage settings", RouteGroup.SETTINGS),
     // Owner's request (2026-10-27): what storage holds, kind by kind, and the explorer's views of it
-    // (docs/explorer-gaps-plan.md §3.10).
+    // (docs/workspaces-and-files.md).
     ManageStorage(null, "Manage storage", RouteGroup.SETTINGS),
     About("2003:656", "About iCode", RouteGroup.SETTINGS),
     ExternalFileChange("2003:770", "External file change", RouteGroup.RECOVERY),
     DocumentRecovery("2003:813", "Document recovery", RouteGroup.RECOVERY),
     WorkspaceSettings("2003:886", "Workspace settings", RouteGroup.SETTINGS),
-    // Owner's request (2026-10-01): iCode's own assistant, on Koog (docs/assistant-koog-plan.md).
+    // Owner's request (2026-10-01): iCode's own assistant, on Koog (docs/assistant-and-mcp.md).
     Assistant(null, "Assistant", RouteGroup.TOOLS, tool = WorkspaceTool.Assistant),
     AssistantSettings(null, "Assistant settings", RouteGroup.SETTINGS),
     AssistantProvider(null, "Assistant provider", RouteGroup.SETTINGS),
     // Owner's request (2026-11-03): Assistant settings lead to their own pages, providers among them.
     AssistantProviders(null, "Providers", RouteGroup.SETTINGS),
-    // Owner's request (2026-11-03): speak to the assistant, hear its answers (phone-agent-plan.md §5.8).
+    // Owner's request (2026-11-03): speak to the assistant, hear its answers (docs/voice-and-phone-control.md).
     VoiceSettings(null, "Voice", RouteGroup.SETTINGS),
-    // Owner's request (2026-11-06): speech recognition with any provider (speech-plan.md §5).
+    // Owner's request (2026-11-06): speech recognition with any provider (docs/voice-and-phone-control.md).
     SpeechProviders(null, "Speech providers", RouteGroup.SETTINGS),
     SpeechProvider(null, "Speech provider", RouteGroup.SETTINGS),
-    // Owner's request (2026-11-03): the assistant on the whole phone (phone-agent-plan.md §5.9, P7).
+    // Owner's request (2026-11-03): the assistant on the whole phone (docs/voice-and-phone-control.md).
     PhoneControl(null, "Phone control", RouteGroup.SETTINGS),
     ShizukuSetup(null, "Shizuku", RouteGroup.SETTINGS),
-    // Owner's request (2026-11-05): MCP servers' tools in the assistant's chats (docs/mcp-plan.md §4).
+    // Owner's request (2026-11-05): MCP servers' tools in the assistant's chats (docs/assistant-and-mcp.md).
     McpServers(null, "MCP servers", RouteGroup.SETTINGS),
     McpServer(null, "MCP server", RouteGroup.SETTINGS),
-    // Owner's request (2026-10-08): Git's credentials and the commit messages' model (commit-message-generator-plan.md M8).
+    // Owner's request (2026-10-08): Git's credentials and the commit messages' model (docs/assistant-and-mcp.md).
     SourceControlSettings(null, "Source control settings", RouteGroup.SETTINGS),
 }
 
 /**
  * Asked for while the app's pages are on screen, it opens there, outside the workspace: Terminal's own
- * tab, its tabs then starting in `$HOME`, and the Assistant, on the chats in no workspace (docs/home-plan.md §2).
+ * tab, its tabs then starting in `$HOME`, and the Assistant, on the chats in no workspace (docs/design-and-navigation.md).
  */
 val Route.opensOutside: Boolean get() = this == Route.TerminalExpanded || this == Route.Assistant
 

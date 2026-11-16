@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 /**
- * The language services' one owner (docs/lsp-plan.md §1): their configurations, the servers running
+ * The language services' one owner (docs/editor-and-language-services.md): their configurations, the servers running
  * from them, the documents those have open and what they report. The Languages pages reach it
  * through [handle], the editor through [features], the assistant through its tools
  * (LanguageServiceTools.kt): the same operations, so none of them has a path of its own.
@@ -195,7 +195,7 @@ internal class LanguageServices(
 
     /**
      * A change the user asked for, run to its end — the gateway shows it busy until then
-     * (docs/loading-plan.md §4.1) — and its failure said as a notice.
+     * (docs/design-and-navigation.md) — and its failure said as a notice.
      */
     suspend fun perform(intent: LanguageIntent) {
         // Each by its server's name, read before what was asked is done: a removed one has none after.

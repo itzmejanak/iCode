@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 
 /**
- * Koog's models in iCode's words (§2, §12 R3–R4, §13 P2–P4): Koog's own when its catalogue has one,
+ * Koog's models in iCode's words: Koog's own when its catalogue has one,
  * so its capabilities and limits are Koog's; otherwise a model that chats and calls tools, with
  * what the user — or its server — says of it.
  */
@@ -79,7 +79,7 @@ internal object KoogModels {
     }
 
     /**
-     * The efforts iCode can send for [model] with [kind] (§12 R3): only for a model that reasons —
+     * The efforts iCode can send for [model] with [kind]: only for a model that reasons —
      * Koog's word for it, or the user's for one it does not know. Koog's own fields where its client
      * has one; for OpenRouter and an OpenAI-compatible server, the field their APIs read
      * ([KoogParams]), so a model there that reasons has its effort too (owner's request, 2026-11-04).

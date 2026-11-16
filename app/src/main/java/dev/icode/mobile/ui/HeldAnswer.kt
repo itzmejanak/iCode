@@ -14,7 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * A question held open over the work its answer started (docs/loading-plan.md §4.2): restoring a
+ * A question held open over the work its answer started (docs/design-and-navigation.md): restoring a
  * draft, reloading a file changed on disk, clearing the cache. [answer] sends the answer and closes
  * the question once its work has ended; meanwhile [answering] is that answer, so the sheet shows which
  * button is working and takes no other. A [PendingRequest] does the same for a request answered by id.

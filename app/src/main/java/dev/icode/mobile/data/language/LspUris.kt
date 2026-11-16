@@ -7,7 +7,7 @@ import java.net.URI
 /**
  * Files as servers name them: `file://` URIs of the path inside the runtime, where every server runs
  * (`/workspace/<name>/…`), and back to the canonical host location iCode keys documents by. The one
- * place either way is made (docs/lsp-plan.md §2.1, "Paths").
+ * place either way is made (docs/editor-and-language-services.md, "Paths").
  */
 internal class LspUris(private val paths: GuestPaths) {
     /** [location]'s URI; null for a file the runtime cannot see. */

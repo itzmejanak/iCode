@@ -50,7 +50,7 @@ object OnboardingRoute {
 
     /**
      * Where onboarding ends: the device-info question, asked once and last — after everything
-     * iCode needs to work — then the launcher (docs/device-telemetry-plan.md §4).
+     * iCode needs to work — then the launcher (PRIVACY.md).
      */
     fun home(deviceInfoPending: Boolean): Route = if (deviceInfoPending) Route.DeviceInfoConsent else Route.LauncherHome
 }

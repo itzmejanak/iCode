@@ -23,12 +23,12 @@ import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
-// The providers that answer one request per sentence (docs/tts-plan.md §4.3): each sentence's audio as
+// The providers that answer one request per sentence (docs/voice-and-phone-control.md): each sentence's audio as
 // 16-bit mono PCM, streamed where the API streams it, and the voices each lists for its page. What is
 // read aloud goes only to the provider that speaks, and is never logged.
 
 /**
- * Google Cloud Text-to-Speech v1's `text:synthesize` (§1.5): raw `PCM` at 24 kHz, base64, the key in
+ * Google Cloud Text-to-Speech v1's `text:synthesize`: raw `PCM` at 24 kHz, base64, the key in
  * `X-Goog-Api-Key`. Google needs a language: the phone's when none is set; its voice by name, or the
  * one Google gives the language.
  */
@@ -74,7 +74,7 @@ internal class GoogleVoice(private val http: HttpClient, private val key: String
 }
 
 /**
- * ElevenLabs' `/v1/text-to-speech/{voice}/stream` (§1.7): `pcm_24000`, played as it streams, the key in
+ * ElevenLabs' `/v1/text-to-speech/{voice}/stream`: `pcm_24000`, played as it streams, the key in
  * `xi-api-key`, the sentence before sent as `previous_text` so the voice keeps its flow. Its voice is
  * chosen from those its account lists, the first when none is.
  */
@@ -123,7 +123,7 @@ internal class ElevenLabsVoice(private val http: HttpClient, private val key: St
 }
 
 /**
- * Azure AI Speech's text-to-speech REST API (§1.6): the sentence escaped into SSML with the voice and
+ * Azure AI Speech's text-to-speech REST API: the sentence escaped into SSML with the voice and
  * language, `riff-24khz-16bit-mono-pcm` back — a WAV file, read by its chunks as it streams. The key in
  * `Ocp-Apim-Subscription-Key`. Its voice is one Azure lists for the language, the first when none is.
  */
@@ -185,7 +185,7 @@ internal class AzureVoice(private val http: HttpClient, private val key: String,
 }
 
 /**
- * A server that speaks OpenAI's `/audio/speech` (§1.2): `model`, `voice`, `input`, `response_format=wav`
+ * A server that speaks OpenAI's `/audio/speech`: `model`, `voice`, `input`, `response_format=wav`
  * — the rate read from the file — and `speed`. [address] is up to and including `/v1`, as for listening.
  */
 internal class CompatibleVoice(private val http: HttpClient, private val address: String, private val key: String?) : Synthesis {

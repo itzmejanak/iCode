@@ -34,9 +34,9 @@ import kotlinx.coroutines.launch
  * visible notification is the supported way to continue (PR-TERM-07). It runs
  * while there is work — a running terminal session, or background work: a task,
  * a Git transfer, the runtime install, a package install
- * (docs/long-operations-plan.md §6) — and stops itself when there is none. It
+ * (docs/runtime-and-terminal.md) — and stops itself when there is none. It
  * observes that work instead of being told by a screen, because the work
- * outlives every screen (docs/terminal-background-plan.md).
+ * outlives every screen (docs/runtime-and-terminal.md).
  *
  * Its own notification says what runs ("1 session · 1 task running") and is the
  * parent of the session rows, each with Exit and a wakelock toggle; tapping a

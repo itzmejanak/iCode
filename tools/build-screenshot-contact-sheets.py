@@ -20,7 +20,7 @@ def main() -> None:
     destination = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("artifacts/review")
     screenshots = sorted(source.glob("*.png"))
     # 40 design frames, 39 routes: frame 3:55 "Runtime error" is the failed state
-    # of 3:27 and has no route of its own (docs/integration-plan.md).
+    # of 3:27 and has no route of its own (docs/design-and-navigation.md).
     expected = 39
     if len(screenshots) != expected:
         raise SystemExit(f"Expected {expected} screenshots in {source}, found {len(screenshots)}.")

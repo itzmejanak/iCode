@@ -3,16 +3,16 @@ package dev.icode.mobile.domain
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** MCP's rules that need no server (docs/mcp-plan.md §4.1, §6.1): pasted configurations, checks, names. */
+/** MCP's rules that need no server (docs/assistant-and-mcp.md): pasted configurations, checks, names. */
 object McpRules {
-    /** A tool call's own time, per server by default (§6.5). */
+    /** A tool call's own time, per server by default. */
     const val TOOL_TIMEOUT_SECONDS = 120
     private val TIMEOUTS = 5..1800
 
-    /** Tools a request offers at most: OpenAI's count, the narrowest (§2.4). */
+    /** Tools a request offers at most: OpenAI's count, the narrowest supported provider limit. */
     const val MAX_TOOLS = 128
 
-    /** A tool's name for the model: starts with a letter, `A–Z a–z 0–9 _ -`, at most 64 (§2.4). */
+    /** A tool's name for the model: starts with a letter, `A–Z a–z 0–9 _ -`, at most 64. */
     const val NAME_LIMIT = 64
     private const val KEY_LIMIT = 16
 
@@ -20,7 +20,7 @@ object McpRules {
     data class Imported(val servers: List<McpServer>, val ignored: List<String>)
 
     /**
-     * The servers in [json] (§4.1): an `mcpServers` map, a `servers` map, a map of names to servers,
+     * The servers in [json]: an `mcpServers` map, a `servers` map, a map of names to servers,
      * or one server, named [single]. Throws [IllegalArgumentException] with words the sheet shows.
      */
     fun import(json: String, single: String = "Server"): Imported {
@@ -57,7 +57,7 @@ object McpRules {
         return McpServer(id = "", name = name.trim(), key = "", transport = transport, enabled = !body.optBoolean("disabled", false))
     }
 
-    /** Each value secret unless marked plain (D8); one that names a variable waits for the user's value. */
+    /** Each value is secret unless marked plain; one that names a variable waits for the user's value. */
     private fun values(body: JSONObject?): List<McpValue> = body?.keys()?.asSequence()?.map { name ->
         val value = body.optString(name)
         if (PLACEHOLDER.containsMatchIn(value)) McpValue(name, null, secret = true, hint = value) else McpValue(name, value, secret = true)
@@ -99,7 +99,7 @@ object McpRules {
         }
     }
 
-    /** [name] as a tool prefix (§6.1): lower case, `a–z 0–9 _`, a letter first, at most 16, unique among [taken]. */
+    /** [name] as a unique lowercase tool prefix: `a–z 0–9 _`, a letter first, at most 16 characters. */
     fun key(name: String, taken: Collection<String>): String {
         val cleaned = name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "server" }
         val base = (if (cleaned.first().isLetter()) cleaned else "s$cleaned").take(KEY_LIMIT).trimEnd('_')
@@ -108,7 +108,7 @@ object McpRules {
     }
 
     /**
-     * [tool] of the server keyed [key] as the model calls it (§6.1): `<key>__<tool>`, other characters
+     * [tool] of the server keyed [key] as the model calls it: `<key>__<tool>`, other characters
      * `_`; a name too long, or one [taken] already, cut and given its own hash. iCode's own tools never
      * hold `__`, so they never clash.
      */
@@ -120,8 +120,7 @@ object McpRules {
     }
 
     /**
-     * [value] with each `${VAR}` and `${VAR:-default}` filled from [variables] (a workspace's `.mcp.json`,
-     * M6); null when one names a variable that is not there and gives no default.
+     * [value] with each `${VAR}` and `${VAR:-default}` filled from [variables] in a workspace's `.mcp.json`; null when one names a variable that is not there and gives no default.
      */
     fun expand(value: String, variables: Map<String, String>): String? {
         var missing = false
@@ -135,7 +134,7 @@ object McpRules {
     fun toolsOn(server: McpServer, state: McpServerState): Int =
         state.tools.count { it.problem == null && server.choice(it.name) != McpToolChoice.Off }
 
-    /** [server]'s state as its row and its page say it, and the agent's list (docs/agent-control-plan.md §5). */
+    /** [server]'s state as its row and its page say it, and the agent's list (docs/assistant-and-mcp.md). */
     fun status(server: McpServer, state: McpServerState): String = when {
         !server.enabled -> "Off"
         else -> when (state.status) {

@@ -9,11 +9,11 @@ import dev.icode.mobile.designsystem.palettes.palette
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.ThemeVariantRules
 
-/** Where a variant is listed in the sheet (docs/theme-variants-plan.md §4). */
+/** Where a variant is listed in the sheet (docs/design-and-navigation.md). */
 enum class VariantGroup { Icode, Classic, More }
 
 /**
- * One way to draw a theme (docs/theme-variants-plan.md): iCode's own, or a ported palette. Its
+ * One way to draw a theme (docs/design-and-navigation.md): iCode's own, or a ported palette. Its
  * palette is made the first time it is drawn, so a sheet of variants costs only those it shows.
  */
 class ThemeVariant internal constructor(
@@ -29,7 +29,7 @@ class ThemeVariant internal constructor(
 
 /**
  * Every theme's variants, in the order the variant sheet lists them: iCode's own first, then the
- * classics and the rest, each A to Z. AMOLED has every Dark variant on true black (D3) besides
+ * classics and the rest, each A to Z. AMOLED has every Dark variant on true black besides
  * the ones designed on it.
  */
 object ThemeVariants {

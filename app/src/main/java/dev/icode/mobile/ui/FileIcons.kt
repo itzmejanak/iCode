@@ -29,7 +29,7 @@ import dev.icode.mobile.domain.files.FileIconTheme
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * A file's or a folder's icon (docs/file-kinds-icons-plan.md D8): the one drawing of them, wherever a
+ * A file's or a folder's icon (docs/workspaces-and-files.md): the one drawing of them, wherever a
  * file is listed or its sheet is open. [parent] is the name of the folder it is in, when known; [type]
  * what its bytes said it is, where a scan read them; [open] a folder expanded.
  */
@@ -55,7 +55,7 @@ internal fun FileTypeIcon(
 }
 
 /**
- * Material Icon Theme as iCode draws it (D5–D7): its data read once — off the main thread from app
+ * Material Icon Theme as iCode draws it: its data read once — off the main thread from app
  * start ([warm]) — and each icon parsed once by AndroidSVG into a [Picture] per palette, its colours
  * made to read on that palette ([FileIconColours]), the default folder in the accent.
  */
@@ -106,7 +106,7 @@ internal object FileIcons {
 /** The name of the folder [location] is in, for the icons a theme gives a folder's own files (`.github/workflows`); null at the top. */
 internal fun parentName(location: String): String? = location.substringBeforeLast('/', "").substringAfterLast('/').ifEmpty { null }
 
-/** An SVG icon's colours as a palette draws them (D7): each of them, moved together until the icon reads. */
+/** An SVG icon's colours as a palette draws them: each of them, moved together until the icon reads. */
 internal object FileIconColours {
     /** [svg] with its colours readable on [palette]; with the [accent] in place of every one of them, the default folder's. */
     fun drawn(svg: String, palette: IcodePalette, accent: Boolean = false): String {

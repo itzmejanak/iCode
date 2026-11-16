@@ -33,7 +33,7 @@ import org.junit.Test
 import io.ktor.server.websocket.WebSockets as ServerWebSockets
 
 /**
- * AssemblyAI's streaming v3 as its SDK speaks it (docs/speech-plan.md §2.2), against a server on this
+ * AssemblyAI's streaming v3 as its SDK speaks it (docs/voice-and-phone-control.md), against a server on this
  * machine that answers as AssemblyAI's does.
  */
 class AssemblyAiSpeechTest {

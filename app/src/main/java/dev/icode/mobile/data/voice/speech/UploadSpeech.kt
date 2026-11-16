@@ -19,7 +19,7 @@ internal fun interface SpeechUpload {
 }
 
 /**
- * A hearing for a provider that answers once the user stopped (docs/speech-plan.md §4.3, §4.4): the
+ * A hearing for a provider that answers once the user stopped (docs/voice-and-phone-control.md): the
  * microphone is recorded, in memory and nowhere else, until the user stops talking ([SpeechQuiet]),
  * says nothing at all, or taps done; then [upload] sends it, once, and its words are final.
  */
@@ -64,7 +64,7 @@ internal class UploadSpeech(private val audio: SpeechAudio, private val upload: 
 }
 
 /**
- * When a hearing without a provider's own turn detection ends (docs/speech-plan.md §4.4): after
+ * When a hearing without a provider's own turn detection ends (docs/voice-and-phone-control.md): after
  * [QUIET_MILLIS] of quiet that follows speech, after [SILENT_MILLIS] with no speech at all, or at
  * [LONGEST_MILLIS]. Speech is a frame louder than [LEVEL], and than [ROOM_FACTOR] times the room's own
  * sound: the quietest frame heard so far, so a hearing that starts with speech finds the room at its
@@ -96,7 +96,7 @@ internal class SpeechQuiet {
         const val QUIET_MILLIS = 1_500
         const val SILENT_MILLIS = 8_000
 
-        /** The longest hearing, for every provider (§9 D6). */
+        /** The longest hearing, for every provider. */
         const val LONGEST_MILLIS = 120_000
 
         /** The root-mean-square level, of 32 767, above which a frame is speech. */

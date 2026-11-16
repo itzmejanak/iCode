@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.notices
 
 import dev.icode.mobile.domain.ICodeSnapshot
 
-/** What Run's saved commands tell (docs/notices-redesign-plan.md D8). */
+/** What Run's saved commands tell (docs/engineering-rules.md). */
 object RunNotices {
     fun commandNotSaved(at: ICodeSnapshot, name: String) =
         Notice(NoticeTone.Problem, NoticeSource.Run, "Couldn't save the command ${name.trim()}", NoticePlaces.workspace(at))

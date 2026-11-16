@@ -6,7 +6,7 @@ import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 
 /**
- * What iCode shows over other apps (docs/phone-agent-plan.md §5.6, §5.7): one bubble while phone control
+ * What iCode shows over other apps (docs/voice-and-phone-control.md): one bubble while phone control
  * is on and the user has not put it away — never over iCode itself — and the glow while a turn acts on
  * the phone, dimmed while it waits on the user. Put away, the bubble takes the glow with it.
  */

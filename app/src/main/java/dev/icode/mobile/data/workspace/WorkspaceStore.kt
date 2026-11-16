@@ -48,9 +48,9 @@ internal fun StoredSession.relocatedWorkspace(from: String, to: String): StoredS
 
 /**
  * What iCode remembers beyond the files themselves: when each workspace was last opened, and the
- * session to reopen — the folders are the list of workspaces (docs/workspace-storage-plan.md §4.3),
+ * session to reopen — the folders are the list of workspaces (docs/workspaces-and-files.md),
  * so nothing here can make one appear or go; and, app-wide, the files opened and the folders pinned
- * (docs/explorer-gaps-plan.md §3.14).
+ * (docs/workspaces-and-files.md).
  */
 internal interface WorkspaceStore {
     /** When each workspace was last opened in iCode, by location. */

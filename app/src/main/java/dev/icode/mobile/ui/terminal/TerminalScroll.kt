@@ -6,7 +6,7 @@ import java.util.WeakHashMap
 
 /**
  * Each session's place in its output while its view is gone — another tool on screen, another tab
- * shown (docs/dock-navigation-plan.md D5). The view is made again when it comes back, and Termux's
+ * shown (docs/design-and-navigation.md). The view is made again when it comes back, and Termux's
  * view starts at the latest output; scrolled back, it is set again where it was. The place is counted
  * from the oldest line the session keeps, so lines that arrive meanwhile do not move it. At the latest
  * output nothing is kept: the view follows what comes, as it did. A selection is not kept: it is a

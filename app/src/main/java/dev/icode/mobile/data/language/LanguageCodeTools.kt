@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.TextPosition
 import java.io.File
 import org.json.JSONObject
 
-// The agent asks the language servers what the user would (docs/lsp-plan.md §6): problems, definitions,
+// The agent asks the language servers what the user would (docs/editor-and-language-services.md): problems, definitions,
 // references, symbols, and the server's own rename and formatting, through the same owner the editor
 // uses. Lines and columns are one-based here, as people and compilers count them.
 

@@ -8,7 +8,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-/** A provider's text-to-speech that answers one request per sentence (docs/tts-plan.md §4.3). */
+/** A provider's text-to-speech that answers one request per sentence (docs/voice-and-phone-control.md). */
 internal fun interface Synthesis {
     /**
      * Says [text] — [previous] said just before it, for an API that keeps the voice's flow across
@@ -19,7 +19,7 @@ internal fun interface Synthesis {
 }
 
 /**
- * The per-sentence runner (docs/tts-plan.md §4.3): each sentence is asked for as it comes, and the next
+ * The per-sentence runner (docs/voice-and-phone-control.md): each sentence is asked for as it comes, and the next
  * one while this one plays, so no gap falls between them; never two ahead. A sentence that fails says
  * so once the ones before it are heard.
  */

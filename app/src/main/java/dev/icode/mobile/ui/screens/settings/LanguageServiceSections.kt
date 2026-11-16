@@ -100,7 +100,7 @@ internal fun ServerSection(service: LanguageService, onRemove: () -> Unit, onIns
     }
 }
 
-/** What iCode saw of the server, then its stderr's last lines (docs/lsp-plan.md §5.2). */
+/** What iCode saw of the server, then its stderr's last lines (docs/editor-and-language-services.md). */
 @Composable
 internal fun LogSection(lines: List<String>) {
     val gateway = LocalICodeGateway.current

@@ -12,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * A formula is drawn where its text keeps room for it (docs/markdown-rendering-plan.md §3.2): display
+ * A formula is drawn where its text keeps room for it (docs/editor-and-language-services.md): display
  * math, and inline math whose LaTeX runs over lines. Their placeholders were once on several lines of
  * text, which Compose counts as cut off: the room was kept, and nothing drawn in it.
  */

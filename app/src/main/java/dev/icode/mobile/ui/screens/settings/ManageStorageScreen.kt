@@ -46,7 +46,7 @@ import dev.icode.mobile.ui.screens.workspace.categoryTint
 import dev.icode.mobile.ui.screens.workspace.icon
 
 /**
- * Manage storage (docs/explorer-gaps-plan.md §3.10): where it looks — All, Private or Shared — and
+ * Manage storage (docs/workspaces-and-files.md): where it looks — All, Private or Shared — and
  * one scan of it, made when the page first opens and again on ↻. The bar stacks each kind's share in
  * its colour, Git's history last; under it, how much in how many files, and when it scanned or how far
  * it has got, with Stop. Each category, then Largest files, Duplicates and Trash, opens the explorer's

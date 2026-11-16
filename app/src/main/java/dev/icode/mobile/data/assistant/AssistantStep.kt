@@ -6,17 +6,17 @@ import dev.icode.mobile.domain.AssistantReply
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * The step a turn is on, for the tools that need it (docs/phone-agent-plan.md L2, L3): the calls of
+ * The step a turn is on, for the tools that need it (docs/voice-and-phone-control.md): the calls of
  * the reply being run, and the picture the step leaves for the model, sent with its results.
  */
 internal class AssistantStep(
-    /** What a tool says it is doing now, for the turn's step: an MCP server's progress (docs/mcp-plan.md §6.5). */
+    /** What a tool says it is doing now, for the turn's step: an MCP server's progress (docs/assistant-and-mcp.md). */
     val progress: (String) -> Unit = {},
-    /** The call [callId] runs in the terminal tab [session]: its step shows that tab live while it runs (docs/agent-control-plan.md §6). */
+    /** The call [callId] runs in the terminal tab [session]: its step shows that tab live while it runs (docs/assistant-and-mcp.md). */
     val terminal: (callId: String, session: String) -> Unit = { _, _ -> },
-    /** The call asks the user its questions and waits for the reply (docs/assistant-questions-plan.md D2). */
+    /** The call asks the user its questions and waits for the reply (docs/assistant-and-mcp.md). */
     val clarify: suspend (call: AssistantCall, questions: List<AssistantQuestion>) -> AssistantReply = { _, _ -> AssistantReply.Skipped },
-    /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). Last: a trailing lambda is this. */
+    /** The user takes a step themselves — a password, a payment — and the turn waits for Done. Last: a trailing lambda is this. */
     val handOver: suspend (why: String) -> Unit = {},
 ) {
     @Volatile
@@ -55,7 +55,7 @@ internal class AssistantStep(
 }
 
 /**
- * A tool that acts in a place outside the files (docs/phone-agent-plan.md L6, docs/mcp-plan.md §6.4) —
+ * A tool that acts in a place outside the files (docs/voice-and-phone-control.md, docs/assistant-and-mcp.md) —
  * an app on the phone, an MCP server: the gate asks about the place, as about a folder outside.
  */
 internal interface AssistantPlaceActor {

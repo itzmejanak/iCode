@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Between the guest's gpg and iCode (docs/gpg-signing-plan.md). iCode's guest script ([GuestGpg])
+ * Between the guest's gpg and iCode (docs/source-control.md). iCode's guest script ([GuestGpg])
  * hands over each request as `<pid>.request` in [GuestGpg.REQUESTS], beside the pipe `<pid>.answer`
  * it reads one line from. Asked for an agent, iCode starts gpg-agent in a PRoot session of its own,
  * without `--kill-on-exit`: it outlives the command that needed it and keeps the passphrase for as

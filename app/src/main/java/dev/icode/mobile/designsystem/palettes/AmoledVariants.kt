@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The AMOLED variants designed on pure black: antigem's Midnight and High Contrast
  * (Santoshkurmi/antigem 2a04d61). The rest of AMOLED is each Dark variant on black.
- * Seeds as listed in docs/theme-variants-plan.md §1.2 and D6; sources in THIRD_PARTY_NOTICES.md.
+ * Seeds as listed in docs/design-and-navigation.md; sources in THIRD_PARTY_NOTICES.md.
  */
 internal val AmoledSeeds: List<ThemeSeed> = listOf(
     ThemeSeed(

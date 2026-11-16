@@ -37,8 +37,8 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant › Voice (docs/phone-agent-plan.md §5.8): the microphone; who hears it
- * (docs/speech-plan.md §5); when answers are read aloud, and who reads them (docs/tts-plan.md §5). Each
+ * Settings › Assistant › Voice (docs/voice-and-phone-control.md): the microphone; who hears it
+ * (docs/voice-and-phone-control.md); when answers are read aloud, and who reads them (docs/voice-and-phone-control.md). Each
  * way is chosen in a sheet from the bottom of the screen, with the providers' page at its foot.
  */
 @Composable

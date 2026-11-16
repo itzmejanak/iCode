@@ -126,7 +126,7 @@ internal class WebCoordinator(
     }
 
     /**
-     * The website's notices join the Notifications page as the app's own (docs/notices-plan.md):
+     * The website's notices join the Notifications page as the app's own (docs/engineering-rules.md):
      * kept first, so none is lost before the bell listens, then said, so the bell's line unfolds.
      * One already kept, or one the user deleted, is left alone.
      */

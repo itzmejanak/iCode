@@ -28,7 +28,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
 /**
- * JSON-RPC 2.0 over [LspFraming] (docs/lsp-plan.md §5.2): one writer, so every request and
+ * JSON-RPC 2.0 over [LspFraming] (docs/editor-and-language-services.md): one writer, so every request and
  * notification goes out in the order it was sent; one reader, which hands the server's
  * notifications to [handler] in the order they came and answers its requests off the reader.
  * Every request is bounded by its own timeout, and a timed-out or cancelled one is cancelled at

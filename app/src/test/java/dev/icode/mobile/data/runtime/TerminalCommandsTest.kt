@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * docs/agent-control-plan.md §4.1: a terminal's commands from its marks. The stream is what bash 5.2
+ * docs/assistant-and-mcp.md: a terminal's commands from its marks. The stream is what bash 5.2
  * printed in a pty with /etc/icode/bashrc and iCode's prompt: a three-line paste (`cd /tmp`, `echo
  * two`, `ls /nonexistent`), an empty Enter, `sleep 30` stopped with Ctrl-C, `printf 'a\tb\n'`.
  */

@@ -35,7 +35,7 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
-/** What setting up Git requires, in order; signing is the user's choice (docs/gpg-signing-plan.md §7). */
+/** What setting up Git requires, in order; signing is the user's choice (docs/source-control.md). */
 internal enum class GitAuthStep(val title: String, val caption: String, val short: String = title) {
     Identity("Commit Identity", "Who your commits are attributed to", short = "Identity"),
     Authentication("Authentication", "How this device proves it may push"),

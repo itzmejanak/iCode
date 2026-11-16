@@ -36,7 +36,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * The completion list (docs/editor-completion-plan.md D4–D7): Sora's own window — its request, its
+ * The completion list (docs/editor-and-language-services.md): Sora's own window — its request, its
  * threads, its keys and its choosing kept — drawn as iCode draws a menu, each row a kind's badge, the
  * label with its matched letters, its signature and its type; as tall as its rows, under the caret's
  * line or above it where there is more room there; the first row shown as chosen, as soft-keyboard
@@ -204,7 +204,7 @@ private class CompletionRows(private val window: EditorCompletionWindow) : Edito
         return row
     }
 
-    /** A kind in the colour the editor gives what it is (D4): a call's, a type's, a member's, a constant's, a keyword's; a snippet in the accent. */
+    /** A kind in the colour the editor gives what it is: a call's, a type's, a member's, a constant's, a keyword's; a snippet in the accent. */
     private fun kindColor(kind: CompletionItemKind, palette: IcodePalette): Int = when (kind) {
         CompletionItemKind.Method, CompletionItemKind.Function, CompletionItemKind.Constructor -> palette.syntaxColor(SyntaxRole.Function)
         CompletionItemKind.Class, CompletionItemKind.Interface, CompletionItemKind.Struct, CompletionItemKind.Enum,

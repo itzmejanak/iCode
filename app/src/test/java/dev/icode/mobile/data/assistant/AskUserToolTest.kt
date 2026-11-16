@@ -26,7 +26,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** ask_user (docs/assistant-questions-plan.md): the turn waits for the user's reply, which the model reads. */
+/** ask_user (docs/assistant-and-mcp.md): the turn waits for the user's reply, which the model reads. */
 class AskUserToolTest {
     @get:Rule val temp = TemporaryFolder()
 

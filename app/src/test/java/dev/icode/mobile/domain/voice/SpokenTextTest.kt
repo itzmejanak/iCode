@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** What is read aloud of the assistant, and when (docs/phone-agent-plan.md §5.8). */
+/** What is read aloud of the assistant, and when (docs/voice-and-phone-control.md). */
 class SpokenTextTest {
     @Test fun `code blocks are not read aloud`() {
         assertEquals("Run this: Then it builds.", SpokenText.of("Run this:\n```bash\n./gradlew build\n```\nThen it builds."))

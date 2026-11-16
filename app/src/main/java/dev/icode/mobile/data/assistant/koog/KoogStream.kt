@@ -6,7 +6,7 @@ import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 
 /**
- * A streamed reply put together (docs/runtime-foundation-plan.md §3.8): its reasoning and its text as
+ * A streamed reply put together (docs/runtime-and-terminal.md): its reasoning and its text as
  * their deltas wrote them, each call as Koog's stream completed it, and how it ended. Koog's own
  * `toMessageResponse()` throws on a call whose arguments are not JSON; here they are
  * [KoogArguments.readable], and the call is refused with why.

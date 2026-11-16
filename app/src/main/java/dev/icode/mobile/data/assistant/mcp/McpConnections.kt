@@ -16,7 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * The MCP servers' connections (docs/mcp-plan.md §7.3): each started when it is wanted — once, all who
+ * The MCP servers' connections (docs/assistant-and-mcp.md): each started when it is wanted — once, all who
  * want it waiting on the same start — and stopped when asked, or when local ones idle; how each is,
  * for [McpServers] to show ([changed]). What a connected server does on its own — its tools changed,
  * its end, a question for the user — is heard here.
@@ -131,7 +131,7 @@ internal class McpConnections(
     override suspend fun ask(connection: McpConnection, request: ElicitRequest): ElicitResult = questions.ask(connection.server.name, request)
 
     private companion object {
-        /** Local servers stop this long after the last turn ended (§7.3). */
+        /** Local servers stop this long after the last turn ended. */
         const val IDLE_MILLIS = 10 * 60_000L
     }
 }

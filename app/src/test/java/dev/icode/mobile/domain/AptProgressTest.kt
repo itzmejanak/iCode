@@ -108,7 +108,7 @@ class AptProgressTest {
         assertEquals("Removing 1 of 2", progress.step)
     }
 
-    /** apt-get update's lines, in apt's format (integration-plan.md records the first). */
+    /** apt-get update's lines in apt's format; the first is a fetched repository release file. */
     @Test fun `reading the lists fetches lists, not packages`() {
         val progress = read(
             "Get:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease [256 kB]",

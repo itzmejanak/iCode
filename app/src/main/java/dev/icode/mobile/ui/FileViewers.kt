@@ -22,7 +22,7 @@ import dev.icode.mobile.domain.notices.FileNotices
 internal data class ViewedFile(val location: String, val name: String, val viewer: FileViewer)
 
 /**
- * The file shown in its viewer, over every screen (docs/file-viewers-plan.md). Asked for by the
+ * The file shown in its viewer, over every screen (docs/workspaces-and-files.md). Asked for by the
  * backend ([dev.icode.mobile.domain.ICodeEffect.ViewFile]) for a workspace file opened from anywhere,
  * and by a screen for what it holds itself: a chat's pictures, a phone file.
  */

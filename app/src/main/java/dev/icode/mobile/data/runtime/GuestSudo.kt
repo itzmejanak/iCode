@@ -14,7 +14,7 @@ import java.io.File
  *
  * It accepts the options scripts commonly pass and refuses plainly what cannot
  * be done: there is no other user to become. A `sudo` the user installs with
- * apt runs instead (docs/runtime-contract-plan.md F11): it is theirs to choose.
+ * apt runs instead (docs/runtime-and-terminal.md): it is theirs to choose.
  */
 internal object GuestSudo {
     const val RELATIVE_PATH = "usr/local/bin/sudo"

@@ -9,12 +9,12 @@ import dev.icode.mobile.domain.notices.NoticeRules
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * What a Git transfer tells as it ends (docs/notices-redesign-plan.md D9): what a pull, a push or a
+ * What a Git transfer tells as it ends (docs/engineering-rules.md): what a pull, a push or a
  * fetch did — counted where Git can say: HEAD before and after a pull, what the branch was ahead by
  * before a push, what its upstream gained by a fetch — or what it could not do, with Git's lines;
  * where it ran, as it was when it began; and, when it ran [NoticeRules.LONG_WORK_MILLIS] or more,
  * worth Android's shade should iCode be out of view by then. An automatic fetch says nothing when it
- * works, and a failure once, quietly, until a transfer in that workspace works again (§7, Q6).
+ * works, and a failure once, quietly, until a transfer in that workspace works again.
  */
 internal class GitTransferOutcomes(
     private val stateHolder: ICodeStateHolder,

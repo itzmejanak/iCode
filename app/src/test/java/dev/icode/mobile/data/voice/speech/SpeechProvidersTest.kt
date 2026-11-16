@@ -19,7 +19,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The speech providers' store and owner (docs/speech-plan.md §4.5): keys sealed, refusals in the page's words. */
+/** The speech providers' store and owner (docs/voice-and-phone-control.md): keys sealed, refusals in the page's words. */
 class SpeechProvidersTest {
     private val preferences = InMemoryPreferences()
     private var decryptable = true

@@ -20,7 +20,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * CMake 3.22.1's setup (docs/android-ndk-plan.md §3.2), once the Android SDK is installed: Google's
+ * CMake 3.22.1's setup (docs/runtime-and-terminal.md), once the Android SDK is installed: Google's
  * package, so sdkmanager and the Android Gradle plugin list it as installed, with its programs and
  * modules replaced by Kitware's own build of 3.22.1 for ARM64 and Ninja's for ARM64. Google's are
  * built for x86-64 only. Whatever was at `cmake/3.22.1` before — Google's, fetched by a build — is
@@ -69,7 +69,7 @@ internal class CmakeSetup(private val layout: RuntimeLayout, private val context
     }
 
     /**
-     * Google's programs and modules go, Kitware's come — the tree measured (§2.4), whole — and Ninja
+     * Google's programs and modules go, Kitware's come — the whole tree measured — and Ninja
      * beside them. Nothing that cannot run here is left: `bin` holds [PROGRAMS] and nothing else.
      */
     private fun replacePrograms(cmakeArchive: File, ninjaArchive: File) {

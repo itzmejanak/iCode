@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.AppearanceSettings
 
 /**
  * The palette [appearance] asks for while the phone is [systemDark] or not — the theme it shows then
- * (Auto follows the phone, docs/theme-variants-plan.md T6) in that theme's own variant, its border
+ * (Auto follows the phone, docs/design-and-navigation.md) in that theme's own variant, its border
  * lines and accent — or iCode's dark one until it is read.
  */
 internal fun appearancePalette(appearance: AppearanceSettings?, systemDark: Boolean): IcodePalette {

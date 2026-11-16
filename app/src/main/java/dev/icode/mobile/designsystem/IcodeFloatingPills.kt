@@ -80,7 +80,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * One pill of the floating stack (docs/dock-navigation-plan.md D11, D13): at [place] — null, at the
+ * One pill of the floating stack (docs/design-and-navigation.md): at [place] — null, at the
  * end edge's foot in the stack's order, as the stack has always stood its pills — and [content], the
  * pill. [icon] is the pill's own: it shows it closed, and it floats under the finger while the pill is
  * moved. Let go, it docks where [onPlaced] says.
@@ -374,7 +374,7 @@ fun pillExit(edge: ScreenEdge = LocalPillEdge.current): ExitTransition {
 }
 
 /**
- * A pill's shape on [edge] (docs/dock-navigation-plan.md D16): flat where it meets its edge, flush on it,
+ * A pill's shape on [edge] (docs/design-and-navigation.md): flat where it meets its edge, flush on it,
  * and round inside, its corners half its height — a tab drawn out of the edge, closed or open.
  */
 internal fun edgeTab(edge: ScreenEdge): Shape = when (edge) {
@@ -414,5 +414,5 @@ private const val MOVE_STEP = 0.2f
 private const val BUBBLE_FROM = 0.6f
 private val BUBBLE_ELEVATION = 8.dp
 
-/** A moved pill's tile: a pill's square, its corners soft, not a ball (D16). */
+/** A moved pill's tile: a pill's square, its corners soft, not a ball. */
 private val LIFTED = RoundedCornerShape(12.dp)

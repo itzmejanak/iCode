@@ -109,7 +109,7 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
 private fun providerCount(count: Int) = if (count == 1) "1 provider" else "$count providers"
 
 /**
- * Settings › Assistant › Providers (docs/assistant-koog-plan.md §13 P1), as Language Services lists its
+ * Settings › Assistant › Providers (docs/assistant-and-mcp.md), as Language Services lists its
  * servers: each with its models and whether the chat uses it; a tap opens its page, + opens the sheet of
  * provider kinds.
  */

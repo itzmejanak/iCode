@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Each change an operation, an undo or a redo makes, one item at a time inside its task
- * (docs/explorer-gaps-plan.md §3.5–§3.8): moved — renamed in its place, carried between the two —
+ * (docs/workspaces-and-files.md): moved — renamed in its place, carried between the two —
  * copied, put in Trash, restored, an empty folder removed or made. Each reports its item first, where
  * a Cancel stops it before it starts, and returns the step it did; what follows it — tabs, the tree,
  * recent files, a workspace closed, renamed or retired — is done under the mutation lock as it

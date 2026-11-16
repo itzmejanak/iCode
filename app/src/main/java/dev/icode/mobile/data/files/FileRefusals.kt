@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.files.paths
 import java.io.File
 
 /**
- * Why an operation cannot start now (docs/explorer-gaps-plan.md §3.5), each of its items checked
+ * Why an operation cannot start now (docs/workspaces-and-files.md), each of its items checked
  * before any is touched: phone storage needs All Files Access, an item gone is said gone, nothing
  * goes inside itself, a file is never a workspace, an item in use is not moved, a running task holds
  * its paths, and Trash's own folders stay where they are. Null when it can start.
@@ -81,7 +81,7 @@ internal class FileRefusals(
     fun workspaceNames(folder: String, names: List<String>): String? =
         if (folder == workspaces.path) names.firstNotNullOfOrNull(WorkspaceNameRules::workspaceNameError) else null
 
-    /** [change] undone, or redone: nothing it touches changed since (§3.8), is held, or in use. */
+    /** [change] undone, or redone: nothing it touches changed since, is held, or in use. */
     suspend fun reversal(change: FileChange): String? {
         val reversals = change.reversals
         val paths = reversals.flatMap { it.paths }

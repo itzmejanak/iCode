@@ -8,13 +8,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * iCode's accessibility service (docs/phone-agent-plan.md §5.1): what reads and operates the screen for
+ * iCode's accessibility service (docs/voice-and-phone-control.md): what reads and operates the screen for
  * the assistant, and hosts its glow and bubble. It holds no chat and no model: the assistant reaches it
  * through [PhoneControl]. Android runs it while the user has it on in Settings › Accessibility, or
  * Shizuku turned it on for them.
  */
 class PhoneService : AccessibilityService() {
-    /** When a window of another app last changed: the screen has settled once this is quiet (§5.4). */
+    /** When a window of another app last changed: the screen has settled once this is quiet. */
     @Volatile
     internal var lastEvent: Long = 0L
         private set
@@ -67,7 +67,7 @@ class PhoneService : AccessibilityService() {
     }
 }
 
-/** The overlays a [PhoneService] hosts (docs/phone-agent-plan.md §5.6, §5.7): the glow and the bubble. */
+/** The overlays a [PhoneService] hosts (docs/voice-and-phone-control.md): the glow and the bubble. */
 interface PhoneOverlayHost {
     /** The service goes: every overlay with it. */
     fun detach()

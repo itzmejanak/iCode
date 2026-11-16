@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
 /**
- * Android's own recognizer (docs/phone-agent-plan.md §5.8): on the phone itself where it can (API 31),
+ * Android's own recognizer (docs/voice-and-phone-control.md): on the phone itself where it can (API 31),
  * else the user's recognition service; the words as they come, then the last ones, final, once the user
  * stops talking. It takes the microphone itself, on the main thread, as Android requires.
  */

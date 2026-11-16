@@ -3,7 +3,7 @@ package dev.icode.mobile.data.assistant.tools
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** docs/assistant-permissions-plan.md §4.5: what a command's text shows of where it reaches. */
+/** docs/assistant-and-mcp.md: what a command's text shows of where it reaches. */
 class CommandPathsTest {
     private fun paths(command: String) = CommandPaths.of(command)
 

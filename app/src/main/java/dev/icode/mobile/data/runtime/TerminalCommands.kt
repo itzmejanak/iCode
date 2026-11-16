@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import kotlinx.coroutines.CompletableDeferred
 
 /**
- * One terminal's commands, as its shell's marks bound them (docs/agent-control-plan.md §4.1): where a
+ * One terminal's commands, as its shell's marks bound them (docs/assistant-and-mcp.md): where a
  * prompt waits, empty, for a command; each command's output from its C to its D, as a reader wants it
  * ([ProcessOutput]) and as it was printed (the replay's, bounded at its start and its end); its exit
  * code; the directory the shell is in. Fed on the session's main thread by its output tap; read from
@@ -156,7 +156,7 @@ internal class TerminalCommands(
         /** What a reader is given at most: a model reads less (32 000 characters). */
         const val TEXT_LIMIT = 256 * 1024
 
-        /** What the replay keeps of a command, as printed (§3 A10). */
+        /** What the replay keeps of a command, as printed. */
         const val RAW_LIMIT = 64 * 1024
     }
 }

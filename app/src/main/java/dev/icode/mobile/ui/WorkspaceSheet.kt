@@ -13,8 +13,9 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
- * A workspace's [ItemSheet] on the home screen, from its ⋮ or a long press (docs/workspaces-page-plan.md
- * §2.6): the actions every explorer has on a folder ([FileItemActions]), with Open and Open Terminal.
+ * A workspace's [ItemSheet] on the home screen, from its ⋮ or a long press
+ * (docs/workspaces-and-files.md): the actions every explorer has on a folder ([FileItemActions]), with
+ * Open and Open Terminal.
  * Cut and Copy put it on iCode's one clipboard; Paste puts what is held inside it. [onShowInList] is
  * the way from a recent row to the file explorer, where the workspace is listed.
  */

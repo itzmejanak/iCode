@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.notices
 
 import dev.icode.mobile.domain.ICodeSnapshot
 
-/** What the bell, the Notifications page and Android's shade do with notices (docs/notices-redesign-plan.md D3–D7). */
+/** What the bell, the Notifications page and Android's shade do with notices (docs/engineering-rules.md). */
 object NoticeRules {
     /** The page keeps this many of what needs the user, and apart from them this many of the rest, newest first. */
     const val MAX_NEEDS_YOU = 100
@@ -11,16 +11,15 @@ object NoticeRules {
     /** Android's shade holds at most this many, the newest. */
     const val MAX_POSTED = 20
 
-    /** The same event told again within this folds into the one before (D6). */
+    /** The same event told again within this folds into the one before. */
     const val FOLD_MILLIS = 10 * 60_000L
 
-    /** Work that ran this long is worth telling when it ends while iCode is out of view (D7); a long command's too. */
+    /** Work that ran this long is worth telling when it ends while iCode is out of view; a long command's too. */
     const val LONG_WORK_MILLIS = 30_000L
 
     /**
      * Rings the bell: what needs the user, and a tap's own confirmation. What is kept as done — a
-     * success, or what happened on its own — is kept silently (owner's decisions, 2026-11-11: §7, Q1
-     * and Q6).
+     * success, or what happened on its own — is kept silently.
      */
     fun rings(notice: Notice): Boolean = notice.keep != NoticeKeep.Done
 
@@ -87,7 +86,7 @@ object NoticeRules {
     }
 }
 
-/** Which notices the page shows, and Clear all clears (D6). */
+/** Which notices the page shows, and Clear all clears. */
 sealed interface NoticeFilter {
     fun matches(notice: Notice): Boolean
 

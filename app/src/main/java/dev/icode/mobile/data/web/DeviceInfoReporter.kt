@@ -13,7 +13,7 @@ import dev.icode.mobile.domain.DeviceInfoConsent
 import java.util.concurrent.TimeUnit
 
 /**
- * Sends device info while — and only while — the user shares it (docs/device-telemetry-plan.md):
+ * Sends device info while — and only while — the user shares it (PRIVACY.md):
  * a registration when the facts change, a heartbeat otherwise. Silent on failure: the next run tries again.
  */
 internal class DeviceInfoReporter(

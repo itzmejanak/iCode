@@ -32,7 +32,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * A remote server's sign-in (docs/mcp-plan.md §8.2), as MCP's authorization asks: the server's
+ * A remote server's sign-in (docs/assistant-and-mcp.md), as MCP's authorization asks: the server's
  * protected-resource metadata, its authorization server's, iCode registered in the spec's order, PKCE
  * S256, `state` and `iss` checked on the way back, the tokens kept encrypted with their issuer and
  * renewed when they expire. Nothing opens a browser but the user's Sign in.
@@ -227,7 +227,7 @@ internal class McpSignIn(
     private fun strings(array: JSONArray?): List<String> = array?.let { (0 until it.length()).map(it::optString) }.orEmpty()
 
     internal companion object {
-        /** iCode's client metadata document on icode-web, naming [redirect] among its `redirect_uris` (D-M1). */
+        /** iCode's client metadata document on iCode Web, naming [redirect] among its `redirect_uris`. */
         const val CLIENT_DOCUMENT = "oauth/mcp-client.json"
         private const val NEEDS_CLIENT = "Its sign-in does not register iCode by itself: enter a client ID on its page"
         private const val VERIFIER_BYTES = 32

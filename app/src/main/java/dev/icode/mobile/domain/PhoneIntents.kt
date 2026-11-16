@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-/** Phone control (docs/phone-agent-plan.md §5.9, §5.11): iCode's accessibility service, Shizuku, the bubble. */
+/** Phone control (docs/voice-and-phone-control.md): iCode's accessibility service, Shizuku, the bubble. */
 sealed interface PhoneIntent : ICodeIntent {
     /** What iCode may do on the phone, read again: Settings' page opened, or iCode came back to the front. */
     data object Refresh : PhoneIntent
@@ -20,6 +20,6 @@ sealed interface PhoneIntent : ICodeIntent {
      */
     data object OpenAccessibility : PhoneIntent
 
-    /** The bubble out again, or put away with the glow (the owner's word, §5.7). */
+    /** The bubble out again, or put away with the glow, in the owner's words. */
     data class ShowBubble(val shown: Boolean) : PhoneIntent
 }

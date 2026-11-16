@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Manage storage's categories in Seti's colours, each at least 3 : 1 on every theme (docs/explorer-gaps-plan.md §3.10). */
+/** Manage storage's categories in Seti's colours, each at least 3 : 1 on every theme (docs/workspaces-and-files.md). */
 class FileCategoryIconsTest {
     @Test fun `every Seti colour is at least 3 to 1 on everything it is drawn on, on every theme`() {
         everyPalette.forEach { palette ->

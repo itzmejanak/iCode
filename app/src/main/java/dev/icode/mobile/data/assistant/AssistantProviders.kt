@@ -16,7 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * The assistant's providers and the chat page's choices (§13 P1–P5), as the screens change them:
+ * The assistant's providers and the chat page's choices, as the screens change them:
  * each kept by [store], then shown with every provider's models as [engine] knows them.
  */
 internal class AssistantProviders(

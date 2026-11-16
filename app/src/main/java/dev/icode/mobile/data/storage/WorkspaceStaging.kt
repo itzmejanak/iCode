@@ -7,7 +7,7 @@ import java.io.IOException
 import java.nio.file.Files
 
 /**
- * iCode's own staging at the top of the workspaces (docs/workspace-storage-plan.md §4.2, §4.5): a
+ * iCode's own staging at the top of the workspaces (docs/workspaces-and-files.md): a
  * clone or an import is written into a folder named `.clone-<n>` or `.import-<n>` and renamed to
  * its workspace's name only when complete. No half workspace is ever listed, and one that stops
  * leaves nothing behind. A name starting with a dot is never a workspace.

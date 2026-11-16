@@ -20,31 +20,31 @@ class RouteTest {
      */
     private val framesRenderedAsStates = mapOf(
         "3:55" to "Runtime error — the Failed state of Runtime installing (3:27)",
-        "2003:77" to "Create folder — the Workspaces page's New Folder dialog (workspace-destinations-plan.md §2.5)",
-        "2003:731" to "Delete confirmation — the discard dialog over what asked for it (workspace-destinations-plan.md G14)",
+        "2003:77" to "Create folder — the New Folder dialog on the Workspaces page",
+        "2003:731" to "Delete confirmation — the discard dialog over the requesting screen",
     )
 
     /** Pages the design does not have, each added at the owner's request. */
     private val routesWithoutFrame = setOf(
         Route.Notifications, // 2026-09-25: notices off the launcher
-        Route.RuntimeTools, // 2026-09-30: choose the runtime's tools, as Android Studio's setup (runtime-tools-plan.md §3.5)
-        Route.ChooseDestination, // 2026-10-01: the file explorer choosing where a project goes (workspace-destinations-plan.md)
-        Route.RepositorySelector, // 2026-10-01: the repository chosen as the branch is (workspace-destinations-plan.md D7)
-        Route.GitHistory, // 2026-10-22: HEAD's history from Last Commit's corner (git-history-plan.md)
-        Route.Assistant, // 2026-10-01: iCode's own assistant, on Koog (assistant-koog-plan.md §3)
-        Route.AssistantSettings, // 2026-10-01: the assistant's providers (assistant-koog-plan.md §13 P3)
-        Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (assistant-koog-plan.md §13 P3)
-        Route.SourceControlSettings, // 2026-10-08: Git's credentials and the commit messages' model (commit-message-generator-plan.md M8)
-        Route.DeviceInfoConsent, // 2026-10-29: onboarding's optional device-info question (device-telemetry-plan.md §4)
+        Route.RuntimeTools, // 2026-09-30: choose the runtime's tools, as Android Studio's setup (docs/runtime-and-terminal.md)
+        Route.ChooseDestination, // 2026-10-01: the file explorer choosing where a project goes (docs/workspaces-and-files.md)
+        Route.RepositorySelector, // 2026-10-01: the repository chosen as the branch is (docs/workspaces-and-files.md)
+        Route.GitHistory, // 2026-10-22: HEAD's history from Last Commit's corner (docs/source-control.md)
+        Route.Assistant, // 2026-10-01: iCode's own assistant, on Koog (docs/assistant-and-mcp.md)
+        Route.AssistantSettings, // 2026-10-01: the assistant's providers (docs/assistant-and-mcp.md)
+        Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (docs/assistant-and-mcp.md)
+        Route.SourceControlSettings, // 2026-10-08: Git's credentials and the commit messages' model (docs/assistant-and-mcp.md)
+        Route.DeviceInfoConsent, // 2026-10-29: onboarding's optional device-info question (PRIVACY.md)
         Route.AssistantProviders, // 2026-11-03: the providers on their own page, from Settings › Assistant
-        Route.VoiceSettings, // 2026-11-03: speech in and out (phone-agent-plan.md §5.8)
-        Route.SpeechProviders, // 2026-11-06: speech recognition with any provider (speech-plan.md §5)
-        Route.SpeechProvider, // 2026-11-06: one speech provider — its key, model, language, Test (speech-plan.md §5); 2026-11-07: its Speaking part (tts-plan.md §5)
-        Route.PhoneControl, // 2026-11-03: phone control, off by default (phone-agent-plan.md §5.9)
-        Route.ShizukuSetup, // 2026-11-03: Shizuku's one-page state and setup (phone-agent-plan.md §5.11)
-        Route.McpServers, // 2026-11-05: MCP servers for the assistant's chats (mcp-plan.md §4.2)
-        Route.McpServer, // 2026-11-05: one MCP server — its fields, tools, log (mcp-plan.md §4.2)
-        Route.ManageStorage, // 2026-10-27: what storage holds, kind by kind, and the explorer's views of it (explorer-gaps-plan.md §3.10)
+        Route.VoiceSettings, // 2026-11-03: speech in and out (docs/voice-and-phone-control.md)
+        Route.SpeechProviders, // 2026-11-06: speech recognition with any provider (docs/voice-and-phone-control.md)
+        Route.SpeechProvider, // 2026-11-06: one speech provider — its key, model, language, Test, and Speaking settings (docs/voice-and-phone-control.md)
+        Route.PhoneControl, // 2026-11-03: phone control, off by default (docs/voice-and-phone-control.md)
+        Route.ShizukuSetup, // 2026-11-03: Shizuku's one-page state and setup (docs/voice-and-phone-control.md)
+        Route.McpServers, // 2026-11-05: MCP servers for the assistant's chats (docs/assistant-and-mcp.md)
+        Route.McpServer, // 2026-11-05: one MCP server — its fields, tools, log (docs/assistant-and-mcp.md)
+        Route.ManageStorage, // 2026-10-27: what storage holds, kind by kind, and the explorer's views of it (docs/workspaces-and-files.md)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }

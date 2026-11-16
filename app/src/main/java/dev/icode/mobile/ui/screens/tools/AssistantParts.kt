@@ -53,7 +53,7 @@ import java.io.File
  * at the pinched size. An answer that ends its turn ([copyable]) can be copied, and played: the chat
  * is read, not heard, so an answer there is read aloud only from its ▶. The turn's last one
  * may still be [streaming]. A row with more behind it [onOpen]s it in a sheet
- * (docs/assistant-sheets-plan.md §2); a long press on a message, or on a step about a file,
+ * (docs/assistant-and-mcp.md); a long press on a message, or on a step about a file,
  * [onHold]s it, for its actions' sheet ([AssistantActionsSheet]).
  */
 @Composable

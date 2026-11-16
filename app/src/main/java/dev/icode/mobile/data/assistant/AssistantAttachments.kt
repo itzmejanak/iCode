@@ -23,7 +23,7 @@ internal fun interface PhoneFiles {
 }
 
 /**
- * Files sent with a message (§12 R6, §13 P6–P8): the workspace's own — its links followed as the tools
+ * Files sent with a message: the workspace's own — its links followed as the tools
  * follow them, an open tab's text as shown — and the phone's, from a picker or the camera. Text goes as text,
  * bounded; an image as JPEG ([prepareImage]); a PDF as itself. What the model cannot read is refused
  * before anything is read; whatever fails, in the words the page shows.

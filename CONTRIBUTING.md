@@ -1,48 +1,125 @@
 # Contributing to iCode
 
-Thanks for helping. This guide covers setup, the change flow, and the rules the codebase already follows.
+Contributions are welcome. Keep changes focused, verify claims against the current source, and include tests and documentation when behavior changes.
 
-## Setup
+## Development setup
+
+Required host tools:
 
 - JDK 17
-- Android SDK 36 and NDK 27.0.12077973
-- An ARM64 Android 11+ device or emulator (iCode ships `arm64-v8a` only)
+- Android SDK Platform 36 and Build Tools `36.0.0`
+- Android NDK `27.0.12077973`
+- CMake `3.22.1`
+- the `patch` command
+- Git with recursive submodule support
+- an ARM64 Android 11+ device or emulator for device testing
+
+Set `ANDROID_HOME` or add the SDK path to `local.properties`, then clone and build:
 
 ```bash
 git clone --recurse-submodules https://github.com/itzmejanak/iCode.git
 cd iCode
+git submodule update --init --recursive
 ./gradlew :app:assembleDebug
-./gradlew test
 ```
 
-Debug builds install as `dev.icode.mobile.debug`, so they can sit next to a release build.
+The APK is `app/build/outputs/apk/debug/app-debug.apk`. Debug builds use `dev.icode.mobile.debug`, so they can be installed beside a release build.
 
-## Change flow
+The native build requires both Git submodules. CMake applies `third_party/patches/*/*.patch` to build-directory copies; it does not modify the submodule working trees.
 
-1. Open or find an issue for anything larger than a small fix.
-2. Branch from `main` (`fix/…`, `feature/…`, `docs/…`).
-3. Keep each PR to one change. Add or update unit tests under `app/src/test/`, mirroring the main source tree.
-4. Run `./gradlew test` and `./gradlew :app:assembleDebug` locally. CI runs both on every PR.
-5. Fill in the PR template. Include screenshots for UI changes.
-6. Add a line under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
+## Branch and pull-request workflow
 
-## Code rules
+1. Search existing issues and pull requests. Open an issue before a large or behavior-changing proposal.
+2. Branch from `main`. Use a descriptive name such as `fix/editor-scroll`, `feature/runtime-tool`, or `docs/privacy`.
+3. Keep the pull request limited to one concern. Avoid unrelated formatting or refactoring.
+4. Add or update tests for changed behavior. Include before/after screenshots for visible UI changes.
+5. Update relevant public documentation and add a concise entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
+6. Run the applicable quality gates and complete the pull-request template. Explain any test that could not be run.
 
-These come from the existing project docs. Read them before changing an area:
+## Tests and quality gates
 
-- [docs/architecture.md](docs/architecture.md): system boundaries and the decisions that are not negotiable.
-- [docs/backend-split-rules.md](docs/backend-split-rules.md): how `domain/`, `data/` and `ui/` are separated.
-- [docs/layout.md](docs/layout.md): the screen layout specification.
-- UI uses the design system's semantic tokens (`designsystem/`), never hard-coded colours.
-- Workspace content never leaves the device unless the user explicitly sends it (for example, to their chosen AI provider).
+### What CI runs
 
-The scripts `tools/check-backend-consistency.sh` and `tools/check-ui-consistency.sh` check some of these rules.
+The `CI` workflow checks out recursive submodules, uses JDK 17, installs NDK `27.0.12077973` and Android Platform 36, then runs exactly:
+
+```bash
+./gradlew testDebugUnitTest testReleaseUnitTest --stacktrace
+./gradlew :app:assembleDebug --stacktrace
+```
+
+That workflow does **not** run Android instrumentation tests, lint, consistency guards, release assembly, or screenshot capture.
+
+### Full local quality gate
+
+Run the checks relevant to your change. Before a broad code pull request, run:
+
+```bash
+./gradlew :app:testDebugUnitTest :app:testReleaseUnitTest
+./gradlew :app:assembleDebug
+./gradlew :app:lintDebug
+./tools/check-backend-consistency.sh
+./tools/check-ui-consistency.sh
+```
+
+Also run `./gradlew :app:assembleRelease` for changes to native code, packaging, shrinking, manifests, build types, dependencies, or release/debug source-set boundaries. Run `./gradlew :app:connectedDebugAndroidTest` when a suitable ARM64 API-30-or-newer device or emulator is available and the affected behavior needs device coverage. Run `./tools/capture-figma-screens.sh` for deliberate visual verification; it requires a configured Android device.
+
+Do not use either guard's `--update` option to make a regression pass. It is only for recording a deliberately reduced baseline.
+
+### Test locations
+
+- `app/src/test/java/`: local JVM unit tests
+- `app/src/test/resources/`: JVM fixtures, including syntax samples
+- `app/src/sharedTest/java/`: editor-color tests compiled into both local and Android test source sets
+- `app/src/androidTest/java/`: Android instrumentation and device tests; these are not run by the `CI` workflow
+
+Place tests with the closest existing package and reuse production parsers and contracts rather than duplicating behavior in test-only helpers.
+
+## Architecture and code rules
+
+Read the [documentation index](docs/README.md) and the documents relevant to the area before editing it. The durable starting points are:
+
+- [`docs/architecture.md`](docs/architecture.md) for system boundaries and data ownership;
+- [`docs/engineering-rules.md`](docs/engineering-rules.md) for package ownership, dependency direction, guarded writes, lifecycle, persistence, and testing rules; and
+- [`docs/design-and-navigation.md`](docs/design-and-navigation.md) for the phone-first interface, navigation, design system, and wider-screen roadmap boundary.
+
+Follow the current physical structure: the repository has one `:app` Gradle module, with domain contracts, Android/data implementations, Compose UI, navigation, and the design system separated by package.
+
+The consistency guards enforce part of this contract. The UI guard checks design-token use, screen dependencies, route reachability, dialogs/toasts, capture forks, and file-size debt. The backend guard checks ownership of package installation, Git execution, stores, hashing, byte formatting, notices, and the TextMate engine.
+
+Never commit credentials, provider responses, private workspace content, personal device data, or unsanitized logs and screenshots.
+
+## Documentation and status
+
+- [`docs/README.md`](docs/README.md) is the documentation map and identifies each document's role.
+- [`docs/roadmap.md`](docs/roadmap.md) is the only public roadmap. Do not duplicate its backlog in another document.
+- Source and tests are authoritative for current behavior. Design and implementation records can provide evidence and history, but they do not prove that a feature shipped.
+- `CHANGELOG.md` records user-visible release history, not internal cycles, task counts, or implementation diaries.
+- Use only the canonical roadmap labels: **Done** means the required scope and evidence are complete; **Partially Done** means useful implementation exists but required scope is missing; **Not Started** means there is no production implementation; **Needs Verification** means implementation exists but required device, provider, network, performance, release, or integration evidence is missing. A status does not by itself mean the work is in a published release.
+- Update links, status, privacy, permissions, and limitations in the same pull request as the behavior they describe.
+
+## Privacy, security, and licensing checklist
+
+Before requesting review, check whether the change:
+
+- stores, transmits, logs, exports, or deletes new data; if so, update [PRIVACY.md](PRIVACY.md);
+- adds a permission, exported Android component, deep link, native/runtime boundary, download, provider, MCP path, or credential flow; if so, include a security review and update [SECURITY.md](SECURITY.md) when the public scope changes;
+- adds or updates a dependency, native component, grammar, font, icon, palette, or runtime download; if so, verify provenance and license terms and update [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), the grammar catalog/provenance, and bundled license resources as applicable;
+- changes release behavior; if so, confirm that the `## [0.1.0]` changelog section remains extractable by the release workflow; and
+- preserves user control at trust boundaries, keeps secrets in Keystore-backed storage where supported, validates paths and URLs, and avoids secrets or workspace content in logs.
+
+Do not make legal compatibility claims that the repository's source and license files do not establish. Release-license audits remain tracked in the [roadmap](docs/roadmap.md).
 
 ## Commit messages
 
-Use short, imperative subjects, for example `git: show signed status in history`. Conventional
-Commit prefixes (`feat:`, `fix:`, `docs:`) are welcome.
+Use a short, imperative subject that describes the change, for example:
 
-## Licence
+```text
+git: show signed status in history
+privacy: document report attachments
+```
 
-By contributing, you agree that your contribution is licensed under the [GPL-3.0](LICENSE).
+A plain subject is fine. Conventional Commit prefixes are optional, not required.
+
+## Conduct and license
+
+Follow the [Code of Conduct](CODE_OF_CONDUCT.md). By contributing, you agree that your contribution is licensed under the repository's [GPL-3.0 license](LICENSE).

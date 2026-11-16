@@ -4,7 +4,7 @@ package dev.icode.mobile.domain.files
 data class HeldItem(val location: String, val name: String, val folder: Boolean, val workspace: Boolean)
 
 /**
- * What is cut or copied, waiting for Paste (docs/explorer-gaps-plan.md §3.5): every explorer's one
+ * What is cut or copied, waiting for Paste (docs/workspaces-and-files.md): every explorer's one
  * clipboard, across both places, holding many. Pasted, a cut goes; a copy stays to paste again.
  */
 data class FileClipboard(val items: List<HeldItem>, val cut: Boolean) {

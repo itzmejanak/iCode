@@ -8,7 +8,7 @@ import dev.icode.mobile.domain.phone.PhoneException
 import dev.icode.mobile.domain.phone.PhonePlaces
 
 /**
- * Straight there, by intent (docs/phone-agent-plan.md §5.4): an app by its name, a link, a Settings
+ * Straight there, by intent (docs/voice-and-phone-control.md): an app by its name, a link, a Settings
  * page. iCode may start them from the background while its accessibility service is bound — one of
  * Android's own exemptions for background activity starts.
  */

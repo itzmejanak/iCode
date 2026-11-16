@@ -3,7 +3,7 @@ package dev.icode.mobile.data.voice.speech
 import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
- * One way to read the answers aloud (docs/tts-plan.md §4.1): every provider's adapter is one, and the
+ * One way to read the answers aloud (docs/voice-and-phone-control.md): every provider's adapter is one, and the
  * voice coordinator knows none of them. What is said is never logged.
  */
 internal interface VoiceEngine {

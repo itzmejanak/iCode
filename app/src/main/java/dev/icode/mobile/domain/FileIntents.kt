@@ -7,7 +7,7 @@ import dev.icode.mobile.domain.files.RenameRule
 import dev.icode.mobile.domain.files.ScanScope
 
 /**
- * What the explorers ask of their files (docs/explorer-gaps-plan.md §3.3–§3.8), each on as many
+ * What the explorers ask of their files (docs/workspaces-and-files.md), each on as many
  * items as are chosen. A change runs as a task, off the mutation lock, and is kept to undo. An
  * answer to the question never waits behind the lock: the operation asking holds what it works on.
  */
@@ -29,12 +29,12 @@ sealed interface FilesIntent : ICodeIntent {
     /** Each beside itself, under a free name: "name copy". */
     data class Duplicate(val locations: List<String>) : FilesIntent
 
-    /** One [rule] renaming [locations], all in one folder, in the order shown (§3.4). */
+    /** One [rule] renaming [locations], all in one folder, in the order shown. */
     data class RenameMany(val locations: List<String>, val rule: RenameRule) : FilesIntent
 
     /**
      * [locations] into one archive of [format] in the folder they are in, under a free name: [name],
-     * or as [dev.icode.mobile.domain.files.ArchiveFormats.archiveName] says (§3.11).
+     * or as [dev.icode.mobile.domain.files.ArchiveFormats.archiveName] says.
      */
     data class Compress(val locations: List<String>, val format: CompressFormat, val name: String? = null) : FilesIntent
 
@@ -47,7 +47,7 @@ sealed interface FilesIntent : ICodeIntent {
     /** The archive waiting on its password is not extracted after all. */
     data object DismissPassword : FilesIntent
 
-    /** Delete: to Trash, without asking, since it can be undone (§3.7). */
+    /** Delete: to Trash, without asking, since it can be undone. */
     data class Trash(val locations: List<String>) : FilesIntent
 
     /** Trash's items back where they were. */
@@ -69,7 +69,7 @@ sealed interface FilesIntent : ICodeIntent {
 
     data object Redo : FilesIntent
 
-    /** What the explorers learn of their files (§3.9, §3.10): each on its own job, never behind the lock. */
+    /** What the explorers learn of their files: each on its own job, never behind the lock. */
     sealed interface Insight : FilesIntent
 
     /** Properties of [locations]: one item, or many; a folder's size measured while it is open. */
@@ -82,12 +82,12 @@ sealed interface FilesIntent : ICodeIntent {
 
     data object StopScan : Insight
 
-    /** One of Manage storage's views (§3.10) listed from its scan while it is shown, following iCode's own changes. */
+    /** One of Manage storage's views listed from its scan while it is shown, following iCode's own changes. */
     data class ListView(val view: ExplorerView) : Insight
 
     data object CloseView : Insight
 
-    /** The explorer's ways back (§3.14): Recent and Favorites. */
+    /** The explorer's ways back: Recent and Favorites. */
     sealed interface Shortcut : FilesIntent
 
     /** A file opened outside the editor — a viewer, Open with — kept in Recent as the editor's are. */

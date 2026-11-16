@@ -28,7 +28,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The editor's semantic tokens over in-process servers: asked only of a server that offers them, in full and then as deltas (S7). */
+/** The editor's semantic tokens over in-process servers: asked only of a server that offers them, in full and then as deltas. */
 class LanguageSemanticTokensTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtime = TestRuntime(Files.createTempDirectory("semantic").toFile())

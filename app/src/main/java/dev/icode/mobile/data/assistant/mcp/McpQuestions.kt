@@ -28,7 +28,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * A server's questions to the user mid-call (docs/mcp-plan.md M4, elicitation): one at a time, as a
+ * A server's questions to the user mid-call (docs/assistant-and-mcp.md, elicitation): one at a time, as a
  * card in the chat; a form of the flat fields the spec allows, or a page of the server's own, opened
  * only when the user chooses to. While one waits, the call's own time stands still ([asking]).
  */

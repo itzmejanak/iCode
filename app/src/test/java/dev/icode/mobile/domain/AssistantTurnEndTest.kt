@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** docs/dock-navigation-plan.md D8: each turn's end is said once, with whether it changed a file. */
+/** docs/design-and-navigation.md: each turn's end is said once, with whether it changed a file. */
 class AssistantTurnEndTest {
     private val turn = AssistantTurn("/w", "w", "chat", "Thinking…")
 

@@ -6,7 +6,7 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** docs/dock-navigation-plan.md §5.6 F2: each tool's badge, from the snapshot (D7). */
+/** Each tool's badge is derived from the snapshot (docs/design-and-navigation.md). */
 class ToolBadgesTest {
     private val empty = ICodeStateHolder.emptySnapshot()
 

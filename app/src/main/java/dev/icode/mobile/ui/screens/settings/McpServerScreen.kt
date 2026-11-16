@@ -39,7 +39,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * One MCP server (docs/mcp-plan.md §4.2): how it is now and what to do about it — Restart, Sign in, Trust
+ * One MCP server (docs/assistant-and-mcp.md): how it is now and what to do about it — Restart, Sign in, Trust
  * — then its fields as on adding, a secret never shown again once saved; its tools, each on or off and
  * asking first or running; what it tells models; its log; Remove. A workspace's server shows what its
  * `.mcp.json` says, and keeps only the user's values and choices.

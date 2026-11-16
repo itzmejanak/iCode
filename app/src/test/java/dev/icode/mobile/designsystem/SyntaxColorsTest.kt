@@ -33,7 +33,7 @@ class SyntaxColorsTest {
             SyntaxRole.Function, SyntaxRole.Type, SyntaxRole.Attribute, SyntaxRole.Regex, SyntaxRole.Invalid,
         )
         // A variant's own colours are its theme's: it draws control keywords as keywords, attributes as
-        // types, as its editor does (docs/theme-variants-plan.md D5). The six it sets apart stay apart.
+        // types, as its editor does (docs/design-and-navigation.md). The six it sets apart stay apart.
         val variantMain = listOf(
             SyntaxRole.Comment, SyntaxRole.Keyword, SyntaxRole.String, SyntaxRole.Number, SyntaxRole.Function, SyntaxRole.Type,
         )

@@ -9,7 +9,7 @@ import java.net.URI
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Every MCP failure in the words the pages and the chat show (docs/mcp-plan.md §9), as KoogFailures is
+ * Every MCP failure in the words the pages and the chat show (docs/assistant-and-mcp.md), as KoogFailures is
  * for providers. Its types only reach the log, never a server's answer or a tool's arguments.
  */
 internal object McpFailures {
@@ -68,7 +68,7 @@ internal object McpFailures {
 
     private fun firstLine(text: String?): String? = text?.lineSequence()?.map(String::trim)?.firstOrNull(String::isNotEmpty)?.take(MAX_LINE)
 
-    /** A version newer than the SDK speaks, as a modern-only server names it to `initialize` (§2.1). */
+    /** A version newer than the SDK speaks, as a modern-only server names it to `initialize`. */
     private val MODERN = Regex("""20(2[6-9]|[3-9]\d)-\d\d-\d\d""")
     private const val MAX_DEPTH = 8
     private const val MAX_LINE = 200

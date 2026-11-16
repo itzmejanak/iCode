@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.compress.PasswordRequiredException
 
 /**
- * Extract and Compress (docs/explorer-gaps-plan.md §3.11), inside their task. An archive is unpacked
+ * Extract and Compress (docs/workspaces-and-files.md), inside their task. An archive is unpacked
  * into a folder staged on its destination's own volume ([FileTrash.staging]) — counted first from
  * its own index where it has one, and room made for it — then put in place as one folder or file:
  * the one folder all its entries sit in, else a folder named after it; a name already there is asked

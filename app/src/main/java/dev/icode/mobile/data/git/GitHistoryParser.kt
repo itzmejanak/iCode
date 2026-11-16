@@ -6,7 +6,7 @@ import dev.icode.mobile.domain.GitRefKind
 import java.io.IOException
 
 /**
- * HEAD's history a page at a time (docs/git-history-plan.md §2): [arguments] asks `git log` for it,
+ * HEAD's history a page at a time (docs/source-control.md): [arguments] asks `git log` for it,
  * [parse] reads it back. Both halves of the protocol live here, so they change together.
  */
 internal object GitHistoryParser {

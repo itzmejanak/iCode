@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Source Control's changes as a tree (docs/workspace-destinations-plan.md G14), as VS Code's
+// Source Control's changes as a tree (docs/workspaces-and-files.md), as VS Code's
 // "View as Tree": each change under its folders, folders first, each by name.
 
 /** One row of the tree: a folder that holds changes, or a changed file. */

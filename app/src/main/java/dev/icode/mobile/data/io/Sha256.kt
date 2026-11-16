@@ -13,7 +13,7 @@ object Sha256 {
 
     fun hex(text: String): String = hex(text.toByteArray(Charsets.UTF_8))
 
-    /** The digest itself, for a protocol that sends it encoded: a sign-in's PKCE challenge (docs/mcp-plan.md §8.2). */
+    /** The digest itself, for a protocol that sends it encoded: a sign-in's PKCE challenge (docs/assistant-and-mcp.md). */
     fun digest(bytes: ByteArray): ByteArray = DigestAlgorithm.Sha256.newDigest().digest(bytes)
 }
 

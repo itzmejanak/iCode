@@ -3,7 +3,7 @@ package dev.icode.mobile.domain
 /** Replace [start] until [end] of a text with [replacement]. */
 data class TextEdit(val start: Int, val end: Int, val replacement: String)
 
-/** How the editor puts text in and takes it out (docs/editor-plan.md §2), as VS Code does. */
+/** How the editor puts text in and takes it out (docs/editor-and-language-services.md), as VS Code does. */
 object EditorTextRules {
     /** The line break [ending] writes; a file with none yet takes LF, as Git and Android write it. */
     fun separatorOf(ending: LineEnding): String = when (ending) {

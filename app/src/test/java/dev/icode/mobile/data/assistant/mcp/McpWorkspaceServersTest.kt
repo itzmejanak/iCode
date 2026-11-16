@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** docs/mcp-plan.md M6: a workspace's `.mcp.json`, trusted as it is, its variables filled. */
+/** docs/assistant-and-mcp.md: a workspace's `.mcp.json`, trusted as it is, its variables filled. */
 class McpWorkspaceServersTest {
     private val workspace = Files.createTempDirectory("workspace").toFile()
     private val store = McpServerStore(InMemoryPreferences(), { "sealed:$it" }, { it.removePrefix("sealed:") })

@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.phone
 
 /**
- * The screen as the model reads it (docs/phone-agent-plan.md §5.2): one line per element that shows
+ * The screen as the model reads it (docs/voice-and-phone-control.md): one line per element that shows
  * text or can be acted on, numbered in reading order. Hidden and off-screen views and pure layouts are
  * left out; a row that can be tapped reads as one element with what its children say, as TalkBack
  * reads it; a password's text is never read; overlays — iCode's bubble and glow among them — are not

@@ -29,7 +29,7 @@ import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 
-// The microphone, as the chat's composer and the bubble show it (docs/phone-agent-plan.md §5.8).
+// The microphone, as the chat's composer and the bubble show it (docs/voice-and-phone-control.md).
 
 /**
  * Tapped, it listens; tapped again, the user is done. [askMicrophone] runs instead where Android has not

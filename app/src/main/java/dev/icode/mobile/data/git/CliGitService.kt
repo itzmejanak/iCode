@@ -15,7 +15,7 @@ import java.util.UUID
 /**
  * Runs the real `git` binary inside the Linux runtime.
  *
- * Git remains the repository authority (architecture.md section 10.6): nothing
+ * Git remains the repository authority (docs/source-control.md): nothing
  * here reimplements Git behaviour, and no result is reported as successful
  * unless Git exited zero.
  */
@@ -26,7 +26,7 @@ internal class CliGitService(
 
     private val guest = GuestCommand(layout, GuestContext.Git)
 
-    /** Where a repository is on the host: its top, its branch (docs/workspace-storage-plan.md §4.2). */
+    /** Where a repository is on the host: its top, its branch (docs/workspaces-and-files.md). */
     val locator = GitLocator(layout.workspaces)
 
     /** A location for a path Git reported inside the runtime; null when it is not in the workspaces. */

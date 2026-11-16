@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// The branch's history, as Source Control's History sheet shows it (docs/git-history-plan.md): a line
+// The branch's history, as Source Control's History sheet shows it (docs/source-control.md): a line
 // per commit, newest first, beside a graph of where each one branched and merged.
 
 /** A commit as `git log` reads it. */

@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.phone
 
-/** What the agent does to an element of the screen (docs/phone-agent-plan.md §5.3). */
+/** What the agent does to an element of the screen (docs/voice-and-phone-control.md). */
 sealed interface PhoneAct {
     /** A tap; a long press when [hold]. */
     data class Tap(val hold: Boolean = false) : PhoneAct

@@ -44,7 +44,7 @@ import dev.icode.mobile.ui.syntax.rememberSyntax
 private const val MAX_FILE_RESULTS = 50
 
 /**
- * Quick Open's files (docs/screens-polish-plan.md D3): each as the explorer lists files, one height —
+ * Quick Open's files (docs/design-and-navigation.md): each as the explorer lists files, one height —
  * its icon, its name, its folder in the workspace ([root], named [rootName]). The best match leads,
  * in the accent. With nothing typed, what was opened lately ([recent]).
  */
@@ -117,7 +117,7 @@ internal fun FileResults(
 }
 
 /**
- * In Files (docs/screens-polish-plan.md D3): each file's matches under its row — the explorer's row,
+ * In Files (docs/design-and-navigation.md): each file's matches under its row — the explorer's row,
  * with how many it has; a tap folds them — each match its line number in a gutter, then its line.
  */
 @Composable
@@ -171,7 +171,7 @@ internal fun TextResults(
                             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
                         ) {
                             MonoLine(match.lineNumber.toString().padStart(width), color = IcodeColors.TextMuted, style = IcodeType.MonoSmall, maxLines = 1)
-                            // The line alone, coloured as the file's language (docs/syntax-highlighting-plan.md S5).
+                            // The line alone, coloured as the file's language (docs/editor-and-language-services.md).
                             val line = match.lineText.trim()
                             MonoLine(rememberSyntax(languageOf(result.name, ""), line), Modifier.weight(1f), style = IcodeType.MonoSmall, maxLines = 1)
                         }

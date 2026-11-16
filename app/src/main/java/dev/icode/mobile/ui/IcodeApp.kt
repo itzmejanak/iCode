@@ -172,7 +172,7 @@ fun IcodeApp(
             }
         }
         val navigation = rememberNavigationState(initialScreen, captureMode)
-        // The tools' histories are the open workspace's: another's start anew (docs/dock-navigation-plan.md D3).
+        // The tools' histories are the open workspace's: another's start anew (docs/design-and-navigation.md).
         LaunchedEffect(snapshot.activeWorkspaceLocation) { navigation.workspaceIs(snapshot.activeWorkspaceLocation) }
         // Coming back from the terminal, where an agent or a command may have
         // changed files, the Explorer, Source Control and open files catch up.
@@ -226,7 +226,7 @@ fun IcodeApp(
                     is ICodeEffect.OpenInOtherApp -> SharedFiles.open(context, effect.location, gateway::dispatch)
                     is ICodeEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
-                        // renders web content itself (architecture.md section 11.5).
+                        // renders web content itself (docs/product.md).
                         val view = Intent(Intent.ACTION_VIEW, effect.url.toUri())
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         runCatching { context.startActivity(view) }

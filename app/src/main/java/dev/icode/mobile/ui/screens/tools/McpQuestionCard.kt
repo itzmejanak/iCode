@@ -36,7 +36,7 @@ import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * An MCP server's question mid-call (docs/mcp-plan.md §4.3, M4): its message and its form — Decline or
+ * An MCP server's question mid-call (docs/assistant-and-mcp.md): its message and its form — Decline or
  * Submit — or the address of its own page, shown before anything opens — Decline or Open. × cancels.
  * The call's own time stands still while it waits.
  */

@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * The runtime's tools (docs/runtime-tools-plan.md): what dpkg has, what each would
+ * The runtime's tools (docs/runtime-and-terminal.md): what dpkg has, what each would
  * download, and the tools page's Apply. Nothing here waits on the mutation lock — apt touches
  * the runtime, not the workspace.
  */
@@ -98,7 +98,7 @@ internal class RuntimeToolsCoordinator(
 
     /**
      * Measures each tool neither installed nor measured yet, the Standard tools first, each size shown
-     * as it lands (docs/onboarding-polish-plan.md §3.4). One measure runs at a time; one asked for
+     * as it lands (docs/design-and-navigation.md). One measure runs at a time; one asked for
      * while it runs follows it, so the page's request after an install is never lost. A size is kept
      * only while what is installed is what it was measured against.
      */

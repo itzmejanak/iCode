@@ -16,7 +16,7 @@ Closes #
 
 ## Checklist
 
-- [ ] Follows docs/architecture.md and docs/backend-split-rules.md
+- [ ] Follows docs/architecture.md and docs/engineering-rules.md
 - [ ] Uses design-system tokens, no hard-coded colours
 - [ ] Sends no workspace content anywhere new
 - [ ] CHANGELOG.md updated under Unreleased (user-visible changes)

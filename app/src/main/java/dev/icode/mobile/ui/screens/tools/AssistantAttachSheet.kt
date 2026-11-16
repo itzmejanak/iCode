@@ -43,7 +43,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.screens.workspace.rankFiles
 
 /**
- * What goes with the message (§13 P6), as ChatGPT's +: the camera, the phone's photos and its files
+ * What goes with the message, as ChatGPT's +: the camera, the phone's photos and its files
  * across the top — each the phone's own picker, no permission asked — then the workspace's files as
  * Quick Open finds them, the open one first, ticked to go. Five at most, each once.
  */

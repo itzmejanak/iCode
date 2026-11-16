@@ -32,7 +32,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant › Phone Control (docs/phone-agent-plan.md §5.9): off by default. Off, the steps
+ * Settings › Assistant › Phone Control (docs/voice-and-phone-control.md): off by default. Off, the steps
  * that turn it on — one tap with Shizuku; on, the bubble and Turn Off. Shizuku has its own page.
  */
 @Composable

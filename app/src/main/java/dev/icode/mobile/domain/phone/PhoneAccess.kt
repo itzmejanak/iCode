@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.phone
 
 /**
- * Shizuku as iCode finds it (docs/phone-agent-plan.md §5.11), read live: each state names the one
+ * Shizuku as iCode finds it (docs/voice-and-phone-control.md), read live: each state names the one
  * step it needs, for its page in Settings.
  */
 enum class ShizukuState(val label: String, val step: String) {
@@ -29,7 +29,7 @@ data class PhoneAccess(
 }
 
 /**
- * What the agent is never let do on the phone (docs/phone-agent-plan.md §5.5): act on iCode's own
+ * What the agent is never let do on the phone (docs/voice-and-phone-control.md): act on iCode's own
  * windows — its approvals are the user's alone — on Android's permission dialogs, the installer,
  * or the accessibility settings that say which services read the screen. It hands those over.
  */

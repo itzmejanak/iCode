@@ -3,10 +3,10 @@ package dev.icode.mobile.domain
 /**
  * What iCode reads from, and sends to, the iCode website (contracts/api-v1.md in icode-web).
  * Every part is optional: offline, or with the site down, nothing here blocks local work
- * (docs/user-stories.md US-WEB-003).
+ * (docs/architecture.md).
  */
 
-/** The user's answer to sharing anonymous device info (docs/device-telemetry-plan.md). */
+/** The user's answer to sharing anonymous device info (PRIVACY.md). */
 enum class DeviceInfoConsent { Unanswered, Shared, NotShared }
 
 /** Settings › Application's links, as the website's admin set them; null where none is set. */

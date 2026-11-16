@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Undo and redo's model, the question's answers, Trash's days (docs/explorer-gaps-plan.md §3.6–§3.8). */
+/** Undo and redo's model, the question's answers, Trash's days (docs/workspaces-and-files.md). */
 class FileHistoryTest {
     @Test fun `a change is undone from its last step to its first, each step reversed`() {
         val change = FileChange(

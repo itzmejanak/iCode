@@ -4,7 +4,7 @@ import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.domain.countOf
 
 /**
- * What Git's transfers and credentials tell (docs/notices-redesign-plan.md D8, D9): what a pull, a
+ * What Git's transfers and credentials tell (docs/engineering-rules.md): what a pull, a
  * push, a fetch or a clone did — counted where Git can say, less where it cannot, never more — or
  * could not do, with Git's lines as the output, where it ran.
  */
@@ -51,7 +51,7 @@ object GitNotices {
     /**
      * A transfer that failed: what it could not do, why in a sentence where iCode knows Git's
      * words — a push behind its remote, a pull that cannot fast-forward, a sign-in refused — and
-     * [output], Git's own. An [automatic] fetch is kept quietly, never posted (§7, Q6).
+     * [output], Git's own. An [automatic] fetch is kept quietly, never posted.
      */
     fun transferFailed(label: String, reason: String, output: List<String>, target: Target, place: NoticePlace?, automatic: Boolean = false): Notice {
         val said = (output + reason).joinToString("\n")

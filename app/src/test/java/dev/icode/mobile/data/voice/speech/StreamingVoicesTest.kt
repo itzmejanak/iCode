@@ -26,7 +26,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** AssemblyAI, Deepgram and OpenAI reading aloud over one socket a session (docs/tts-plan.md §4.3), against servers here that answer as theirs do. */
+/** AssemblyAI, Deepgram and OpenAI reading aloud over one socket a session (docs/voice-and-phone-control.md), against servers here that answer as theirs do. */
 class StreamingVoicesTest {
     @Volatile private var script: suspend DefaultWebSocketServerSession.() -> Unit = {}
     private val queries = Collections.synchronizedList(mutableListOf<Map<String, String>>())

@@ -14,11 +14,11 @@ interface ICodeGateway {
     val effects: Flow<ICodeEffect>
         get() = emptyFlow()
 
-    /** The language servers' completions, asked from the editor's completion thread (docs/lsp-plan.md §7). */
+    /** The language servers' completions, asked from the editor's completion thread (docs/editor-and-language-services.md). */
     val languageCompletions: LanguageCompletions
         get() = LanguageCompletions.None
 
-    /** The language servers' semantic tokens, asked by the editor (docs/syntax-highlighting-plan.md D8). */
+    /** The language servers' semantic tokens, asked by the editor (docs/editor-and-language-services.md). */
     val languageHighlights: LanguageHighlights
         get() = LanguageHighlights.None
 

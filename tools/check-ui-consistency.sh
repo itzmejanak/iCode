@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# UI consistency guard for the Phase 1 design system refactor.
+# UI consistency guard.
 #
 # Enforces the zero-duplication / zero-inconsistency rules of
-# docs/ui-split-plan.md with a ratchet: tools/ui-debt-allowlist.txt records the
+# docs/engineering-rules.md with a ratchet: tools/ui-debt-allowlist.txt records the
 # maximum allowed violation count per (rule, file). Counts may only shrink.
 #
 # Usage:
@@ -10,17 +10,17 @@
 #   tools/check-ui-consistency.sh --update   # rewrite the allowlist baseline
 #
 # Rules:
-#   raw-color    Color(0x…) literals outside designsystem/IcodeColors.kt and designsystem/palettes/ (docs/theme-variants-plan.md D9)
+#   raw-color    Color(0x…) literals outside designsystem/IcodeColors.kt and designsystem/palettes/ (docs/design-and-navigation.md)
 #   fq-androidx  fully-qualified androidx.* references inside ui/
 #   dp-literal   hard-coded dp values inside ui/screens
 #   sp-literal   hard-coded sp values inside ui/screens
 #   ui-lines     ui/ files larger than the 300-line budget (screens, the app root,
-#                editor and terminal views alike; G1)
+#                editor and terminal views alike)
 #   capture-fork captureMode branches inside ui/screens (capture data belongs
 #                in the debug-only CaptureFixtures, not in product screens)
 #   orphan-route Route values with no navigate(...) entry point
 #   toast        android.widget.Toast anywhere: what iCode says is a notice, on the
-#                bell, the Notifications page and Android's shade (docs/notices-plan.md)
+#                bell, the Notifications page and Android's shade (docs/engineering-rules.md)
 #   dialog       a Compose or Android dialog anywhere: iCode asks and confirms in sheets
 #                (IcodeConfirmSheet, IcodeModalSheet; owner's request, 2026-11-04)
 

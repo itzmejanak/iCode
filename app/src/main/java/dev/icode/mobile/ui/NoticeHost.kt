@@ -41,7 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 /**
- * The bell and the sheet, over every screen (docs/notices-plan.md §2.2–2.3): what last rang the bell,
+ * The bell and the sheet, over every screen (docs/engineering-rules.md): what last rang the bell,
  * whether it is awake — rung, for its time — or at rest, faded until touched (its time up, or its
  * notice opened); it never goes. And the notice in the sheet.
  */
@@ -59,8 +59,8 @@ internal class NoticeHostState {
         private set
 
     /**
-     * A notice was told: the bell rings, awake, unless it is kept as done (docs/notices-redesign-plan.md
-     * D3) or the Notifications page, open ([pageOpen]), already shows it.
+     * A notice was told: the bell rings, awake, unless it is kept as done (docs/engineering-rules.md)
+     * or the Notifications page, open ([pageOpen]), already shows it.
      */
     fun arrived(notice: Notice, pageOpen: Boolean) {
         if (!NoticeRules.rings(notice, pageOpen)) return
@@ -134,10 +134,11 @@ internal fun NoticeHost(
 
 /**
  * The bell in the floating stack (owner's design, 2026-10-21; since 2026-11-10, a see-through button
- * the user can move, docs/dock-navigation-plan.md D13): a notice wakes it and rings it once, in the
+ * the user can move, docs/design-and-navigation.md): a notice wakes it and rings it once, in the
  * most serious tone counted — or in the tone that rang it — with the count of what needs the user, as
- * the Explorer's Source Control count is drawn; what is kept as done does not ring it (docs/notices-redesign-plan.md
- * D3, D5). TalkBack reads what rang it. On its time, the time of the most serious tone counted or of
+ * the Explorer's Source Control count is drawn; what is kept as done does not ring it
+ * (docs/engineering-rules.md). TalkBack reads what rang it. On its time, the time of the most serious
+ * tone counted or of
  * the tone that rang it, it rests, half in its edge and faded, keeping its tone and count, until
  * touched. A notice kept on the page spends its ring and its time where the bell is seen: told under a
  * sheet, it rings once the sheet closes, and its time counts only while the stack is shown

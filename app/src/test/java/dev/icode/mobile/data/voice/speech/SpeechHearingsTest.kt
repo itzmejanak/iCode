@@ -25,7 +25,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** One hearing at a time, whichever engine hears it (docs/speech-plan.md §4.1). */
+/** One hearing at a time, whichever engine hears it (docs/voice-and-phone-control.md). */
 class SpeechHearingsTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val heard = MutableStateFlow<Heard?>(null)

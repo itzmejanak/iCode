@@ -45,7 +45,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * The model's questions (docs/assistant-questions-plan.md D6), in a box as the approval's, above the
+ * The model's questions (docs/assistant-and-mcp.md), in a box as the approval's, above the
  * composer: the question, its options with what each means, and Other for the user's own words —
  * one question at a time, their names as steps when there are several. Submit sends every answer;
  * × closes them unanswered. A message sent from the composer meanwhile is the reply instead.

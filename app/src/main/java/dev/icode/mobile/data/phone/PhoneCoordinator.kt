@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
 /**
- * Phone control (docs/phone-agent-plan.md §5.9, §5.11): what iCode may do on the phone, read live into
+ * Phone control (docs/voice-and-phone-control.md): what iCode may do on the phone, read live into
  * the snapshot; Shizuku's permission and its one-tap service; and whether the bubble is out. The
  * assistant's tools reach the phone through [control].
  */

@@ -255,7 +255,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
         store.edit { it[autoFetchKey(workspaceLocation)] = enabled }
     }
 
-    /** A workspace renamed: its overrides follow it to [to] (docs/workspace-storage-plan.md §4.3). */
+    /** A workspace renamed: its overrides follow it to [to] (docs/workspaces-and-files.md). */
     suspend fun moveWorkspace(from: String, to: String) {
         store.edit { prefs ->
             prefs.move(indentSizeKey(from), indentSizeKey(to))

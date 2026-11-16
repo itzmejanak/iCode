@@ -56,7 +56,7 @@ fun DiffViewScreen(actions: NavigationActions) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var hunkIndex by rememberSaveable(diff?.path) { mutableIntStateOf(0) }
-    // Coloured as the file's language, each hunk's sides tokenized whole (docs/syntax-highlighting-plan.md S5).
+    // Coloured as the file's language, each hunk's sides tokenized whole (docs/editor-and-language-services.md).
     val language = diff?.let { languageOf(it.path.substringAfterLast('/'), firstLineOf(it)) }
     val sources = remember(diff) { diff?.let { diffSources(it.hunks) } }
     val colouring = rememberSyntaxLines(language, sources?.texts.orEmpty())

@@ -38,7 +38,7 @@ interface WorkspacePreferencesRepository {
     /** [theme]'s variant from now on; null, or [ThemeVariantRules.ICODE], returns it to iCode's own. */
     suspend fun setThemeVariant(theme: AppTheme, id: String?)
     /**
-     * Auto on or off (docs/theme-variants-plan.md T6), [theme] being the one on screen as it is turned:
+     * Auto on or off (docs/design-and-navigation.md), [theme] being the one on screen as it is turned:
      * on, a dark one becomes the theme for nights; off, it stays the theme.
      */
     suspend fun setFollowSystem(theme: AppTheme, follow: Boolean)
@@ -65,9 +65,9 @@ interface WorkspacePreferencesRepository {
     suspend fun setTerminalCursorStyle(style: TerminalCursorStyle)
     suspend fun setTerminalBellAlerts(enabled: Boolean)
     suspend fun setTerminalFinishAlerts(enabled: Boolean)
-    /** Names starting with "." listed or not, in both explorers (docs/explorer-gaps-plan.md §3.13). */
+    /** Names starting with "." listed or not, in both explorers (docs/workspaces-and-files.md). */
     suspend fun setShowHidden(shown: Boolean)
-    /** The panel's choices, for folders ([view] null) or for one view of its own (§3.12). */
+    /** The panel's choices, for folders ([view] null) or for one view of its own. */
     suspend fun setFilesLook(view: ExplorerView?, look: FilesLook)
     suspend fun setGlobalIndentSize(size: Int)
     suspend fun setIndentSizeOverride(workspaceLocation: String, size: Int?)

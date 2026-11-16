@@ -17,7 +17,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /**
- * Installs an APK on this phone and opens it (docs/android-toolchain-plan.md §4.5): one
+ * Installs an APK on this phone and opens it (docs/runtime-and-terminal.md): one
  * [PackageInstaller] session, its result to a receiver that only this app can reach; Android asks
  * the user to confirm, and says why when it refuses.
  */

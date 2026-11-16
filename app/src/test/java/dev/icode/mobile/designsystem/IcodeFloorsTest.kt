@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** What the floating stack stands clear of (docs/explorer-gaps-plan.md §3.8): the highest floor on screen, and any sheet open. */
+/** What the floating stack stands clear of (docs/workspaces-and-files.md): the highest floor on screen, and any sheet open. */
 class IcodeFloorsTest {
     @Test fun `the stack stands above the highest floor on screen, and nothing once they have gone`() {
         val floors = IcodeFloors()

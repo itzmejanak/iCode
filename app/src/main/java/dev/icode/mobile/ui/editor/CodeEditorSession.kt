@@ -142,7 +142,7 @@ class CodeEditorSession(
 
     /**
      * Text from outside the editor, as the smallest edit between what it shows and [text]: the
-     * caret and what is around it stay, and Undo brings the old text back (docs/editor-plan.md §2).
+     * caret and what is around it stay, and Undo brings the old text back (docs/editor-and-language-services.md).
      */
     private fun applyOutside(viewText: String, text: String) {
         val edit = EditorTextRules.splice(viewText, text) ?: return
@@ -173,7 +173,7 @@ class CodeEditorSession(
         return true
     }
 
-    /** A key of the keys row (docs/editor-plan.md §4), as from a keyboard; over the completion list, Tab takes its row and ↑ ↓ choose (docs/editor-completion-plan.md D6). */
+    /** A key of the keys row (docs/editor-and-language-services.md), as from a keyboard; over the completion list, Tab takes its row and ↑ ↓ choose (docs/editor-and-language-services.md). */
     fun press(key: EditorKey) {
         if (!editor.isEditable) return
         when (key) {

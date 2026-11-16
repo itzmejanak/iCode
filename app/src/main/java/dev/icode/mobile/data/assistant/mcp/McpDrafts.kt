@@ -8,7 +8,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.ResourceLink
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 
 /**
- * A server's prompt or resource as the composer's draft (docs/mcp-plan.md M8): what the user chose, in
+ * A server's prompt or resource as the composer's draft (docs/assistant-and-mcp.md): what the user chose, in
  * words they read and may change before sending. Nothing goes to the model until they send it.
  */
 internal object McpDrafts {

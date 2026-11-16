@@ -17,13 +17,13 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * An NDK's setup, one per pinned [revision] (docs/android-ndk-plan.md §3.2): android-ndk-custom's
+ * An NDK's setup, one per pinned [revision] (docs/runtime-and-terminal.md): android-ndk-custom's
  * build of Google's NDK, its toolchain built for ARM64 Linux, put in `ndk/<revision>`, Android
  * Studio's side-by-side place, where its own `package.xml` makes sdkmanager and the Android Gradle
  * plugin list it as installed. Whatever was there before goes: Google's x86-64 NDK fetched by a build,
  * or a setup cut short.
  *
- * The runtime's own tar and xz unpack it, never the app (§7.6): its archives are compressed with a
+ * The runtime's own tar and xz unpack it, never the app: its archives are compressed with a
  * 256 MiB window, which the decoder holds whole — more than an app's heap may grow to. In the
  * runtime it is native memory, in a process of its own.
  */

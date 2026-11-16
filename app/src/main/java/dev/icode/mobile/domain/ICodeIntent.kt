@@ -46,7 +46,7 @@ sealed interface ICodeIntent {
     data class CancelTask(override val id: Long) : TaskIntent
     /** A failure, read. */
     data class DismissTask(override val id: Long) : TaskIntent
-    /** The tools page (docs/runtime-tools-plan.md): it never waits on the mutation lock. */
+    /** The tools page (docs/runtime-and-terminal.md): it never waits on the mutation lock. */
     sealed interface RuntimeToolsIntent : ICodeIntent
     /** What each tool not installed would download; the lists are read first when needed. */
     data object MeasureRuntimeTools : RuntimeToolsIntent
@@ -57,7 +57,7 @@ sealed interface ICodeIntent {
     data object SkipRuntimeTools : RuntimeToolsIntent
     /** A failure, read. */
     data object DismissRuntimeTools : RuntimeToolsIntent
-    /** The Terminal panel's Run tab (docs/run-tab-plan.md), for the open workspace: it never waits on the mutation lock. */
+    /** The Terminal panel's Run tab (docs/runtime-and-terminal.md), for the open workspace: it never waits on the mutation lock. */
     sealed interface RunIntent : ICodeIntent
     data class StartRun(val configuration: String) : RunIntent
     /** Stops its process, or abandons the install that waits on Android. */
@@ -172,7 +172,7 @@ sealed interface ICodeIntent {
     data class BrowseFiles(val path: String? = null) : StorageIntent
     /** The file explorer in [place], where it was last there; at its top the first time. */
     data class BrowsePlace(val place: StoragePlace) : StorageIntent
-    /** The file explorer showing [view] in place of a folder (docs/explorer-gaps-plan.md §3.10); a browse leaves it. */
+    /** The file explorer showing [view] in place of a folder (docs/workspaces-and-files.md); a browse leaves it. */
     data class BrowseView(val view: ExplorerView) : StorageIntent
     /** Where the next clone goes: the folder [path] of a workspace, or none — a new workspace. */
     data class ChooseDestination(val path: String?) : StorageIntent
@@ -187,7 +187,7 @@ sealed interface ICodeIntent {
     data object ResetRuntime : ICodeIntent
     /**
      * "+": always a new session, in the open workspace while its tools are on screen ([inWorkspace]);
-     * outside it, in no workspace, where a login starts: `$HOME` (docs/home-plan.md §2).
+     * outside it, in no workspace, where a login starts: `$HOME` (docs/design-and-navigation.md).
      */
     data class OpenTerminalSession(val inWorkspace: Boolean) : ICodeIntent
     /** The panel needs a session: a running one where "+" would open one, or a new one only when there is none. */
@@ -200,7 +200,7 @@ sealed interface ICodeIntent {
     data class CloseTerminalSession(val id: String) : ICodeIntent
     data class OpenExternalUrl(val url: String) : ICodeIntent
 
-    /** Managed processes (docs/runtime-foundation-plan.md §3.4): each its own job, never behind the mutation lock. */
+    /** Managed processes (docs/runtime-and-terminal.md): each its own job, never behind the mutation lock. */
     sealed interface ProcessIntent : ICodeIntent
     /** Ends a running process: SIGTERM, then SIGKILL if it is still there. */
     data class StopProcess(val id: String) : ProcessIntent
@@ -208,20 +208,20 @@ sealed interface ICodeIntent {
     data object StopAllProcesses : ProcessIntent
     /** An ended process leaves the list. */
     data class ForgetProcess(val id: String) : ProcessIntent
-    /** A process's output on the Terminal panel, in a tab of its own (docs/runtime-foundation-plan.md §6 P3). */
+    /** A process's output on the Terminal panel, in a tab of its own (docs/runtime-and-terminal.md). */
     data class ShowProcessOutput(val id: String) : ICodeIntent
 
-    /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
+    /** The assistant (docs/assistant-and-mcp.md): its turns are their own job, never behind the mutation lock. */
     sealed interface AssistantIntent : ICodeIntent
     /**
      * The Assistant page opened, or the workspace under it changed: inside the workspace ([inWorkspace])
-     * the open workspace's chats are shown; outside it, the chats in no workspace (docs/home-plan.md §2).
+     * the open workspace's chats are shown; outside it, the chats in no workspace (docs/design-and-navigation.md).
      */
     data class OpenAssistant(val inWorkspace: Boolean) : AssistantIntent
     /** One of the shown place's chats, from its history. */
     data class OpenAssistantSession(val id: String) : AssistantIntent
     data class DeleteAssistantSession(val id: String) : AssistantIntent
-    /** One of the shown place's chats, shared as its transcript (§12 R9). */
+    /** One of the shown place's chats, shared as its transcript. */
     data class ExportAssistantSession(val id: String) : AssistantIntent
     /** A new, empty chat; it is kept once something is said in it. */
     data object NewAssistantChat : AssistantIntent
@@ -229,19 +229,19 @@ sealed interface ICodeIntent {
     data class SendAssistantMessage(
         val text: String,
         val attachments: List<String> = emptyList(),
-        /** Sent from the bubble: answered aloud when Spoken replies says so (docs/phone-agent-plan.md §5.8). */
+        /** Sent from the bubble: answered aloud when Spoken replies says so (docs/voice-and-phone-control.md). */
         val aloud: Boolean = false,
     ) : AssistantIntent
     /** Stops the turn in hand: the request, and a running command with everything it started. */
     data object StopAssistant : AssistantIntent
     data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent
-    /** The user's reply to the questions of the call [callId] (docs/assistant-questions-plan.md D4). */
+    /** The user's reply to the questions of the call [callId] (docs/assistant-and-mcp.md). */
     data class ReplyAssistant(val callId: String, val reply: AssistantReply) : AssistantIntent
     /** The turn's pause answered: it goes on (Continue, Done). Stop is [StopAssistant]. */
     data object ContinueAssistant : AssistantIntent
-    /** Summarizes the shown chat so later turns send less (§12 R4). */
+    /** Summarizes the shown chat so later turns send less. */
     data object CompactAssistantChat : AssistantIntent
-    /** The shown chat's own terminal tab, opened if it has none, for the menu's Terminal (docs/agent-control-plan.md §6). */
+    /** The shown chat's own terminal tab, opened if it has none, for the menu's Terminal (docs/assistant-and-mcp.md). */
     data object OpenAssistantTerminal : AssistantIntent
     /** The chat's model: one of [provider]'s. */
     data class ChooseAssistantModel(val provider: String, val model: String) : AssistantIntent
@@ -271,7 +271,7 @@ sealed interface ICodeIntent {
     }
     /** Forgets a provider, its key and its models. */
     data class RemoveAssistantProvider(val id: String) : AssistantIntent
-    /** The open workspace's staged changes described by the model, for the commit field (docs/commit-message-generator-plan.md). */
+    /** The open workspace's staged changes described by the model, for the commit field (docs/assistant-and-mcp.md). */
     data object WriteCommitMessage : AssistantIntent
     /** The written message is in the commit field, or its failure was read: it is not offered again. */
     data object CommitMessageTaken : AssistantIntent

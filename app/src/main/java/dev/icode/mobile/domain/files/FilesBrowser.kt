@@ -6,12 +6,12 @@ import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.countOf
 
-// The file explorer of iCode's storage and phone storage (docs/storage-explorer-plan.md §3): where
+// The file explorer of iCode's storage and phone storage (docs/workspaces-and-files.md): where
 // it is, what is there, and how it is ordered and found.
 
 /**
  * One entry the file explorer lists: in a folder, a folder — a workspace, at the top — or a file; in
- * a view (docs/explorer-gaps-plan.md §3.10), a file gathered from anywhere, or what Trash holds,
+ * a view (docs/workspaces-and-files.md), a file gathered from anywhere, or what Trash holds,
  * whose [location] is its id there.
  */
 data class BrowsedItem(
@@ -29,12 +29,12 @@ data class BrowsedItem(
     val entries: Int? = null,
     /** A workspace at the top that is a repository: its branch. */
     val branch: String? = null,
-    /** What a scan found it is, its bytes read where its name could not say; null: what its name says (docs/file-kinds-icons-plan.md D3). */
+    /** What a scan found it is, its bytes read where its name could not say; null: what its name says (docs/workspaces-and-files.md). */
     val type: FileType? = null,
 )
 
 /**
- * The two places the file explorer shows (docs/storage-explorer-plan.md §3.1): iCode's own storage,
+ * The two places the file explorer shows (docs/workspaces-and-files.md): iCode's own storage,
  * where workspaces live, and phone storage, which other apps see.
  */
 enum class StoragePlace(val label: String) {
@@ -71,7 +71,7 @@ data class FilesBrowserState(
     val where: String get() = runtimePathOf(parent ?: path)
 
     /**
-     * The breadcrumb (docs/explorer-gaps-plan.md §3.14): the folder shown's path in segments, each
+     * The breadcrumb (docs/workspaces-and-files.md): the folder shown's path in segments, each
      * where a tap goes — the place's top as the runtime names it, then each folder down to this one.
      */
     val crumbs: List<Crumb>
@@ -89,14 +89,14 @@ data class FilesBrowserState(
         if (place == StoragePlace.Shared) location else WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
 }
 
-/** A labelled run of a listing's rows (§3.10, §3.12): a type's — ".kt · 12" — or a set of copies; unlabelled, the whole listing. */
+/** A labelled run of a listing's rows: a type's — ".kt · 12" — or a set of copies; unlabelled, the whole listing. */
 data class RowGroup(val label: String?, val rows: List<BrowsedItem>)
 
 /** One segment of the breadcrumb: what it says, and the folder it goes to. */
 data class Crumb(val label: String, val location: String)
 
 /**
- * What the explorer orders by (docs/explorer-gaps-plan.md §3.12), in the panel's order. Each has the
+ * What the explorer orders by (docs/workspaces-and-files.md), in the panel's order. Each has the
  * way it reads first — names A→Z, the largest and the newest first — which Descending flips.
  */
 enum class FilesSort(val descendingFirst: Boolean) {
@@ -114,7 +114,7 @@ object FilesRules {
     }
 
     /**
-     * Folders first, as a folder lists them — a view (§3.10) mixes them, by [foldersFirst] — then by
+     * Folders first, as a folder lists them — a view mixes them, by [foldersFirst] — then by
      * [sort], [descending] or not: the name ignoring case; the size ([sizeOf]), the unmeasured last
      * either way; the date its row says; the type, by [extension], then the name. Ties go by name.
      */
@@ -171,6 +171,6 @@ object FilesRules {
         return listOfNotNull(what, item.branch).joinToString(" · ")
     }
 
-    /** A view's row's detail (§3.10), gathered from many folders: the folder it is in — Trash's, was in — then [detail]. */
+    /** A view's row's detail, gathered from many folders: the folder it is in — Trash's, was in — then [detail]. */
     fun gatheredDetail(item: BrowsedItem): String = "${item.path.substringBeforeLast('/').ifEmpty { "/" }} · ${detail(item)}"
 }

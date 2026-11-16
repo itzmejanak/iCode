@@ -113,7 +113,7 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
  * Lines outside a conflict are context; each marker block becomes a pair of
  * bands with the choices attached, so the user acts where they are reading.
  * Code is coloured as the file's language, each side as the file it would make
- * (docs/syntax-highlighting-plan.md S5).
+ * (docs/editor-and-language-services.md).
  */
 @Composable
 private fun ConflictedFile(conflict: GitConflictFile, working: Pair<Int, GitConflictChoice>?, onChoice: (GitConflictSection, GitConflictChoice) -> Unit) {

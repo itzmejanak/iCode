@@ -9,7 +9,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** One line of Properties (docs/explorer-gaps-plan.md §3.9): what it says; a [path] has Copy beside it. */
+/** One line of Properties (docs/workspaces-and-files.md): what it says; a [path] has Copy beside it. */
 data class PropertyRow(val label: String, val value: String, val path: Boolean = false)
 
 object FileProperties {
@@ -18,7 +18,7 @@ object FileProperties {
      * where it points, a file by its kind and extension — where it is, its size, when it changed and,
      * a file in Private, whether it runs. Many: how many, their size, and the folder they are in.
      * [path] is the one item's runtime path, or that folder's — none for many a view gathered from
-     * more than one (§3.10). No creation time: Android keeps none.
+     * more than one. No creation time: Android keeps none.
      */
     fun rows(facts: FileFacts, name: String, path: String?, branch: String?, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<PropertyRow> {
         if (facts.kind == null) return listOfNotNull(PropertyRow("Items", items(facts)), PropertyRow("Size", size(facts)), path?.let { PropertyRow("In", it, path = true) })
@@ -33,7 +33,7 @@ object FileProperties {
     }
 
     /**
-     * Properties of what Trash holds (§3.7), as it was deleted: its name, kind, where it was — where
+     * Properties of what Trash holds, as it was deleted: its name, kind, where it was — where
      * Restore puts it — its size, when it was deleted, and until when Trash keeps it.
      */
     fun trashed(item: TrashedItem, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<PropertyRow> {

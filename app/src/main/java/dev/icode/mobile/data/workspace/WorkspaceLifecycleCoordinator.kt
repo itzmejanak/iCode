@@ -14,7 +14,7 @@ import java.io.IOException
 import java.nio.file.Files
 
 /**
- * Whole workspaces made and renamed (docs/workspace-storage-plan.md §4.3): New Folder, and Rename
+ * Whole workspaces made and renamed (docs/workspaces-and-files.md): New Folder, and Rename
  * from any list. A workspace in use is not pulled from under what uses it ([WorkspaceUsage]). The
  * open workspace is closed first, and a renamed one opens again with its tabs. A workspace that
  * moves or goes — renamed, cut into another, put in Trash — is [release]d before, and [renamed] or
@@ -72,7 +72,7 @@ internal class WorkspaceLifecycleCoordinator(
     /**
      * What is at [location], shown, from wherever it was asked — Quick Open, search, the file
      * explorer, a finished clone or import. A file opens in the editor, its workspace opened for it
-     * first, or in a viewer of its own, the workspace as it is (docs/file-viewers-plan.md); a folder
+     * first, or in a viewer of its own, the workspace as it is (docs/workspaces-and-files.md); a folder
      * opens its workspace with it selected in the Explorer — or, in the open one, shows it. One that
      * is not there — a link to a file since moved — is said so.
      */

@@ -23,11 +23,11 @@ import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 
-// The providers that answer once the user stopped (docs/speech-plan.md §4.3): each takes the hearing's
+// The providers that answer once the user stopped (docs/voice-and-phone-control.md): each takes the hearing's
 // audio in one request and answers its words, or why not, in the shared failures.
 
 /**
- * A server that speaks OpenAI's `/audio/transcriptions` (§2.3): the hearing as a WAV file, its words
+ * A server that speaks OpenAI's `/audio/transcriptions`: the hearing as a WAV file, its words
  * back as JSON. [address] is up to and including `/v1`, as for the assistant's OpenAI-compatible providers.
  */
 internal class OpenAiTranscription(private val http: HttpClient, private val address: String, private val key: String?) : SpeechUpload {
@@ -60,7 +60,7 @@ internal class OpenAiTranscription(private val http: HttpClient, private val add
 }
 
 /**
- * Google Cloud Speech-to-Text v1's `speech:recognize` (§2.5): the hearing as LINEAR16, base64, the key
+ * Google Cloud Speech-to-Text v1's `speech:recognize`: the hearing as LINEAR16, base64, the key
  * in `X-Goog-Api-Key` — never in the address. Google needs a language: the phone's when none is set.
  */
 internal class GoogleRecognition(private val http: HttpClient, private val key: String, private val endpoint: String = ENDPOINT) : SpeechUpload {

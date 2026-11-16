@@ -87,7 +87,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         openWorkspaceTerminal = { location -> session.open(location, persist = true, openTerminal = true) },
         workspaceChanged = { session.requestRefresh(rebuildIndex = true) },
     )
-    /** The website: never on the editing path; offline it changes nothing (docs/device-telemetry-plan.md). */
+    /** The website: never on the editing path; offline it changes nothing (PRIVACY.md). */
     private val web = WebCoordinator(appContext, stateHolder, scope)
     private val notices = NoticeBoard(appContext, stateHolder, terminals.screenVisible)
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
@@ -95,7 +95,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val languages: LanguageServices = LanguageServices.create(appContext, stateHolder, scope, runtimeLayout, source, settings, { session.activeRoot },
         editOpen = { location, text -> documents.updateText(ICodeIntent.UpdateDocumentText(location, text)) }, changed = { session.requestRefresh(rebuildIndex = true) }, typeInTerminal = terminal::type)
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext), sessionsRunning = runtimeBusy)
-    /** Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md). */
+    /** Phone storage, the file explorer's Shared place (docs/workspaces-and-files.md). */
     private val phoneStorage = PhoneStorage.of()
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
         appContext, stateHolder, scope, source, store, runtimeLayout, phoneStorage,
@@ -135,7 +135,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         actInRepository = gitWorkspace::act,
         refreshRepository = { root -> gitWorkspace.refresh(root) },
     )
-    /** Long operations: their own jobs, off the mutation lock (docs/long-operations-plan.md). */
+    /** Long operations: their own jobs, off the mutation lock (docs/runtime-and-terminal.md). */
     private val tasks = TaskRunner(stateHolder, scope)
     /** One ripgrep, for Search and the assistant: one install, one cooldown after a failed one. */
     private val ripgrep = RipgrepService(runtimeLayout, runtimeTools.installer)
@@ -162,15 +162,15 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
     )
-    /** The explorers' operations (docs/explorer-gaps-plan.md): each a task, the question it asks answered off the lock. */
+    /** The explorers' operations (docs/workspaces-and-files.md): each a task, the question it asks answered off the lock. */
     private val files: FileOperationsCoordinator = FileOperationsCoordinator.create(appContext, stateHolder, scope, tasks, runtimeLayout, phoneStorage, git, usage, follower, history, library.shortcuts)
     private val items = WorkspaceItemsCoordinator(stateHolder, source, documents, usage, lifecycle, files.places, runtimeLayout.paths, follower, history) { session.activeRoot }
-    /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
+    /** The Terminal panel's Run tab (docs/runtime-and-terminal.md): Android apps and saved commands, for the tab and the assistant. */
     private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)
-    /** Phone control and voice (docs/phone-agent-plan.md): the accessibility service, Shizuku, the bubble; the microphone, spoken answers. */
+    /** Phone control and voice (docs/voice-and-phone-control.md): the accessibility service, Shizuku, the bubble; the microphone, spoken answers. */
     private val phone = PhoneCoordinator(appContext, stateHolder, scope)
     private val voice = VoiceCoordinator(appContext, stateHolder, scope)
-    /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
+    /** iCode's assistant (docs/assistant-and-mcp.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
         AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null },

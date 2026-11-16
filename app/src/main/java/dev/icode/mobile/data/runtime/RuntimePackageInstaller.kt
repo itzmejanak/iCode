@@ -22,7 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The one way iCode installs and removes runtime tools (docs/runtime-tools-plan.md §3.4).
+ * The one way iCode installs and removes runtime tools (docs/runtime-and-terminal.md).
  *
  * dpkg has one database and one lock, so apt runs one at a time. A request for a tool already
  * being installed waits for that install instead of starting apt again. The run belongs to [scope],
@@ -31,7 +31,7 @@ import kotlinx.coroutines.sync.withLock
  *
  * An install is two apt runs: the first only downloads (`-d`) and may be cancelled — nothing is
  * installed yet; the second installs what was downloaded, and is never stopped. A tool with a setup
- * ([RuntimeToolSetup], docs/android-toolchain-plan.md §4.1) has it run next, unless its receipt
+ * ([RuntimeToolSetup], docs/runtime-and-terminal.md) has it run next, unless its receipt
  * already matches; a removal takes the setup away before apt removes the packages.
  */
 internal class RuntimePackageInstaller(

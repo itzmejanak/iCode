@@ -7,7 +7,7 @@ import org.intellij.markdown.parser.StreamingMarkdownFile
 import org.intellij.markdown.parser.MarkdownParser as JetBrainsParser
 
 /**
- * Markdown read as GitHub reads it (docs/markdown-rendering-plan.md §3.1), by the JetBrains parser in
+ * Markdown read as GitHub reads it (docs/editor-and-language-services.md), by the JetBrains parser in
  * its GFM flavour: math, tables, task lists, strikethrough, alerts and autolinks.
  */
 object MarkdownParser {
@@ -29,7 +29,7 @@ object MarkdownParser {
 }
 
 /**
- * An assistant's answer as it streams (§3.6). The parser's streaming file re-reads only the end it has
+ * An assistant's answer as it streams. The parser's streaming file re-reads only the end it has
  * not settled; what it settled is converted once and kept, so each chunk costs the end, not the
  * whole. `\(…\)` and `\[…\]` are math ([MathDelimiters]). Not for two threads at once.
  */

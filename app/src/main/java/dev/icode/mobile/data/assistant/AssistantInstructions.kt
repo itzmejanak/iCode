@@ -14,8 +14,8 @@ import java.io.File
  */
 internal object AssistantInstructions {
     /**
-     * What the user approves under [permission] (docs/assistant-permissions-plan.md §4.6), in the
-     * workspace [name]; in none (null), each change and command but under Full access (docs/home-plan.md §2).
+     * What the user approves under [permission] (docs/assistant-and-mcp.md), in the
+     * workspace [name]; in none (null), each change and command but under Full access (docs/design-and-navigation.md).
      */
     private fun approvals(name: String?, permission: AssistantPermission): String = when {
         permission == AssistantPermission.FullAccess -> "No approval is asked of the user."
@@ -24,13 +24,13 @@ internal object AssistantInstructions {
         else -> "Changes and commands in “$name” run without asking; anything outside it is asked of the user first."
     }
 
-    /** When the user decides (docs/assistant-questions-plan.md D1): asked with options, never guessed, nor asked in prose. */
+    /** When the user decides (docs/assistant-and-mcp.md): asked with options, never guessed, nor asked in prose. */
     private const val ASKING =
         "When what is missing, or a choice, is the user's — what they want, a decision between approaches, a preference the " +
             "workspace does not show — ask with ask_user rather than guessing or asking in your answer, then go on with their reply. " +
             "Ask only what you need, together in one call. Never use it for permission: iCode asks before changes and commands itself."
 
-    /** What the model is asked for when a chat is compacted (§12 R4). */
+    /** What the model is asked for when a chat is compacted. */
     const val COMPACT_REQUEST =
         "Summarize this conversation so far, with any earlier summary of it, for yourself to continue it from " +
             "the summary alone: what the user wants, what was decided, the files read and changed and what changed " +
@@ -38,8 +38,8 @@ internal object AssistantInstructions {
             "Write only the summary."
 
     /**
-     * The system prompt; [phoneTools]: the phone's tools are offered (docs/phone-agent-plan.md §5.3);
-     * [aloud]: the answer is read aloud, so it is said short (§5.8).
+     * The system prompt; [phoneTools]: the phone's tools are offered (docs/voice-and-phone-control.md);
+     * [aloud]: the answer is read aloud, so it is said short.
      */
     fun of(
         workspace: AssistantWorkspace,
@@ -85,8 +85,8 @@ internal object AssistantInstructions {
     }
 
     /**
-     * Where a chat works — its workspace, or for a chat in none root's home (docs/home-plan.md §2) — and
-     * its mode's role (docs/assistant-koog-plan.md §12 R8).
+     * Where a chat works — its workspace, or for a chat in none root's home (docs/design-and-navigation.md) — and
+     * its mode's role (docs/assistant-and-mcp.md).
      */
     private fun StringBuilder.workspace(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission) {
         val inWorkspace = workspace.workspace != null
@@ -201,7 +201,7 @@ internal object AssistantInstructions {
 
     private const val MAX_NOTES = 16_000
 
-    /** How the phone is operated, fast (docs/phone-agent-plan.md §5.2–§5.5): fewer, cheaper steps. */
+    /** How the phone is operated, fast (docs/voice-and-phone-control.md): fewer, cheaper steps. */
     private val PHONE_TOOLS = """
         ## The phone
         You can see and operate the user's phone with the phone_ tools, as the user would by hand.
@@ -213,7 +213,7 @@ internal object AssistantInstructions {
         - An act in an app may wait for the user's approval. Say in a sentence what you did when you are done.
     """.trimIndent()
 
-    /** A turn read aloud (docs/phone-agent-plan.md §5.8): heard sentence by sentence, as it is written. */
+    /** A turn read aloud (docs/voice-and-phone-control.md): heard sentence by sentence, as it is written. */
     private val READ_ALOUD = """
         ## Read aloud
         This answer is read aloud to the user, sentence by sentence as you write it; they may not be looking at the screen.
@@ -223,7 +223,7 @@ internal object AssistantInstructions {
         - Show code or long detail only when asked, and then say first that it is on the screen.
     """.trimIndent()
 
-    /** Phone storage, as every chat is told of it (docs/phone-agent-plan.md L8). */
+    /** Phone storage, as every chat is told of it (docs/voice-and-phone-control.md). */
     private const val STORAGE =
         "Phone storage — the user's Download, Documents, Pictures, DCIM, Music — is at /sdcard (/storage/emulated/0), " +
             "read with All Files Access."

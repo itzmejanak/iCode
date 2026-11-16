@@ -14,8 +14,8 @@ import kotlinx.coroutines.CompletableDeferred
 
 /**
  * What the turn in hand asks the user, one question at a time: an approval before a call
- * (docs/assistant-permissions-plan.md §5), a pause between steps (docs/phone-agent-plan.md L5), or
- * the model's own questions (docs/assistant-questions-plan.md D2). Each waits until it is answered
+ * (docs/assistant-and-mcp.md), a pause between steps (docs/voice-and-phone-control.md), or
+ * the model's own questions (docs/assistant-and-mcp.md). Each waits until it is answered
  * or the turn is stopped, shown on the [page] meanwhile.
  */
 internal class AssistantQuestions(private val page: AssistantPage) {
@@ -87,7 +87,7 @@ internal class AssistantQuestions(private val page: AssistantPage) {
 
     /**
      * A message sent in the chat of [workspace] and [session] while the turn there asks its questions:
-     * it is the reply (D5). False when no question waits there — the message is a message.
+     * it is the reply. False when no question waits there — the message is a message.
      */
     fun replyWith(workspace: String?, session: String, text: String): Boolean {
         val shown = page.current

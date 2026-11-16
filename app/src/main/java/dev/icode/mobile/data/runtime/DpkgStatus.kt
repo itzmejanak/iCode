@@ -4,7 +4,7 @@ import java.io.File
 
 /**
  * The packages dpkg has installed, read from its status file on the app's side — no process,
- * no PRoot (docs/runtime-tools-plan.md §3.2). Read again only when the file has changed, so
+ * no PRoot (docs/runtime-and-terminal.md). Read again only when the file has changed, so
  * a package installed from the terminal is seen at the next look.
  */
 internal class DpkgStatus(rootfs: File) {

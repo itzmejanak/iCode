@@ -12,7 +12,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every caller's tokenizing within [SyntaxLimits] (docs/syntax-highlighting-plan.md D7; A5). */
+/** Every caller's tokenizing within [SyntaxLimits] (docs/editor-and-language-services.md). */
 class LimitedGrammarTest {
     private fun js(): IGrammar = ShippedGrammars.load(ShippedGrammars.registry(), "source.js")
 

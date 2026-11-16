@@ -55,7 +55,7 @@ internal enum class LanguagePage(val caption: String, val short: String) {
     }
 }
 
-/** A language service's configuration, its server's state and log (docs/lsp-plan.md §7). */
+/** A language service's configuration, its server's state and log (docs/editor-and-language-services.md). */
 @Composable
 fun LanguageDetailScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current

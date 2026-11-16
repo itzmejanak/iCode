@@ -8,10 +8,10 @@ import androidx.compose.ui.unit.dp
 internal val LocalIcodeCompactLayout = staticCompositionLocalOf { true }
 
 /**
- * Spacing scale from `docs/layout.md` §4.5 (`space.1` … `space.6`); from `space.2` up, each step
+ * Spacing scale from `docs/design-and-navigation.md` (`space.1` … `space.6`); from `space.2` up, each step
  * is 4 dp wider while Appearance › Compact Layout is off.
  *
- * Every page keeps one rhythm (§4.5): its content [Gutter] from the screen's edges, a group's label
+ * Every page keeps one rhythm: its content [Gutter] from the screen's edges, a group's label
  * and items [ItemGap] apart, its groups [SectionGap] apart.
  */
 object IcodeSpacing {
@@ -84,7 +84,7 @@ object IcodeSizes {
     val TabTile = 40.dp
     /** The × that takes a picture off, in a [Tile]'s corner. */
     val TileRemove = 28.dp
-    /** The assistant's bubble over other apps (docs/phone-agent-plan.md §5.7), its ring, and its bar's width at most. */
+    /** The assistant's bubble over other apps (docs/voice-and-phone-control.md), its ring, and its bar's width at most. */
     val Bubble = 52.dp
     val BubbleRing = 3.dp
     val BubblePanel = 380.dp
@@ -94,7 +94,7 @@ object IcodeSizes {
     /** The voice bubble's waveform while it listens with nothing heard yet: it stands alone, so it is bigger. */
     val WaveformVoice = 30.dp
     val WaveformBarVoice = 4.dp
-    /** A grid of files (docs/explorer-gaps-plan.md §3.12): each tile at least this wide, its picture this big. */
+    /** A grid of files (docs/workspaces-and-files.md): each tile at least this wide, its picture this big. */
     val GridTileMin = 104.dp
     val GridTilePicture = 56.dp
     val TouchTarget = 48.dp
@@ -105,7 +105,7 @@ object IcodeSizes {
     val CornerAction = 40.dp
     /** A floating pill's height, and a closed one's square ([IcodeDockedPill]): a touch target, easy to hit. */
     val DockedPill = 48.dp
-    /** Each action's width on a floating pill: six fit a phone's row with room to spare (docs/dock-navigation-plan.md D6). */
+    /** Each action's width on a floating pill: six fit a phone's row with room to spare (docs/design-and-navigation.md). */
     val DockedAction = 44.dp
     /** A tree row's leading slot, its expand arrow or nothing: the rail beneath the row runs down its middle. */
     val Disclosure = 24.dp
@@ -123,7 +123,7 @@ object IcodeSizes {
     val TopBarWithSubtitle = 64.dp
     val TabStrip = 38.dp
     val TerminalTabBar = 40.dp
-    /** A step's terminal in its sheet, at most (docs/agent-control-plan.md §6): about fifteen rows at the terminal's own size. */
+    /** A step's terminal in its sheet, at most (docs/assistant-and-mcp.md): about fifteen rows at the terminal's own size. */
     val StepTerminal = 300.dp
 
 
@@ -139,7 +139,7 @@ object IcodeSizes {
     /** The assistant's question card's answers, at most: then they scroll, the chat and the buttons in sight. */
     val QuestionAnswers = 280.dp
     val LineNumberGutter = 32.dp
-    /** The narrowest a theme variant's card is drawn in its sheet: two to a phone's width (docs/theme-variants-plan.md §4). */
+    /** The narrowest a theme variant's card is drawn in its sheet: two to a phone's width (docs/design-and-navigation.md). */
     val ThemeCardMin = 148.dp
 
     /** The accent picker: its HSV wheel, brightness bar and preset chips. */

@@ -18,7 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** The per-sentence runner and the WAV reader (docs/tts-plan.md §4.3, §4.4). */
+/** The per-sentence runner and the WAV reader (docs/voice-and-phone-control.md). */
 class SentenceVoiceTest {
     private val events = Collections.synchronizedList(mutableListOf<String>())
     private val playing = Collections.synchronizedList(mutableListOf<Boolean>())

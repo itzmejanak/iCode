@@ -14,8 +14,8 @@ import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
-// What the assistant reads (§4.3): never asked about, never written. Any path in the runtime
-// (docs/runtime-contract-plan.md §4.3), each answered as the model writes it back ([AssistantWorkspace.shown]).
+// What the assistant reads: never asked about, never written. Any path in the runtime
+// (docs/runtime-and-terminal.md), each answered as the model writes it back ([AssistantWorkspace.shown]).
 
 /** A folder's entries, or with `recursive` every file under it, ignored ones left out unless asked for. */
 internal class ListFilesTool(

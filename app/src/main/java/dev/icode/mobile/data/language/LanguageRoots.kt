@@ -3,7 +3,7 @@ package dev.icode.mobile.data.language
 import java.io.File
 
 /**
- * The folders a server is told are its projects (`workspaceFolders`, docs/lsp-plan.md D5): the
+ * The folders a server is told are its projects (`workspaceFolders`, docs/editor-and-language-services.md): the
  * workspace's top when it holds one of the root markers, or has none to look for; else each folder
  * within a few levels that holds one, the top when none does.
  */

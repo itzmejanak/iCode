@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The explorers' operations on their files (docs/explorer-gaps-plan.md §3.3–§3.8): the clipboard,
+ * The explorers' operations on their files (docs/workspaces-and-files.md): the clipboard,
  * paste, Move to, Copy to, Duplicate, rename of many, Delete to Trash, Trash's own actions, and undo
  * and redo. Each is checked whole first under the mutation lock — nothing starts that one of its
  * items would refuse ([FileRefusals]) — then runs as a task, off the lock, whose steps are kept to

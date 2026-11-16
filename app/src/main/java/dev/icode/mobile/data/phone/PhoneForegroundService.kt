@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Phone control's foreground service (docs/phone-agent-plan.md §5.8, §5.9): it keeps the agent alive
+ * Phone control's foreground service (docs/voice-and-phone-control.md): it keeps the agent alive
  * while phone control is on, and holds the microphone for the bubble while iCode is away. Android
  * gives that only to a service started while iCode is on screen; one started again without it runs
  * without the microphone ([microphone] false), and the bubble says so. Its notification says phone

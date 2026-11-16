@@ -17,7 +17,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 
 /**
- * The language servers' problems in the open workspace (docs/lsp-plan.md §5.4): each server's list
+ * The language servers' problems in the open workspace (docs/editor-and-language-services.md): each server's list
  * for each file, replaced whole by its next one, dropped when it is about text older than what the
  * server has, and gone with the server or the workspace. Into the snapshot at most every
  * [THROTTLE_MILLIS], errors first, at most [MAX_SHOWN].

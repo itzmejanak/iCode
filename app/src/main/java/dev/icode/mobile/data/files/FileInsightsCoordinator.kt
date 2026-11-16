@@ -30,7 +30,7 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 /**
- * What the explorers learn of their files (docs/explorer-gaps-plan.md §3.9, §3.10): Properties of
+ * What the explorers learn of their files (docs/workspaces-and-files.md): Properties of
  * one item or many — what is known at once shown at once, a folder's size measured while it stays
  * open — Manage storage's scan, and the scan's view shown, listed from it. Requests and iCode's own changes are taken one after another,
  * off the main thread and never behind the mutation lock; measuring and scanning run on jobs of

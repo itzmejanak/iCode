@@ -107,7 +107,7 @@ internal fun ItemRow(item: BrowsedItem, taps: ListingTaps, compact: Boolean, det
     )
 }
 
-/** One item as a grid's tile (§3.12): its icon or thumbnail, and its name on two lines; ticked, in selection. */
+/** One item as a grid's tile: its icon or thumbnail, and its name on two lines; ticked, in selection. */
 @Composable
 internal fun ItemTile(item: BrowsedItem, taps: ListingTaps) {
     val acts = itemActs(item, taps)
@@ -142,7 +142,7 @@ private fun itemActs(item: BrowsedItem, taps: ListingTaps): ItemActs {
 }
 
 /**
- * [item]'s picture: a thumbnail of a picture, a drawing, a video or an app package once made (§3.12);
+ * [item]'s picture: a thumbnail of a picture, a drawing, a video or an app package once made;
  * else its icon. Its kind is what a scan found it is ([BrowsedItem.type]), or what its name says.
  */
 @Composable
@@ -158,9 +158,9 @@ internal fun FileIcon(item: BrowsedItem, size: Dp, modifier: Modifier = Modifier
 
 /**
  * What opening an item does, wherever it is listed: a folder goes into the list; a file of a
- * workspace into the editor, which hands one it cannot show to another app (docs/open-with-plan.md);
+ * workspace into the editor, which hands one it cannot show to another app (docs/workspaces-and-files.md);
  * one on phone storage, having no editor, into iCode's viewer when it has one for it
- * (docs/file-viewers-plan.md), and into Recent. [inIcode] is null for a file with nowhere in iCode
+ * (docs/workspaces-and-files.md), and into Recent. [inIcode] is null for a file with nowhere in iCode
  * to open, which a tap ([tap]) hands to another app.
  */
 internal class Opening(

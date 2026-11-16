@@ -13,7 +13,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 
 /**
- * Make, rename, move, copy and delete in one place (docs/storage-explorer-plan.md §4.2): Private,
+ * Make, rename, move, copy and delete in one place (docs/workspaces-and-files.md): Private,
  * rooted at the workspaces' folder — a workspace is an item at its top — or phone storage, Shared,
  * where [gitOwnsDotGit] is false: a `.git` there is the user's data like any other. Every path is
  * checked against [root] first: nothing outside it, never the root itself, and in Private never

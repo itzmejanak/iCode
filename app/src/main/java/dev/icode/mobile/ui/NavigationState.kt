@@ -44,12 +44,12 @@ class NavigationState internal constructor(initial: Navigation, private val capt
         model = model.back()
     }
 
-    /** The dock's switch (D6, D9): [tool] as it was left. */
+    /** The dock's switch: [tool] as it was left. */
     fun switchTo(tool: WorkspaceTool) {
         model = model.switchTo(tool)
     }
 
-    /** What was opened for the user: a file, a repository just made, a notification's place (D3). */
+    /** What was opened for the user: a file, a repository just made, a notification's place. */
     fun show(route: Route) {
         model = model.show(route)
     }

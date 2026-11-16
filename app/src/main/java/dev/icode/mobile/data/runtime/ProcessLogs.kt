@@ -5,7 +5,7 @@ import java.io.FileOutputStream
 
 /**
  * Each managed process's output as it came — its colours too — in a file of the runtime's `/tmp`,
- * which every terminal sees (docs/runtime-foundation-plan.md §6 P2): what its tab in the terminal
+ * which every terminal sees (docs/runtime-and-terminal.md): what its tab in the terminal
  * follows. Past [limit] a log moves to `<id>.log.1`, the one there before dropped, and a new one
  * starts; `tail -F` follows the name. A log goes when its process leaves the list, and all of them
  * when iCode starts, whose IDs start again at `p1`.

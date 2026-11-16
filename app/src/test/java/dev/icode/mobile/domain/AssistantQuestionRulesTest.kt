@@ -13,7 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The model's questions to the user (docs/assistant-questions-plan.md): what may be asked, and how it and its reply are said. */
+/** The model's questions to the user (docs/assistant-and-mcp.md): what may be asked, and how it and its reply are said. */
 class AssistantQuestionRulesTest {
     private val database = AssistantQuestion(
         "Database",

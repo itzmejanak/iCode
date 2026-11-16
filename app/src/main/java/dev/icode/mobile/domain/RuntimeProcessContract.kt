@@ -1,13 +1,13 @@
 package dev.icode.mobile.domain
 
-// Managed processes (docs/runtime-foundation-plan.md §3.4): what runs in the Linux runtime beyond
+// Managed processes (docs/runtime-and-terminal.md): what runs in the Linux runtime beyond
 // the command that started it — a development server, a watcher, a worker — until it is stopped.
 
 /** A long-running process of a workspace's, as the page and the assistant see it. */
 data class ManagedProcess(
     /** iCode's own, in this process's lifetime: `p1`, `p2`… */
     val id: String,
-    /** The workspace it runs in, by its location; null for one a chat in no workspace started (docs/home-plan.md §2). */
+    /** The workspace it runs in, by its location; null for one a chat in no workspace started (docs/design-and-navigation.md). */
     val workspace: String?,
     /** What it is called: given when started, or its command's first word. */
     val name: String,

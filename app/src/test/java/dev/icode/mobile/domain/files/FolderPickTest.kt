@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** The folder picker's foot bar (docs/explorer-gaps-plan.md §3.5). */
+/** The folder picker's foot bar (docs/workspaces-and-files.md). */
 class FolderPickTest {
     private val src = HeldItem("/w/app/src", "src", folder = true, workspace = false)
     private val readme = HeldItem("/w/app/README.md", "README.md", folder = false, workspace = false)

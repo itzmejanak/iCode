@@ -18,16 +18,16 @@ sealed interface Arrival {
     /** A terminal session's notification: that session. */
     data class TerminalSession(val id: String) : Arrival
 
-    /** Background work's notification: where iCode shows that work (docs/long-operations-plan.md §6). */
+    /** Background work's notification: where iCode shows that work (docs/runtime-and-terminal.md). */
     data class Work(val place: BackgroundPlace) : Arrival
 
     /**
      * A notice in Android's shade: its sheet; their summary, without [id]: the Notifications page; its
-     * button ([act]): its main action, done while it still can be, else its sheet (docs/notices-redesign-plan.md D7).
+     * button ([act]): its main action, done while it still can be, else its sheet (docs/engineering-rules.md).
      */
     data class Notice(val id: String?, val act: Boolean = false) : Arrival
 
-    /** A remote MCP server's sign-in came back (docs/mcp-plan.md §8.2): finished, and its servers shown. */
+    /** A remote MCP server's sign-in came back (docs/assistant-and-mcp.md): finished, and its servers shown. */
     data class SignedIn(val answer: String) : Arrival {
         /** It holds a one-time code: never written out. */
         override fun toString(): String = "SignedIn(…)"
@@ -66,7 +66,7 @@ internal fun ArrivalEffect(
                 BackgroundPlace.Sync -> show(Route.PullFetchProgress)
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)
                 BackgroundPlace.RuntimeTools -> show(Route.RuntimeTools)
-                // The chat at work, else the one shown: one in no workspace is outside it (docs/home-plan.md §2).
+                // The chat at work, else the one shown: one in no workspace is outside it (docs/design-and-navigation.md).
                 BackgroundPlace.Assistant, BackgroundPlace.Processes -> {
                     val assistant = current.assistant
                     val outside = assistant.turn?.let { it.workspace == null } ?: (assistant.opened && assistant.workspace == null)

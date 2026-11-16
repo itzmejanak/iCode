@@ -5,12 +5,12 @@ package dev.icode.mobile.navigation
  *
  * Screens depend on this contract instead of the composition root. They name routes; what a route
  * does — switch to a tool, push a page, go back to one already open — is decided in one place,
- * [Navigation] (docs/dock-navigation-plan.md D3).
+ * [Navigation] (docs/design-and-navigation.md).
  */
 data class NavigationActions(
     /** A tool's main screen switches to that tool, as it was left; any other route opens over this screen. */
     val navigate: (Route) -> Unit,
-    /** What was opened for the user (D3): a tool's main screen, inside the workspace; a page over what is open. */
+    /** What was opened for the user: a tool's main screen, inside the workspace; a page over what is open. */
     val show: (Route) -> Unit,
     /** Terminal or the Assistant outside the workspace ([opensOutside]), from wherever iCode is: a tab or a chat in no workspace. */
     val outside: (Route) -> Unit,
@@ -21,7 +21,7 @@ data class NavigationActions(
     val panelTab: ToolPanelTab,
     /** The workspace's tools are on screen; false on the app's pages, where Terminal's tabs start in `$HOME`. */
     val inWorkspace: Boolean,
-    /** Back (D4): this tool's page, then the tool used before, then the Launcher. */
+    /** Back: this tool's page, then the tool used before, then the Launcher. */
     val back: () -> Unit,
     /**
      * Back has somewhere to go inside iCode.

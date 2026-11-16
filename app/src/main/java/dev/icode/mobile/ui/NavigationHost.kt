@@ -16,8 +16,9 @@ import dev.icode.mobile.navigation.Route
 /**
  * Draws the top of the history on screen. Each entry keeps what its screen holds — a typed commit
  * message, a search, a scroll position — while another page or another tool is shown, and forgets it
- * once no history holds it: a page closed, a workspace's tools started anew (docs/dock-navigation-plan.md
- * D5). A sheet route is drawn over the live screen below it, blurred and dimmed: a tap outside it, or
+ * once no history holds it: a page closed, a workspace's tools started anew
+ * (docs/design-and-navigation.md). A sheet route is drawn over the live screen below it, blurred and
+ * dimmed: a tap outside it, or
  * Back, closes it, and the screen below is as it was.
  */
 @Composable

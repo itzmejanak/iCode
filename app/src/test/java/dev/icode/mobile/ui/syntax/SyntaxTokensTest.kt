@@ -92,7 +92,7 @@ class SyntaxTokensTest {
         assertEquals(2, calls)
     }
 
-    /** A3: the spans are roles, so each palette colours the same spans without tokenizing again. */
+    /** The spans are roles, so each palette colours the same spans without tokenizing again. */
     @Test fun `a palette change recolours without tokenizing`() {
         val cache = SyntaxCache()
         var calls = 0

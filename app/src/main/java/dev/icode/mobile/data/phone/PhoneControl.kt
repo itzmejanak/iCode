@@ -7,7 +7,7 @@ import dev.icode.mobile.domain.phone.PhoneScreen
 import dev.icode.mobile.domain.phone.PhoneShot
 
 /**
- * The phone as the assistant's tools reach it (docs/phone-agent-plan.md §5.1): read, act, go somewhere,
+ * The phone as the assistant's tools reach it (docs/voice-and-phone-control.md): read, act, go somewhere,
  * look. Every act refuses what is the user's alone ([dev.icode.mobile.domain.phone.PhoneRefusals]) and
  * says what stopped it as a [dev.icode.mobile.domain.phone.PhoneException].
  */

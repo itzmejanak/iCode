@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Archives by their names, and the categories Manage storage counts (docs/explorer-gaps-plan.md §3.10, §3.11). */
+/** Archives by their names, and the categories Manage storage counts (docs/workspaces-and-files.md). */
 class FileKindsTest {
     @Test fun `an archive is known by its longest ending`() {
         assertEquals(ArchiveFormat.TarGz, ArchiveFormats.of("site.tar.gz"))

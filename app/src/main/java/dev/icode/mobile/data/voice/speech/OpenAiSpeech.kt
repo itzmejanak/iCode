@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.channelFlow
 import org.json.JSONObject
 
 /**
- * OpenAI's realtime transcription (docs/speech-plan.md §2.3, §4.3), as its OpenAPI spec and SDK give it:
+ * OpenAI's realtime transcription (docs/voice-and-phone-control.md), as its OpenAPI spec and SDK give it:
  * one socket to `/v1/realtime?intent=transcription`, a `transcription` session of 24 kHz PCM with the
  * server's turn detection. Audio goes up base64 in `input_audio_buffer.append`; the deltas are the
  * words so far, and the first transcription completed is final. Done commits the buffer.

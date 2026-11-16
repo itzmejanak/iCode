@@ -19,7 +19,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 
 /**
- * The voice bubble (§5.7, redesigned 2026-11-04): the bar gives way to it while the microphone listens.
+ * The voice bubble, redesigned 2026-11-04: the bar gives way to it while the microphone listens.
  * The words heard so far live inside it — Gemini's live line — under a microphone that mutes and a Stop
  * that throws the hearing away. The words themselves, tapped, mute. Muting never stops what the agent
  * does. Its waveform leads as far in from one end as Stop's icon sits from the other.

@@ -11,7 +11,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * A secret iCode owns (a Git token, the assistant's API key) encrypted by a key of the Android
- * Keystore named [alias] (architecture.md §21). The key material never leaves the Keystore, so a
+ * Keystore named [alias] (docs/architecture.md). The key material never leaves the Keystore, so a
  * dump of the app's preferences yields ciphertext only.
  *
  * The stored form is Base64 of the IV followed by the AES/GCM payload.

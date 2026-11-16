@@ -15,7 +15,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** One Trash per place, a rename on the item's own volume (docs/explorer-gaps-plan.md §3.7). */
+/** One Trash per place, a rename on the item's own volume (docs/workspaces-and-files.md). */
 class FileTrashTest {
     @get:Rule val temp = TemporaryFolder()
 

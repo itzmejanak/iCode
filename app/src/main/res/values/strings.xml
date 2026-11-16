@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">iCode</string>
-    <!-- Settings › Accessibility (docs/phone-agent-plan.md §5.1): what the service is, in plain words. -->
+    <!-- Settings › Accessibility (docs/voice-and-phone-control.md): what the service is, in plain words. -->
     <string name="phone_service_label">iCode assistant</string>
     <string name="phone_service_description">Lets iCode\'s assistant read and operate your screen for the requests you give it, from any app, and shows its bubble. What it reads of a screen is sent to the AI provider you chose in iCode, only while it works on your request. Nothing of the screen is kept or logged.</string>
 </resources>

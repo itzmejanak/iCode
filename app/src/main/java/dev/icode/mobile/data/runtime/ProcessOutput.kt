@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.runtime
 
 /**
- * A managed process's output as a reader wants it (docs/runtime-foundation-plan.md §3.4): its
+ * A managed process's output as a reader wants it (docs/runtime-and-terminal.md): its
  * terminal escape codes removed, a carriage return rewriting the line as a terminal would — a
  * progress bar is its last state — and only the last [limit] characters of ended lines kept.
  *

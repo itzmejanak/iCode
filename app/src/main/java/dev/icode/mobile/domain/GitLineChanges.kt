@@ -2,7 +2,7 @@ package dev.icode.mobile.domain
 
 /**
  * An open file's changes against its version in Git's index, as a checkout writes it: what the
- * gutter marks and the change sheet shows (docs/editor-plan.md §3).
+ * gutter marks and the change sheet shows (docs/editor-and-language-services.md).
  */
 data class DocumentLineChanges(
     /** The index version, decoded as the file is. */

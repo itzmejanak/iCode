@@ -1,4 +1,4 @@
-RaTeX draws iCode's math (docs/markdown-rendering-plan.md). Shipped: its native library
+RaTeX draws iCode's math (docs/editor-and-language-services.md). Shipped: its native library
 libratex_ffi.so 0.1.15 for arm64-v8a, unchanged (third_party/ratex), and iCode's binding to it
 and drawing of its layouts, adapted from RaTeX-CMP 0.1.15. The KaTeX fonts it draws with are
 under the SIL Open Font License: OFL-KaTeX.txt.

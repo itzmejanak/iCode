@@ -66,7 +66,7 @@ fun TerminalHost(
 }
 
 /**
- * What a command printed, drawn as [TerminalHost] draws a session (docs/agent-control-plan.md §6):
+ * What a command printed, drawn as [TerminalHost] draws a session (docs/assistant-and-mcp.md):
  * the same view, font, palette, selection, links and pinch, from a session that runs nothing; a tap
  * brings no keyboard. [onFits] hears how many rows the output fills at the view's width, and a row's
  * height in pixels: a view one row taller than that shows them all.
@@ -152,7 +152,7 @@ private fun TerminalPane(
                     created.isFocusable = true
                     created.isFocusableInTouchMode = true
                     // A gesture on the terminal is the terminal's: a sheet it stands in neither
-                    // scrolls nor moves under it (docs/agent-control-plan.md §6).
+                    // scrolls nor moves under it (docs/assistant-and-mcp.md).
                     created.setOnTouchListener { touched, event ->
                         if (event.actionMasked == MotionEvent.ACTION_DOWN) touched.parent?.requestDisallowInterceptTouchEvent(true)
                         false

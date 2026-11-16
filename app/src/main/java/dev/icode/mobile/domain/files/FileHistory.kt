@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.files
 import dev.icode.mobile.domain.notices.NoticePlace
 
 /**
- * What one operation did, step by step, so it can be undone (docs/explorer-gaps-plan.md §3.8). Each
+ * What one operation did, step by step, so it can be undone (docs/workspaces-and-files.md). Each
  * step names what is where now.
  */
 sealed interface FileStep {
@@ -53,7 +53,7 @@ data class FileChange(val said: String, val undoneSaid: String, val steps: List<
     fun undoneBy(steps: List<FileStep>): FileChange = FileChange(undoneSaid, said, steps)
 
     /**
-     * Why its [reversals] cannot be done now, or null (§3.8, "checked first"): each is checked
+     * Why its [reversals] cannot be done now, or null: each is checked
      * against what is there — [exists] answers for a path, [inTrash] for Trash's items — as the ones
      * before it would leave things, so nothing is half undone because something changed since.
      */
@@ -129,7 +129,7 @@ val Reversal.paths: List<String>
  */
 data class FileHistoryState(val undo: String? = null, val redo: String? = null, val news: FileNews? = null)
 
-/** A change just made ([undone] false) or undone, and where, for the undo pill (§3.8; docs/notices-redesign-plan.md D5). */
+/** A change just made ([undone] false) or undone, and where, for the undo pill (docs/engineering-rules.md). */
 data class FileNews(val id: Long, val line: String, val undone: Boolean, val place: NoticePlace? = null) {
     companion object {
         /** The pill stays this long after a change, unless × puts it away first, and goes. */

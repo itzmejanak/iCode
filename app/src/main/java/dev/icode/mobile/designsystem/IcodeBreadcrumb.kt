@@ -13,7 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 
 /**
- * A path in segments, as a top bar's subtitle (docs/explorer-gaps-plan.md §3.14): "/workspace ›
+ * A path in segments, as a top bar's subtitle (docs/workspaces-and-files.md): "/workspace ›
  * RevPlayer › src". A tap on a segment goes there ([onCrumb], by its index); the last is where it is.
  * A long path scrolls, its end in view.
  */

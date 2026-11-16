@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import java.io.ByteArrayOutputStream
 
 /**
- * Shell integration's marks in what a terminal prints (docs/agent-control-plan.md §3 A2): FinalTerm's
+ * Shell integration's marks in what a terminal prints (docs/assistant-and-mcp.md): FinalTerm's
  * OSC 133 — A the prompt starts, B it ends and input begins, C the command's output starts, D;code it
  * ended — and OSC 7, the directory the shell is in. Every other byte goes on, in order, to
  * [Listener.output], OSC sequences that are not these whole as they came; the marks themselves go

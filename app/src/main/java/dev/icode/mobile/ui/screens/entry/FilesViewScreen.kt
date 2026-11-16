@@ -49,13 +49,13 @@ import dev.icode.mobile.ui.selectionActions
 import kotlinx.coroutines.launch
 
 /**
- * One of the explorer's views (docs/explorer-gaps-plan.md §3.10) as the explorer itself: its rows and
+ * One of the explorer's views (docs/workspaces-and-files.md) as the explorer itself: its rows and
  * tiles, the ☰ panel kept for this view alone, 🔍, ⋮, selection and the item's sheet, under the
  * view's name and how much it found. Each row says the folder it is in; there is no `..`, +,
  * breadcrumb or paste bar: nothing is made or pasted into a view. A file opens as in its folder, and
  * its sheet adds Show in folder ([onReveal]); Move to… and Copy to… pick a folder ([onPick]). Manage
  * storage's views are listed from its scan while shown; Duplicates set by set, its ⋮ selecting the
- * extra copies. Trash (§3.7) is read as it opens; a tap on its row opens the item's own sheet
+ * extra copies. Trash is read as it opens; a tap on its row opens the item's own sheet
  * ([TrashSheet]), its selection restores or deletes for good, and its top bar empties it. Back leaves
  * the selection, then the search, then the view ([onLeave]); so does any browse.
  */

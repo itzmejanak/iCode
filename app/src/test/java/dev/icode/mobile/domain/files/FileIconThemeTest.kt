@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The file and folder icons, as the shipped Material Icon Theme gives them (docs/file-kinds-icons-plan.md D5). */
+/** The file and folder icons, as the shipped Material Icon Theme gives them (docs/workspaces-and-files.md). */
 class FileIconThemeTest {
     private val folder = File("src/main/assets/file-icons")
     private val theme = FileIconTheme.parse(File(folder, "theme.json").readText())

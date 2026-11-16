@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Language services (docs/lsp-plan.md): configured servers, their process state and what each reported it can do.
+// Language services (docs/editor-and-language-services.md): configured servers, their process state and what each reported it can do.
 
 data class LanguageService(
     val initials: String,
@@ -29,7 +29,7 @@ data class LanguageService(
 
 enum class LanguageServiceStatus { Stopped, Starting, Running, Stopping, Failed }
 
-/** What the Languages pages and the editor ask of the language services' owner (docs/lsp-plan.md §1). */
+/** What the Languages pages and the editor ask of the language services' owner (docs/editor-and-language-services.md). */
 sealed interface LanguageIntent : ICodeIntent {
     /** [id]'s page opens; "" for a new one. Its log is read for it. */
     data class Select(val id: String) : LanguageIntent

@@ -20,10 +20,10 @@ import dev.icode.mobile.domain.phone.PhoneShot
 import org.json.JSONObject
 
 /**
- * The tools that see and operate the phone (docs/phone-agent-plan.md §5.3), offered while phone control
+ * The tools that see and operate the phone (docs/voice-and-phone-control.md), offered while phone control
  * is on. Reading never asks; an act asks about the app it is in ([AssistantPlaceActor]). The last act of
  * a reply reads the settled screen into its own result, so the model sees what it did in the same
- * step (L3); a picture goes with it where the text cannot tell (§5.2).
+ * step; a picture goes with it where the text cannot tell.
  */
 internal class PhoneTools(private val phone: PhoneControl, private val step: AssistantStep) {
     fun all(): List<AssistantTool> = listOf(
@@ -152,7 +152,7 @@ internal class PhoneTools(private val phone: PhoneControl, private val step: Ass
     }
 
     companion object {
-        /** The tools that act: the last of them in a reply reads the screen after it (L3). */
+        /** The tools that act: the last of them in a reply reads the screen after it. */
         val ACTS = setOf("phone_open_app", "phone_open", "phone_tap", "phone_type", "phone_scroll", "phone_key")
         private const val SUMMARY = 60
         private const val OFF = "Phone control is off: the user turns it on in iCode's Settings › Assistant › Phone control"

@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * A viewer of iCode's own for a kind of file (docs/file-viewers-plan.md). A file with one opens in
+ * A viewer of iCode's own for a kind of file (docs/workspaces-and-files.md). A file with one opens in
  * it; any other opens as text in the editor, or in another app when it is not text. A new viewer is
  * an entry here, the kind it shows in [of], and its screen in the UI's viewer host, which must draw
  * every entry.

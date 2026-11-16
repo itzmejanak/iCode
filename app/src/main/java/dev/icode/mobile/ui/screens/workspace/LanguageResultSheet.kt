@@ -29,7 +29,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.markdown.MarkdownAnswer
 
 /**
- * A language server's answer over the editor (docs/lsp-plan.md §7): places to open, text to read,
+ * A language server's answer over the editor (docs/editor-and-language-services.md): places to open, text to read,
  * code actions to apply, or a rename's new name. A sheet, as every question in iCode is.
  */
 @Composable

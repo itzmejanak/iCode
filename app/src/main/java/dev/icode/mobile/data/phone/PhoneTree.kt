@@ -12,9 +12,9 @@ import dev.icode.mobile.domain.phone.PhoneScreen
 import dev.icode.mobile.domain.phone.PhoneWindow
 
 /**
- * The screen read from the service's windows (docs/phone-agent-plan.md §5.2), and the node each element
+ * The screen read from the service's windows (docs/voice-and-phone-control.md), and the node each element
  * came from, to act on it. A tree is read with prefetching from Android 13, in fewer round trips to the
- * app (§5.4); keyboards and overlays are noted, never read.
+ * app; keyboards and overlays are noted, never read.
  */
 internal object PhoneTree {
     /** A screen as read, and its elements' nodes by their paths. */

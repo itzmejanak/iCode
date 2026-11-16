@@ -3,7 +3,7 @@ package dev.icode.mobile.domain
 import dev.icode.mobile.domain.notices.NoticeTone
 
 /**
- * What a tool's icon carries, on the dock and the rail alike (docs/dock-navigation-plan.md D7):
+ * What a tool's icon carries, on the dock and the rail alike (docs/design-and-navigation.md):
  * [count] over it, zero for none; its icon in [tone] while the tool is busy or waits for the user;
  * a dot while something [runs] there.
  */
@@ -15,7 +15,7 @@ data class ToolBadge(
     val said: String? = null,
 )
 
-/** Each tool's badge, from the snapshot (D7). */
+/** Each tool's badge, from the snapshot. */
 object ToolBadges {
     fun of(tool: WorkspaceTool, snapshot: ICodeSnapshot): ToolBadge = when (tool) {
         WorkspaceTool.Editor -> snapshot.openDocuments.count { it.dirty }.let { ToolBadge(it, said = counted(it, "unsaved file")) }

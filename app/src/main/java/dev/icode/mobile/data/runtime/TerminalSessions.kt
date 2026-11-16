@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.TerminalSettings
 
 /**
  * A tab's Termux session as [TerminalSessionManager] makes and reads it: [launch]'s program, its output
- * read by [commands] as the emulator gets it, from its first byte (docs/agent-control-plan.md §4.1).
+ * read by [commands] as the emulator gets it, from its first byte (docs/assistant-and-mcp.md).
  * Main thread only, as the session is.
  */
 internal fun terminalSession(launch: TerminalLaunch, runtimeRoot: String, callbacks: TerminalSessionCallbacks, commands: TerminalCommands): TerminalSession =
@@ -17,7 +17,7 @@ internal fun terminalSession(launch: TerminalLaunch, runtimeRoot: String, callba
         .also { session -> session.setOutputTap { _, data, count -> commands.feed(data, count) } }
 
 /**
- * What a command printed, as a session the terminal view draws (docs/agent-control-plan.md §6): one
+ * What a command printed, as a session the terminal view draws (docs/assistant-and-mcp.md): one
  * that runs nothing ([TerminalSession.replay]), with a tab's scrollback, the clipboard for what is
  * selected, and its cursor hidden — the command had ended. Main thread only.
  */

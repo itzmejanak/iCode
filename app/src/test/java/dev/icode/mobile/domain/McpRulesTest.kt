@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** docs/mcp-plan.md §4.1, §6.1: a pasted configuration in each of its shapes, the checks, the names. */
+/** docs/assistant-and-mcp.md: a pasted configuration in each of its shapes, the checks, the names. */
 class McpRulesTest {
     @Test
     fun `an mcpServers map gives each server by its name`() {

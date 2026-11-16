@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import Material Icon Theme's file and folder icons into iCode (docs/file-kinds-icons-plan.md D5).
+"""Import Material Icon Theme's file and folder icons into iCode (docs/workspaces-and-files.md).
 
 Usage:
     tools/import-file-icons.py PKief.material-icon-theme-<version>.vsix

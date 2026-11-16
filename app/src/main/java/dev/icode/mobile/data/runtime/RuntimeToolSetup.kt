@@ -7,7 +7,7 @@ import java.io.File
 import java.io.IOException
 
 /**
- * What a runtime tool installs after its apt packages (docs/android-toolchain-plan.md §4.1): pinned
+ * What a runtime tool installs after its apt packages (docs/runtime-and-terminal.md): pinned
  * downloads, and steps of its own. [RuntimePackageInstaller] runs it once apt is done, removes it
  * before apt removes the packages, and keeps its receipt in the guest home — a setup never writes
  * one itself.

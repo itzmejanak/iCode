@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.files
 
 /**
- * The archives the explorer knows (docs/explorer-gaps-plan.md §3.11), by the end of their name. Those
+ * The archives the explorer knows (docs/workspaces-and-files.md), by the end of their name. Those
  * it cannot open say why, on the file, instead of failing halfway: [unreadable].
  */
 enum class ArchiveFormat(val suffixes: List<String>, val unreadable: String? = null) {
@@ -24,7 +24,7 @@ enum class ArchiveFormat(val suffixes: List<String>, val unreadable: String? = n
 }
 
 /**
- * What Compress makes (§3.11): a zip by default, a 7z, or a tar.gz. A zip and a tar.gz keep links and
+ * What Compress makes: a zip by default, a 7z, or a tar.gz. A zip and a tar.gz keep links and
  * executable bits; a 7z entry can hold neither ([note], as Compress… says it).
  */
 enum class CompressFormat(val format: ArchiveFormat, val extension: String, val label: String, val note: String) {
@@ -44,7 +44,7 @@ object ArchiveFormats {
     }
 
     /**
-     * What Compress names its archive, before its ending (§3.3): the [only] item's name — a file's
+     * What Compress names its archive, before its ending: the [only] item's name — a file's
      * without its extension — or, for many, the [folder] they are in, or "Archive" at a place's top.
      */
     fun archiveName(only: Pair<String, Boolean>?, folder: String?): String = when {

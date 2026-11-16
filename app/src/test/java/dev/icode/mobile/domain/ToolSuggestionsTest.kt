@@ -10,8 +10,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * docs/dock-navigation-plan.md §5.6 F3: each suggestion of D8 starts when its event happens out of
- * sight, ends as its row says, and never switches by itself. The newest wins.
+ * Each suggestion starts when its event happens out of sight, ends as its row says, and never switches
+ * by itself (docs/design-and-navigation.md). The newest wins.
  */
 class ToolSuggestionsTest {
     private val start = SuggestionFacts(workspace = "/w", inRepository = true)

@@ -10,8 +10,8 @@ import dev.icode.mobile.domain.AssistantToolName
 import java.io.File
 import org.json.JSONObject
 
-// Git's read-only views in the Linux runtime for the assistant (§4.3), without asking. Its commands
-// run in the terminal (TerminalTools, docs/agent-control-plan.md §4.3).
+// Git's read-only views in the Linux runtime for the assistant, without asking. Its commands
+// run in the terminal (TerminalTools, docs/assistant-and-mcp.md).
 
 /** `git status` or `git diff`, in the repository that holds the path: read-only, so never asked about. */
 internal class GitReadTool(

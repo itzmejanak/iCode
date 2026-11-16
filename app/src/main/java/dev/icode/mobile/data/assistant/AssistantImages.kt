@@ -11,7 +11,7 @@ import java.io.ByteArrayOutputStream
 import kotlin.math.max
 
 /**
- * An image as it is sent (§13 P7): turned the way the camera held it, its long edge at most
+ * An image as it is sent: turned the way the camera held it, its long edge at most
  * [MAX_EDGE] px — the size every provider reads without scaling it again — and JPEG, its
  * transparency on white. Any image Android decodes, a camera's HEIC too.
  */

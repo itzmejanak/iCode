@@ -16,7 +16,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every explorer's actions are one list, in one order and its groups, shown in one sheet (docs/explorer-gaps-plan.md §3.1). */
+/** Every explorer's actions are one list, in one order and its groups, shown in one sheet (docs/workspaces-and-files.md). */
 class FileItemActionsTest {
     private val sent = mutableListOf<ICodeIntent>()
     private val held = FileClipboard(listOf(HeldItem("/w/app/README.md", "README.md", folder = false, workspace = false)), cut = true)

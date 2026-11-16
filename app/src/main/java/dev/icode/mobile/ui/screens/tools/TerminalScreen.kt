@@ -76,7 +76,7 @@ fun TerminalScreen(actions: NavigationActions) {
         if (terminal.sessions.isNotEmpty()) {
             attemptedFirstOpen = true
             // A tab of where this page is: the open workspace's inside it, one in no workspace (`$HOME`)
-            // outside it — the one running there, else a new one — never another's (docs/home-plan.md §2).
+            // outside it — the one running there, else a new one — never another's (docs/design-and-navigation.md).
             if (actions.panelTab == ToolPanelTab.Terminal && runtimeReady) gateway.dispatch(ICodeIntent.EnsureTerminalSession(actions.inWorkspace))
         } else if (shouldAutoOpenTerminal(actions.panelTab, runtimeReady, attemptedFirstOpen)) {
             attemptedFirstOpen = true
@@ -117,7 +117,7 @@ fun TerminalScreen(actions: NavigationActions) {
                     horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space5),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Run, Problems and Output are the workspace's: outside it, Terminal alone (docs/home-plan.md §2).
+                    // Run, Problems and Output are the workspace's: outside it, Terminal alone (docs/design-and-navigation.md).
                     (if (actions.inWorkspace) ToolPanelTab.entries else listOf(ToolPanelTab.Terminal)).forEach { tab ->
                         BottomBarEntry(
                             BottomBarItem(

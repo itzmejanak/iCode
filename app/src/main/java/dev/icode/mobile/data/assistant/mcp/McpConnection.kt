@@ -40,7 +40,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 
 /**
- * One server, connected (docs/mcp-plan.md §5): the SDK's client over the runtime's stdio or HTTP, the
+ * One server, connected (docs/assistant-and-mcp.md): the SDK's client over the runtime's stdio or HTTP, the
  * server's tools, prompts and resources read page by page, its tool list read again when it says it
  * changed, its questions handed to the user, and the end of a local server's process noticed.
  */
@@ -52,7 +52,7 @@ internal class McpConnection(
     private val remote: McpRemote,
     /** Its values with their secrets: a local server's environment, a remote one's headers. */
     private val values: List<McpValue>,
-    /** A signed-in server's `Authorization` value (M5); null otherwise. */
+    /** A signed-in server's `Authorization` value; null otherwise. */
     private val authorization: suspend () -> String?,
     private val events: Events,
 ) {
@@ -63,7 +63,7 @@ internal class McpConnection(
         /** A local server's process ended, not by [close]: [failure] says why. */
         fun ended(connection: McpConnection, failure: String)
 
-        /** The server asks the user something mid-call (M4); suspends until answered. */
+        /** The server asks the user something mid-call; suspends until answered. */
         suspend fun ask(connection: McpConnection, request: ElicitRequest): ElicitResult
     }
 
@@ -148,7 +148,7 @@ internal class McpConnection(
 
     private fun client(): Client = Client(
         Implementation(name = "iCode", version = BuildConfig.VERSION_NAME),
-        // Elicitation alone: Roots, Sampling and Logging are deprecated (§2.1, D5).
+        // Elicitation alone: Roots, Sampling and Logging are deprecated.
         ClientOptions(ClientCapabilities(elicitation = ClientCapabilities.Elicitation(form = JsonObject(emptyMap()), url = JsonObject(emptyMap())))),
     ).apply {
         setRequestHandler<ElicitRequest>(Method.Defined.ElicitationCreate) { request, _ -> events.ask(this@McpConnection, request) }
@@ -171,7 +171,7 @@ internal class McpConnection(
     }
 
     companion object {
-        /** A server's start and first reads (§7.3). */
+        /** A server's start and first reads. */
         const val START_MILLIS = 60_000L
         private val CALL_CEILING = 30.minutes
         private const val MAX_LISTED = 1_000

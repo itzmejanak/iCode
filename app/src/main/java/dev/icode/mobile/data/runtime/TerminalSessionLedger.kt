@@ -22,7 +22,7 @@ import org.json.JSONObject
  * The running terminal sessions, kept on disk so that the next process can say
  * what ended when Android ended this one: a killed process cannot be brought
  * back, and its sessions are reported as stopped, never as resumed
- * (architecture.md §14.4).
+ * (docs/runtime-and-terminal.md).
  *
  * One per process, owned by [TerminalSessionManager]. Android's own record of
  * the process's exit says why it ended; a session list does not fit in that

@@ -12,7 +12,7 @@ import dev.icode.mobile.designsystem.borderless
 import dev.icode.mobile.domain.AccentColorRules
 
 /**
- * A ported theme as its project draws it (docs/theme-variants-plan.md D4): its own tones, text,
+ * A ported theme as its project draws it (docs/design-and-navigation.md): its own tones, text,
  * accent, status and code colours, and, where its project publishes them, its terminal's sixteen.
  * Everything else is derived at its family's own steps, measured on iCode's palette of that family,
  * so a variant behaves as its family does with Border Lines on or off.
@@ -25,7 +25,7 @@ internal data class ThemeSeed(
     val page: Color,
     val card: Color,
     val raised: Color,
-    /** The editor and terminal; null on Light, where it is derived from the page (D4, D5). */
+    /** The editor and terminal; null on Light, where it is derived from the page. */
     val editor: Color?,
     val text: Color,
     val secondary: Color,
@@ -84,14 +84,14 @@ internal fun ThemeSeed.palette(kind: PaletteKind): IcodePalette {
         terminalAnsi = terminal,
         syntax = syntax,
     )
-    // Without border lines the tones move and the accent does not (border-lines-plan §3): it must read on those too.
+    // Without border lines the tones move and the accent does not; it must read on those backgrounds too.
     val apart = drawn.borderless()
     val kept = floor(accent, listOf(apart.background, apart.surface, apart.backgroundDeep), AccentColorRules.MIN_CONTRAST)
     return if (kept == accent) drawn else drawn.copy(accent = kept, onAccent = Color(AccentColorRules.onColor(kept.toArgb())))
 }
 
 /**
- * This dark seed on true black (D3): the page and editor black, each surface its own hue as far
+ * This dark seed on true black: the page and editor black, each surface its own hue as far
  * from black as iCode AMOLED's own, and every colour drawn on them its own, checked on black.
  */
 internal fun ThemeSeed.onBlack(): IcodePalette {

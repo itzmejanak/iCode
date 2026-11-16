@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every notification has a registered channel and a key no other has (docs/notices-redesign-plan.md A6). */
+/** Every notification has a registered channel and a key no other has (docs/engineering-rules.md). */
 class IcodeChannelsTest {
     @Test fun `each channel and group is made once, and none is one retired`() {
         val ids = IcodeChannel.entries.map { it.id }

@@ -25,7 +25,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.files.FileSelection
 
 /**
- * A selection in an explorer (docs/explorer-gaps-plan.md §3.2) — the file explorer's folder, a view,
+ * A selection in an explorer (docs/workspaces-and-files.md) — the file explorer's folder, a view,
  * the IDE tree — kept as the screen turns: what is [ticked], in the order ticked, none outside
  * selection; and whether its [sheet], from ⋯, is open.
  */
@@ -84,7 +84,7 @@ internal fun <T> ExplorerSelection.among(items: List<T>, location: (T) -> String
     return selected
 }
 
-/** In selection, the top bar's own (§3.2), in every explorer: Select all and Invert, on what is [shown]. */
+/** In selection, the top bar's own, in every explorer: Select all and Invert, on what is [shown]. */
 @Composable
 internal fun SelectionActions(selection: ExplorerSelection, shown: List<String>) {
     IconButton(onClick = { selection.start(FileSelection.all(shown).toList()) }) {
@@ -96,7 +96,7 @@ internal fun SelectionActions(selection: ExplorerSelection, shown: List<String>)
 }
 
 /**
- * A selection's foot bar (§3.2): how many ([count]), what they are — and weigh, where that is known
+ * A selection's foot bar: how many ([count]), what they are — and weigh, where that is known
  * ([holds]) — and what can be done to them ([actions]).
  */
 @Composable
@@ -116,7 +116,7 @@ internal fun SelectionBar(count: Int, holds: String, actions: List<IcodeMenuActi
 }
 
 /**
- * What a selection of files does from its bar (§3.2): Cut, Copy and Delete — each ending it
+ * What a selection of files does from its bar: Cut, Copy and Delete — each ending it
  * ([onActed]) — and ⋯ for the selection's sheet.
  */
 internal fun selectionActions(locations: List<String>, dispatch: (ICodeIntent) -> Unit, onActed: () -> Unit, onMore: () -> Unit) = listOf(

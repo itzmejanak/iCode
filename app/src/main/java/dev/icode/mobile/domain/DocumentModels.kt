@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Files and editing (S3): the tree, open documents and recovery drafts.
+// Files and editing: the tree, open documents and recovery drafts.
 
 data class FileEntry(
     val name: String,

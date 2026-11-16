@@ -12,7 +12,7 @@ import dev.icode.mobile.domain.GitConflictFile
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.GitDiffLineKind
 
-// Views that draw code a line at a time (docs/syntax-highlighting-plan.md S5): the diff view, the
+// Views that draw code a line at a time (docs/editor-and-language-services.md): the diff view, the
 // editor's change sheet and conflict resolution. Each tokenizes whole texts, so a line inside a block
 // comment or a long string is coloured as it is in the editor, and draws each line with its slice of
 // its text's spans.
