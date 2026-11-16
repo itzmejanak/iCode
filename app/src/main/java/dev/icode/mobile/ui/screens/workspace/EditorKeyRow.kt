@@ -19,7 +19,7 @@ import dev.icode.mobile.ui.EditorKeyChip
 import dev.icode.mobile.ui.LeftToRight
 
 /**
- * The editor's keys row (docs/editor-plan.md §4): above the keyboard while it is open, the keys a
+ * The editor's keys row (docs/editor-and-language-services.md): above the keyboard while it is open, the keys a
  * phone keyboard lacks or makes slow — Tab, Outdent, the arrows, Home, End, Undo, Redo, then the
  * symbols — scrolling sideways. The terminal's row is the same chips.
  */

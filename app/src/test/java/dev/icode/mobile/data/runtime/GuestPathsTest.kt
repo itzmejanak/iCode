@@ -13,7 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Links as PRoot stores them on the phone (docs/runtime-contract-plan.md §1.3): runtime paths, and its hard-link stand-ins' phone paths. */
+/** Links as PRoot stores them on the phone (docs/runtime-and-terminal.md): runtime paths, and its hard-link stand-ins' phone paths. */
 class GuestPathsTest {
     private val base = Files.createTempDirectory("paths").toFile().canonicalFile
     private val rootfs = File(base, "files/runtime/rootfs").apply { mkdirs() }

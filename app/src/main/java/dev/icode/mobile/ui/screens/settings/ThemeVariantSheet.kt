@@ -38,7 +38,7 @@ import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AppearanceSettings
 
 /**
- * [theme]'s variants as cards of themselves (docs/theme-variants-plan.md §4), each drawn as the app
+ * [theme]'s variants as cards of themselves (docs/design-and-navigation.md), each drawn as the app
  * would draw it, with the current Border Lines and accent. A tap uses one at once: the app and this
  * sheet take it while the sheet stays open, so variants can be compared; the one before is a tap away.
  */

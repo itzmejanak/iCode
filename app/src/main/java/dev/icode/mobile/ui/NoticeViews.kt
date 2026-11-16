@@ -75,7 +75,7 @@ internal val NoticeTone.word: String
     }
 
 /**
- * One notice on the Notifications page (docs/notices-redesign-plan.md D6): its icon, title — with
+ * One notice on the Notifications page (docs/engineering-rules.md): its icon, title — with
  * how many times, folded — where, and when; a dot while it is [new] and needs the user. A tap opens
  * its sheet.
  */
@@ -98,7 +98,7 @@ internal fun NoticeRow(notice: Notice, new: Boolean, onOpen: () -> Unit, modifie
 }
 
 /**
- * A notice in full, over the screen (D6): what happened; when, its kind and where it is from; where
+ * A notice in full, over the screen: what happened; when, its kind and where it is from; where
  * it happened, in full; why; the tool's own words, folded; what it offers now ([onAct]); Copy, Delete,
  * and [onAll] to the page unless it is open.
  */

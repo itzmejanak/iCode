@@ -15,7 +15,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** Recent and Favorites (docs/explorer-gaps-plan.md §3.14): kept across places, following iCode's own moves. */
+/** Recent and Favorites (docs/workspaces-and-files.md): kept across places, following iCode's own moves. */
 class FileShortcutsTest {
     @get:Rule val temp = TemporaryFolder()
 

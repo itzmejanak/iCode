@@ -1,9 +1,9 @@
 package dev.icode.mobile.domain.voice
 
-// Reading aloud with any provider (docs/tts-plan.md §4.1): how a kind speaks — its voices, models,
+// Reading aloud with any provider (docs/voice-and-phone-control.md): how a kind speaks — its voices, models,
 // speeds and servers — and what its API lists for a provider's page.
 
-/** How a kind reads aloud (docs/tts-plan.md §4.1). */
+/** How a kind reads aloud (docs/voice-and-phone-control.md). */
 class SpeakingKind(
     /** Where what is read aloud goes, said on its page — `{region}` the provider's region; null: this phone, or the address given. */
     val host: String?,
@@ -88,7 +88,7 @@ sealed interface Regions {
     data class Fixed(val hosts: List<Pair<String, String>>) : Regions
 }
 
-/** What reading aloud allows (docs/tts-plan.md §4.5): the speaking fields a kind takes, its region, its voices. */
+/** What reading aloud allows (docs/voice-and-phone-control.md): the speaking fields a kind takes, its region, its voices. */
 object VoiceRules {
     /** Why [provider]'s region or speaking fields cannot be saved, said with its [name]; null when they can. */
     fun problem(provider: SpeechProvider, name: String): String? = regionProblem(provider, name) ?: fieldsProblem(provider, name)

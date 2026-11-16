@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.voice.Voices
 import java.util.Locale
 import org.json.JSONObject
 
-// The agent's hold on the speech providers (docs/speech-plan.md §6, docs/tts-plan.md §6): what the Speech
+// The agent's hold on the speech providers (docs/voice-and-phone-control.md): what the Speech
 // Providers pages show and do, through SpeechProviders' own operations, for listening and for reading
 // aloud. A key is given, never read back; every change is asked about, in every mode: a provider
 // outlasts the chat, and decides where the user's voice and the answers go.

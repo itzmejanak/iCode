@@ -19,9 +19,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-// Managed processes, as the assistant drives them (docs/runtime-foundation-plan.md §3.5): what must
+// Managed processes, as the assistant drives them (docs/runtime-and-terminal.md): what must
 // keep running — a server, a watcher, a worker — started, read, written to and stopped by its ID,
-// whichever workspace it runs for (docs/runtime-contract-plan.md §4.3).
+// whichever workspace it runs for (docs/runtime-and-terminal.md).
 
 /** A port on this phone accepts a connection: something listens there. */
 internal suspend fun localPortAnswers(port: Int): Boolean = withContext(Dispatchers.IO) {
@@ -31,8 +31,8 @@ internal suspend fun localPortAnswers(port: Int): Boolean = withContext(Dispatch
 private const val CONNECT_MILLIS = 300
 
 /**
- * What a call naming a process by its `id` reaches (docs/assistant-permissions-plan.md §4.2): that
- * process's workspace, or where one a chat in no workspace started runs (docs/home-plan.md §2).
+ * What a call naming a process by its `id` reaches (docs/assistant-and-mcp.md): that
+ * process's workspace, or where one a chat in no workspace started runs (docs/design-and-navigation.md).
  */
 private fun RuntimeProcesses.reach(arguments: JSONObject, paths: GuestPaths): List<File> {
     val process = arguments.textOrNull("id")?.let(::info) ?: return emptyList()

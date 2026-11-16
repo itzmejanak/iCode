@@ -5,7 +5,7 @@ import android.view.WindowManager
 import dev.icode.mobile.data.log.BackendLog
 
 /**
- * The window manager as the phone service's overlays may use it (docs/phone-agent-plan.md §5.6).
+ * The window manager as the phone service's overlays may use it (docs/voice-and-phone-control.md).
  *
  * Their windows are `TYPE_ACCESSIBILITY_OVERLAY`, which Android allows only through the token of the
  * accessibility connection. That token is the user's to take back: turning phone control off in

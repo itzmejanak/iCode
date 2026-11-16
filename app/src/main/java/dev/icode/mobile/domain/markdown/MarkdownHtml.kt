@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.markdown
 
 /**
- * The HTML iCode draws in Markdown, natively (docs/markdown-rendering-plan.md §3.5): inline styles,
+ * The HTML iCode draws in Markdown, natively (docs/editor-and-language-services.md): inline styles,
  * links, images and line breaks; paragraphs and headings with `align`; quotes, `<pre>`, lists,
  * tables, rules and `<details>`. Comments are hidden. Any other tag shows as it was written, muted:
  * nothing vanishes, and nothing runs.

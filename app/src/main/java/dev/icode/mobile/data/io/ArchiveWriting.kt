@@ -21,7 +21,7 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream
 internal class Packed(val entries: Long, val skippedLinks: Int)
 
 /**
- * Writing archives (docs/explorer-gaps-plan.md §3.11): Compress's zip, 7z or tar.gz of its sources,
+ * Writing archives (docs/workspaces-and-files.md): Compress's zip, 7z or tar.gz of its sources,
  * each under its own name. Links are never followed: a zip and a tar.gz keep each as the link it is,
  * and every executable bit; a 7z can hold neither, so it leaves links out and counts them. Sockets
  * and pipes are nothing to keep.

@@ -25,7 +25,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant › Phone Control › Shizuku (docs/phone-agent-plan.md §5.9, §5.11): its state, read
+ * Settings › Assistant › Phone Control › Shizuku (docs/voice-and-phone-control.md): its state, read
  * live, the one step that state needs, and what it adds. Optional: phone control works without it.
  */
 @Composable

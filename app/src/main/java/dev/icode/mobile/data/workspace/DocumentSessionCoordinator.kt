@@ -17,7 +17,7 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The editor's open files (S3): open, edit, save, select, reorder, close. A save writes only over
+ * The editor's open files: open, edit, save, select, reorder, close. A save writes only over
  * the version that was read — a file changed on disk meanwhile is refused, never overwritten.
  */
 internal class DocumentSessionCoordinator(

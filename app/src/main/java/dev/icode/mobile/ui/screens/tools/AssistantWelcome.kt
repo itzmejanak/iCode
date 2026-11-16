@@ -24,7 +24,7 @@ import dev.icode.mobile.domain.AssistantState
 /** An empty chat: the logo over its letterpress, as on the home screen, and a few things to ask. */
 @Composable
 internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
-    // The workspace's name; null for a chat in none, which works in `~` (docs/home-plan.md §2).
+    // The workspace's name; null for a chat in none, which works in `~` (docs/design-and-navigation.md).
     val workspace = state.workspace?.let(AssistantPlace::name)
     val asking = state.settings.mode == AssistantMode.Ask
     val planning = state.settings.mode == AssistantMode.Plan

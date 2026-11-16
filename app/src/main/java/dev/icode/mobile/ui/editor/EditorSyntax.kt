@@ -11,7 +11,7 @@ import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
 
 /**
- * How one editor's document is coloured (docs/syntax-highlighting-plan.md D4, D7): its language by the
+ * How one editor's document is coloured (docs/editor-and-language-services.md): its language by the
  * file's name or `#!` line, its grammar from [SyntaxEngine], and plain text, with a one-line [note],
  * when it cannot be coloured. Main thread.
  */

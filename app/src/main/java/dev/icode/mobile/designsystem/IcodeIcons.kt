@@ -33,7 +33,7 @@ object IcodeIcons {
     }
 
     /**
-     * VS Code's remote button, ＞ above ＜ (docs/home-plan.md §1): the home's status bar draws the
+     * VS Code's remote button, ＞ above ＜ (docs/design-and-navigation.md): the home's status bar draws the
      * runtime with it, where VS Code shows the machine it works on.
      */
     val Runtime: ImageVector by lazy {

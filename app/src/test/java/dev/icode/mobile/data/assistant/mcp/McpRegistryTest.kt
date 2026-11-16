@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** docs/mcp-plan.md M7: `server.json` as the registry's documentation publishes it, as iCode would add it. */
+/** docs/assistant-and-mcp.md: `server.json` as the registry's documentation publishes it, as iCode would add it. */
 class McpRegistryTest {
     @Test
     fun `a PyPI package runs by uvx, its values to fill`() {

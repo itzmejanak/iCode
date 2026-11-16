@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The Dark variants: antigem's dark themes (Santoshkurmi/antigem 2a04d61), the classics under
  * their projects' names. Each is also AMOLED's, on true black (ThemeSeed.onBlack).
- * Seeds as listed in docs/theme-variants-plan.md §1.2 and D6; sources in THIRD_PARTY_NOTICES.md.
+ * Seeds as listed in docs/design-and-navigation.md; sources in THIRD_PARTY_NOTICES.md.
  */
 internal val DarkSeeds: List<ThemeSeed> = listOf(
     ThemeSeed(

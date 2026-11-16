@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The screen as the model reads it (docs/phone-agent-plan.md §5.2), from trees as accessibility reports them. */
+/** The screen as the model reads it (docs/voice-and-phone-control.md), from trees as accessibility reports them. */
 class PhoneReadingTest {
     private val box = PhoneBounds(0, 0, 100, 100)
 

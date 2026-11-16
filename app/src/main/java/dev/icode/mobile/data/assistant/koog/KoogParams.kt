@@ -20,7 +20,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * A request's parameters, as each of Koog's clients takes them (§12 R2–R3): the output limit, and
+ * A request's parameters, as each of Koog's clients takes them: the output limit, and
  * the effort where the model offers one ([KoogModels.efforts]).
  */
 internal object KoogParams {
@@ -43,7 +43,7 @@ internal object KoogParams {
                 additionalProperties = effort?.let { mapOf(REASONING to JsonObject(mapOf(EFFORT to level(it)))) },
             )
             // Koog sends the limit as `max_completion_tokens`; a server that reads only the older
-            // `max_tokens` would ignore it, so that goes too (docs/runtime-foundation-plan.md D9). The
+            // `max_tokens` would ignore it, so that goes too (docs/runtime-and-terminal.md). The
             // effort as Chat Completions takes it, `reasoning_effort`.
             AssistantProviderKind.OpenAICompatible -> LLMParams(
                 maxTokens = userLimit,

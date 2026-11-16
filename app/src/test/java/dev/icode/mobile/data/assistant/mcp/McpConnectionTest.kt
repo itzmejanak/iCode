@@ -54,7 +54,7 @@ import org.junit.Test
 
 /**
  * The client against the SDK's own server, over Streamable HTTP on this machine, through OkHttp as on
- * the phone (docs/mcp-plan.md M2–M4): connect and read, call, a failure, a question, a changed list.
+ * the phone (docs/assistant-and-mcp.md): connect and read, call, a failure, a question, a changed list.
  */
 class McpConnectionTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

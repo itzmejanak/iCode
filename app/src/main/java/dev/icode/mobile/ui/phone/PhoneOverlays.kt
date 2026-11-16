@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7; redesigned 2026-11-04,
+ * The glow and the bubble over every app (docs/voice-and-phone-control.md; redesigned 2026-11-04,
  * after Gemini), in the phone service's own trusted windows: no "draw over other apps" permission, and
  * no touch of the screen blocked. One bubble, docked on an edge, in a window of its own; the bar and the
  * voice bubble in another at the bottom, so neither moves the other — and their states run here:
@@ -160,7 +160,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         cancel = ::cancelVoice,
     )
 
-    /** The bubble tapped (§5.7): mute while it listens, silence while it speaks; else expand the bar, close it, or resume. */
+    /** The bubble tapped: mute while it listens, silence while it speaks; else expand the bar, close it, or resume. */
     private fun tap() {
         when {
             overlay.look == Look.Listening -> mute()
@@ -177,7 +177,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Bubble))
     }
 
-    /** The voice bubble's microphone (§5.7): listening stops and the words wait in the bar — and what the agent does runs on. */
+    /** The voice bubble's microphone: listening stops and the words wait in the bar — and what the agent does runs on. */
     private fun mute() {
         if (overlay.look != Look.Listening) return
         muted = true
@@ -194,7 +194,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     /** Sent to the chat iCode shows — "Open in iCode" opens the same one — and answered aloud. */
     private fun send(text: String) {
         if (text.isBlank()) return
-        // Not opened yet: the open workspace's chats, else those in no workspace (docs/home-plan.md §2).
+        // Not opened yet: the open workspace's chats, else those in no workspace (docs/design-and-navigation.md).
         if (snapshot?.assistant?.opened != true) gateway.dispatch(ICodeIntent.OpenAssistant(inWorkspace = true))
         gateway.dispatch(ICodeIntent.SendAssistantMessage(text.trim(), aloud = true))
         draft = ""

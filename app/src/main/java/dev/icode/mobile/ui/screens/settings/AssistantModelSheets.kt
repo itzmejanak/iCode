@@ -42,7 +42,7 @@ import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantRules
 
 /**
- * Models to add to a provider (§13 P2, P5): those its server lists — asked for as the sheet opens,
+ * Models to add to a provider: those its server lists — asked for as the sheet opens,
  * with the address and key as typed — then those iCode knows for its kind, ticked to add; or any
  * ID typed. A long list is narrowed by the search.
  */

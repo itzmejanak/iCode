@@ -3,7 +3,7 @@ package dev.icode.mobile.data.workspace
 import android.content.Context
 
 /**
- * The process's one iCode backend (docs/long-operations-plan.md §6). The work a user starts — a
+ * The process's one iCode backend (docs/runtime-and-terminal.md). The work a user starts — a
  * delete, an import, a clone, the runtime install — belongs to the process, not to the screen it
  * was started from: leaving iCode with Back or swiping it from Recents must not cut it off
  * half-way. Screens attach and detach; the foreground service keeps the process while work runs,

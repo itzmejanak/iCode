@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * §5.3 N4: whatever is done, in whatever order, the model keeps its rules, Back always reaches
+ * Whatever is done, in whatever order, the model keeps its rules, Back always reaches
  * Android's own within a bound, never shows one screen twice in a row, and every state survives
  * being saved and read back.
  */

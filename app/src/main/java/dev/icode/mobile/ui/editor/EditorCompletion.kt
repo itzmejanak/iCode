@@ -22,7 +22,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal class EditorCompleter(val location: String, val completions: LanguageCompletions)
 
 /**
- * [inner] with the language servers' completions (docs/lsp-plan.md §7, L7): asked on Sora's
+ * [inner] with the language servers' completions (docs/editor-and-language-services.md): asked on Sora's
  * completion thread, the asking one interrupted by the next keystroke (a strong interruption), and
  * filtered to what was typed. Without a [IcodeCodeEditor.completer] it is [inner] as it was.
  */
@@ -137,7 +137,7 @@ internal class LanguageCompletion(
 internal class RankedCompletion(val item: LanguageCompletionItem, val matched: IntArray)
 
 /**
- * Which completions show for what was typed, in what order (docs/editor-completion-plan.md D1), as VS
+ * Which completions show for what was typed, in what order (docs/editor-and-language-services.md), as VS
  * Code's suggest list: the typed letters in order, the first at the start of the word or of a word
  * inside it — `aw` is `await` and `AudioWorklet`, never `DataView` — the best match first.
  */

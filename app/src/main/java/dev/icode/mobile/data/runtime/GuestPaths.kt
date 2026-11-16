@@ -7,7 +7,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The runtime's paths, followed as PRoot follows them (docs/runtime-contract-plan.md §4.2): which file
+ * The runtime's paths, followed as PRoot follows them (docs/runtime-and-terminal.md): which file
  * on the phone a path in the runtime is, and back. Every launch sees the same tree
  * ([RuntimeLayout.prootCommand]): the workspaces at `/workspace`, the phone's own [HOST_PATHS] and
  * phone storage ([shared]) where they are, the root filesystem everywhere else.
@@ -19,7 +19,7 @@ internal class GuestPaths(
     rootfs: File,
     val workspaces: WorkspacePaths,
     /**
-     * Phone storage's top, `/storage/emulated/0`, bound where it is (docs/phone-agent-plan.md L8), with
+     * Phone storage's top, `/storage/emulated/0`, bound where it is (docs/voice-and-phone-control.md), with
      * `/sdcard` naming it as on Android; null where there is none.
      */
     val shared: File? = null,

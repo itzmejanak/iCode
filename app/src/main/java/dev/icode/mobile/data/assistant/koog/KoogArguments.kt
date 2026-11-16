@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /**
- * A call's arguments as Koog can carry them (docs/runtime-foundation-plan.md §3.12). Koog reads
+ * A call's arguments as Koog can carry them (docs/runtime-and-terminal.md). Koog reads
  * them as a JSON object, and its OpenAI client, reading a whole reply, throws on any that are not
  * one — losing the reply, its text and its other calls. A long call cut at the output limit is
  * such a call. Its arguments travel wrapped in an object of their own ([readable]): no reader

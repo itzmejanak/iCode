@@ -12,11 +12,11 @@ import java.io.IOException
 import org.json.JSONObject
 
 /**
- * Where a turn works, and the runtime its tools reach (docs/runtime-contract-plan.md §4.3): its chat's
- * workspace, or for a chat in none, `$HOME`, where a login starts (docs/home-plan.md §2). A path the
+ * Where a turn works, and the runtime its tools reach (docs/runtime-and-terminal.md): its chat's
+ * workspace, or for a chat in none, `$HOME`, where a login starts (docs/design-and-navigation.md). A path the
  * model writes is a path in the runtime — absolute as written, `~` as root's home, relative from
  * [root] — and names the file the runtime would, its links followed as PRoot follows them
- * ([GuestPaths]). Phone storage is in the runtime too (L8), read with All Files Access.
+ * ([GuestPaths]). Phone storage is in the runtime too, read with All Files Access.
  */
 internal class AssistantWorkspace(
     /** The chat's workspace, by its location in iCode's storage; null for a chat in none. */
@@ -69,13 +69,13 @@ internal class AssistantWorkspace(
     fun reach(path: String?): List<File> = listOfNotNull(runCatching { resolve(path ?: ".") }.getOrNull())
 
     /**
-     * The runtime paths of [files] outside this workspace (docs/assistant-permissions-plan.md §4.2). In
-     * no workspace there is no boundary to cross: the mode alone decides (docs/home-plan.md §2).
+     * The runtime paths of [files] outside this workspace (docs/assistant-and-mcp.md). In
+     * no workspace there is no boundary to cross: the mode alone decides (docs/design-and-navigation.md).
      */
     fun outside(files: List<File>): List<String> =
         if (workspace == null) emptyList() else files.filter { relative(it) == null }.map(::guestOf).distinct()
 
-    /** The folder "Allow in this chat" opens for [path], a runtime path outside the workspace (§4.4). */
+    /** The folder "Allow in this chat" opens for [path], a runtime path outside the workspace. */
     fun rootOf(path: String): String? = AssistantPermissions.rootOf(
         path,
         isFolder = { runCatching { paths.hostOf(it).isDirectory }.getOrDefault(false) },

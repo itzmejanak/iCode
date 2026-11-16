@@ -19,9 +19,9 @@ import org.json.JSONObject
 import ai.koog.serialization.JSONObject as KoogJSONObject
 
 /**
- * An iCode tool as Koog runs one (§4.2): its descriptor made from the tool's own parameters (no
+ * An iCode tool as Koog runs one: its descriptor made from the tool's own parameters (no
  * reflection), its arguments handed over as the JSON text the model wrote, and its refusals turned
- * into the error result the model reads. Koog's standard agent runs it (§12 R1).
+ * into the error result the model reads. Koog's standard agent runs it.
  */
 internal class KoogTool(private val tool: AssistantTool) : ToolBase<String, String>(
     argsType = typeToken<String>(),
@@ -60,7 +60,7 @@ internal class KoogTool(private val tool: AssistantTool) : ToolBase<String, Stri
         fun descriptor(parameter: AssistantParameter): ToolParameterDescriptor =
             ToolParameterDescriptor(name = parameter.name, description = parameter.description, type = type(parameter.type))
 
-        /** Each of iCode's types as exactly one of Koog's (docs/mcp-plan.md §6.2). */
+        /** Each of iCode's types as exactly one of Koog's (docs/assistant-and-mcp.md). */
         fun type(type: AssistantParameterType): ToolParameterType = when (type) {
             AssistantParameterType.Text -> ToolParameterType.String
             AssistantParameterType.Integer -> ToolParameterType.Integer

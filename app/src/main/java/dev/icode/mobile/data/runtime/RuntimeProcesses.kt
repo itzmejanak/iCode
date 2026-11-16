@@ -24,11 +24,11 @@ internal interface SpawnedProcess {
 }
 
 /**
- * Managed processes (docs/runtime-foundation-plan.md §3.4): what must run beyond the command that
+ * Managed processes (docs/runtime-and-terminal.md): what must run beyond the command that
  * started it — a development server, a watcher, a worker — each in a PRoot of its own, kept until
  * it is stopped, until it ends, or until iCode's process does. Their state reaches [publish] as it
- * changes — started, a port found, ended — never their output: that is in [logs], for the terminal
- * (§6), and here, for the assistant.
+ * changes — started, a port found, ended — never their output: that is in [logs], for the terminal,
+ * and here, for the assistant.
  */
 internal class RuntimeProcesses(
     private val scope: CoroutineScope,

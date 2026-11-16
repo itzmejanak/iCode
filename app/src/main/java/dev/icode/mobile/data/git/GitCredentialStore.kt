@@ -11,7 +11,7 @@ import dev.icode.mobile.domain.GitRemoteRules
  *
  * The token never sits in plaintext in preferences: the key material stays in
  * the Keystore and cannot be exported, so a backup or a dump of the app's
- * preferences yields ciphertext only (architecture.md section 21).
+ * preferences yields ciphertext only (docs/source-control.md).
  *
  * Credentials are deliberately kept out of the workspace record — a repository
  * the user shares must never carry their token.

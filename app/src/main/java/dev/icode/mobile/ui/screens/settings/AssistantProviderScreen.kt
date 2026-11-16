@@ -51,7 +51,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * One provider (§13 P1–P5): its kind (chosen when it is added), its name, its server's address
+ * One provider: its kind (chosen when it is added), its name, its server's address
  * where it has one, its API key — masked, never shown again once saved — and the models it offers
  * the chat, added from its server's list, iCode's catalogue or by ID. Save checks the form; the
  * first message checks the connection.

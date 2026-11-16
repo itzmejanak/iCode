@@ -50,7 +50,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Runtime installation, including its failure (docs/onboarding-polish-plan.md §3.1): the ring of
+ * Runtime installation, including its failure (docs/design-and-navigation.md): the ring of
  * the step in hand over the logo, the installer's own words under it, and the free space at the foot.
  *
  * Failure is a state of this installation, not a place of its own: the user

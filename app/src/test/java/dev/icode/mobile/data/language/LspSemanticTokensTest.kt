@@ -12,7 +12,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Semantic tokens as the protocol writes them: the legend, the relative integers, deltas (S7). */
+/** Semantic tokens as the protocol writes them: the legend, the relative integers, deltas. */
 class LspSemanticTokensTest {
     private fun json(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
 

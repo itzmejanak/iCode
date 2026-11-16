@@ -23,7 +23,7 @@ sealed interface VoiceCue {
 }
 
 /**
- * Reads one turn aloud as it is written (docs/phone-agent-plan.md §5.8): each sentence of its replies as
+ * Reads one turn aloud as it is written (docs/voice-and-phone-control.md): each sentence of its replies as
  * soon as it is whole — while the model still writes the next — and each question it asks, in order.
  * Ended, what waits is said; stopped or failed, the voice hushes. A turn is read when its message was
  * sent to be answered aloud ([dev.icode.mobile.domain.AssistantTurn.aloud]) and Spoken replies is not Off.

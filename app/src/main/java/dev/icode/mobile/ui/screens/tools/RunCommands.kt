@@ -29,7 +29,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SheetIcon
 
 /**
- * What the Run tab asks about the commands the user saved (docs/run-tab-plan.md §2.3), one at a time:
+ * What the Run tab asks about the commands the user saved (docs/runtime-and-terminal.md), one at a time:
  * a new one, from the header's +; or, for the saved command [id], its sheet, from a long press, then
  * its edit or its delete.
  */
@@ -46,8 +46,9 @@ internal data class RunCommandAsk(val what: What, val id: String? = null) {
 }
 
 /**
- * The Run tab's [ask], over the whole tools panel: a saved command's sheet (docs/explorer-gaps-plan.md
- * §3.1) — Edit…, and Delete, last — or the sheet that makes, changes or deletes one. [onAsk] moves on
+ * The Run tab's [ask], over the whole tools panel: a saved command's sheet
+ * (docs/workspaces-and-files.md) — Edit…, and Delete, last — or the sheet that makes, changes or
+ * deletes one. [onAsk] moves on
  * to the next, or to none.
  */
 @Composable

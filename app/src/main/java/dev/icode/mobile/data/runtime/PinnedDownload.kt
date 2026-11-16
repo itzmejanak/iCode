@@ -10,7 +10,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 /**
- * Downloads a [PinnedFile] over HTTPS (docs/android-toolchain-plan.md §4.2): the root filesystem, and
+ * Downloads a [PinnedFile] over HTTPS (docs/runtime-and-terminal.md): the root filesystem, and
  * every file a runtime tool fetches itself. The digest is computed as the bytes arrive, and what does
  * not match its pin — size or checksum — is deleted, never used. Progress is reported often enough
  * that a slow link still visibly moves; a cancelled coroutine stops between two reads.

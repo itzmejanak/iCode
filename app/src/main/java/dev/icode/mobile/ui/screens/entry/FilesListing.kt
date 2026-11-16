@@ -35,7 +35,7 @@ import dev.icode.mobile.domain.files.FilesView
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.files.TrashRules
 
-/** What the listing does with a tap, a long press and a tap on an item's icon (docs/explorer-gaps-plan.md §3.2). */
+/** What the listing does with a tap, a long press and a tap on an item's icon (docs/workspaces-and-files.md). */
 internal class ListingTaps(
     /** Ticked, in selection; null while not selecting. */
     val selection: Set<String>?,
@@ -47,8 +47,8 @@ internal class ListingTaps(
 )
 
 /**
- * What is listed, found and ordered (docs/storage-explorer-plan.md §3.2; docs/explorer-gaps-plan.md
- * §3.10, §3.12): [up] first — `..`, while there is a folder above and nothing is selected — then
+ * What is listed, found and ordered (docs/workspaces-and-files.md): [up] first — `..`, while there is a
+ * folder above and nothing is selected — then
  * [groups] in [look]'s view — rows with their [detail], single lines, or tiles — each under its label:
  * a type's, sorted by Type, or a set of copies; or, nothing listed, why ([empty]). [focus] is brought
  * into view once it is listed: the file Show in folder ticked.
@@ -104,7 +104,7 @@ internal fun FilesListing(
     }
 }
 
-/** A group's label over its rows (§3.10, §3.12): ".kt · 12", "3 copies · 24 MB each"; the [index]th, as two sets may read alike. */
+/** A group's label over its rows: ".kt · 12", "3 copies · 24 MB each"; the [index]th, as two sets may read alike. */
 private fun LazyListScope.groupLabel(label: String, index: Int, start: Dp) = item(key = "group:$index") { GroupLabel(label, start) }
 
 private fun LazyGridScope.groupLabel(label: String, index: Int) = item(key = "group:$index", span = { GridItemSpan(maxLineSpan) }) { GroupLabel(label, IcodeSpacing.RowInset) }
@@ -144,7 +144,7 @@ internal fun FolderEmpty(browser: FilesBrowserState, query: String, foldersOnly:
     )
 }
 
-/** Why a view (§3.10) lists nothing: nothing in it yet — [held] none — or nothing the search for [query] found. */
+/** Why a view lists nothing: nothing in it yet — [held] none — or nothing the search for [query] found. */
 @Composable
 internal fun ViewEmpty(view: ExplorerView, held: Boolean, query: String) {
     if (held) {

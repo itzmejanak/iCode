@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Properties' rows and the question's words (docs/explorer-gaps-plan.md §3.6, §3.9). */
+/** Properties' rows and the question's words (docs/workspaces-and-files.md). */
 class FilePropertiesTest {
     private val changed = LocalDateTime.of(2026, 10, 28, 14, 5).toInstant(ZoneOffset.UTC).toEpochMilli()
     private val now = changed + 2 * 60 * 60 * 1000L

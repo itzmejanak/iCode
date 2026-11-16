@@ -5,7 +5,7 @@ import java.io.File
 
 /**
  * What iCode tells of workspaces — opening, refreshing, renaming them — and of what is kept about
- * them (docs/notices-redesign-plan.md D8): each by its name, read where it is ([at]) as the place.
+ * them (docs/engineering-rules.md): each by its name, read where it is ([at]) as the place.
  */
 object WorkspaceNotices {
     fun gone(location: String) = Notice(

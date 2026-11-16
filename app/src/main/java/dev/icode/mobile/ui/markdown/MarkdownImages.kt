@@ -47,7 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * A paragraph of pictures alone (docs/markdown-rendering-plan.md §3.4): each as wide as its own pixels,
+ * A paragraph of pictures alone (docs/editor-and-language-services.md): each as wide as its own pixels,
  * an HTML `width` or the page allows, decoded off the main thread and kept for when it is scrolled back
  * to. Until it is decoded, and when it cannot be — `http`, SVG, an answer's `https` — its alt text, with
  * an `https` picture's host. A tap opens it: the image viewer for a workspace file, the browser for `https`.

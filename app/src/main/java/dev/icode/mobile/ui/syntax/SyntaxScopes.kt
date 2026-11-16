@@ -184,7 +184,7 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
     SyntaxRole.Quote to listOf("markup.quote"),
     // A section's name: a Markdown heading's text, an INI `[section]`.
     SyntaxRole.Heading to listOf("entity.name.section", "entity.section"),
-    // iCode's additions for the grammars of every language (S6, 2026-11-11). First TextMate's own names
+    // iCode's additions for the grammars of every language, added 2026-11-11. First TextMate's own names
     // for what has no more specific rule: a constant, a name, an entity.
     SyntaxRole.Constant to listOf("constant", "support.language", "support.property-value"),
     SyntaxRole.Type to listOf(
@@ -218,7 +218,7 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
     SyntaxRole.Quote to listOf("support.quote"),
     SyntaxRole.Link to listOf("markup.link", "markup.other", "markup.reference", "markup.biblioref", "markup.blockid", "entity.name.footnote"),
     SyntaxRole.Plain to listOf("entity.label"),
-    // The grammars converted from CSON (S6 part 2): Haskell's Prelude operators and constructors, as its own
+    // The grammars converted from CSON: Haskell's Prelude operators and constructors, as its own
     // operators and constructors; a Cabal section's name; an Agda pragma, as a preprocessor line.
     SyntaxRole.Plain to listOf("support.operator.prelude"),
     SyntaxRole.Tag to listOf("support.tag.prelude"),

@@ -36,7 +36,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.delay
 
-// iCode's one loading vocabulary (docs/loading-plan.md §4.2). Every wait is one of three:
+// iCode's one loading vocabulary (docs/design-and-navigation.md). Every wait is one of three:
 // - an action the user started: its own control says it is working — a button's spinner (busy),
 //   a row's spinner — from the tap, and refuses a second tap;
 // - content not read yet: its place drawn as it will be (IcodeSkeletonRows), never an empty state

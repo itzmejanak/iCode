@@ -54,7 +54,7 @@ import dev.icode.mobile.ui.parentName
 
 /**
  * One section of Source Control's changes — staged, or not yet — as a tree (docs/workspace-
- * destinations-plan.md G14), compact as the Explorer's: its header with Stage all or Unstage all,
+ * docs/workspaces-and-files.md), compact as the Explorer's: its header with Stage all or Unstage all,
  * then [rows]. A tap opens: a folder expands and collapses, a file shows its diff (or itself, when
  * new). + or − stages. A long press opens the row's sheet ([onHold], [GitChangeSheet]).
  */
@@ -110,7 +110,7 @@ internal fun changeRowKey(staged: Boolean, row: GitChangeRow): String =
     }
 
 /**
- * A change row's sheet (docs/explorer-gaps-plan.md §3.1), titled with it: for a file, Open file
+ * A change row's sheet (docs/workspaces-and-files.md), titled with it: for a file, Open file
  * (unless it is deleted), Stage or Unstage, and the discard that fits — Discard changes, Delete file,
  * Restore file; for a folder, Stage or Unstage and Discard changes, for all it holds. Each discard is
  * destructive, so last, and confirmed before anything is lost; only what can be thrown away — nothing

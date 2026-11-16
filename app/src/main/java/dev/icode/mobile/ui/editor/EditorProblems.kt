@@ -9,12 +9,12 @@ import io.github.rosemoe.sora.lang.diagnostic.DiagnosticsContainer
 import io.github.rosemoe.sora.text.Content
 
 /**
- * A file's problems drawn under their text (docs/lsp-plan.md §7): the language servers' and a build's,
+ * A file's problems drawn under their text (docs/editor-and-language-services.md): the language servers' and a build's,
  * each where it is, and Sora's own tooltip with its message when the caret is in one. The editor only
  * draws them; their owner is the data layer.
  */
 internal object EditorProblems {
-    /** At most this many are drawn in one file (§5.4). */
+    /** At most this many are drawn in one file. */
     const val MAX_DRAWN = 1_000
 
     fun containerOf(problems: List<Diagnostic>, text: Content): DiagnosticsContainer? {

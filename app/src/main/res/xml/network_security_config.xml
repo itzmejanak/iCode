@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Plain http:// only to this phone itself: an Ollama or another model server in the runtime
-     (docs/assistant-koog-plan.md §2, §10). Everything else iCode reaches is HTTPS. -->
+<!-- Android HTTP clients allow plain http:// only to this phone itself, for an Ollama or
+     another local service (docs/assistant-and-mcp.md). Guest Git and installed tools run as
+     separate processes and follow their own transport settings. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">

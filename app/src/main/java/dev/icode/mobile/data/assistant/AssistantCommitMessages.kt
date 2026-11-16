@@ -13,7 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Commit messages written by the model from the staged changes (docs/commit-message-generator-plan.md):
+ * Commit messages written by the model from the staged changes (docs/assistant-and-mcp.md):
  * read from the repository Git works in for the workspace, as Commit reads it, and written by the
  * model Settings › Source Control names, else the chat's. Each is its own job; nothing of a diff or
  * a message reaches the log.

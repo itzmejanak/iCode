@@ -70,7 +70,7 @@ internal fun CommitFacts(
 }
 
 /**
- * A line of the History sheet (docs/git-history-plan.md §4): [lanes] of graph at its start, then the
+ * A line of the History sheet (docs/source-control.md): [lanes] of graph at its start, then the
  * commit's short id, its names, its subject and how long ago. A tap opens it to the whole commit, its
  * text there to select and copy, the graph's lanes running on beside it; a tap on the line closes it.
  */

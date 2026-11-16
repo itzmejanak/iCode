@@ -13,7 +13,7 @@ internal interface LanguageServiceSaves {
 }
 
 /**
- * The user's language servers, as configured (docs/lsp-plan.md §5.1). Version 2 adds languages,
+ * The user's language servers, as configured (docs/editor-and-language-services.md). Version 2 adds languages,
  * environment and settings; a version 1 list — v0.1.0 saved those — is read once and written as
  * version 2 at the next save. Process state is never saved.
  */

@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Lazy, per-language loading (docs/syntax-highlighting-plan.md D4; A1, A2), through the engine's own
+ * Lazy, per-language loading (docs/editor-and-language-services.md), through the engine's own
  * loading logic on the shipped catalog and grammars, each into a plain tm4e registry. [broken]
  * languages throw when added, as a grammar that cannot be parsed does.
  */

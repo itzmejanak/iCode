@@ -7,7 +7,7 @@ import dev.icode.mobile.domain.files.FileWords
 import dev.icode.mobile.domain.files.paths
 
 /**
- * What the explorers and Files tell (docs/notices-redesign-plan.md D8, D9): each change made, undone
+ * What the explorers and Files tell (docs/engineering-rules.md): each change made, undone
  * or redone, in the undo pill's words, and what stopped short or was refused, where it happened.
  */
 object FileNotices {

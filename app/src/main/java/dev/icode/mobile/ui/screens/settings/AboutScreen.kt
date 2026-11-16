@@ -88,7 +88,7 @@ fun AboutScreen(actions: NavigationActions) {
         gateway.dispatch(WebIntent.RefreshAppConfig)
     }
     val runtime = state.runtimeDetails
-    // Four short facts, each its label over its value (docs/screens-polish-plan.md D4).
+    // Four short facts, each its label over its value (docs/design-and-navigation.md).
     val build = listOf(
         IcodeFact("Version", BuildConfig.VERSION_NAME),
         IcodeFact("Android", "API ${BuildConfig.MIN_SDK} and later"),

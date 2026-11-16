@@ -18,7 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Onboarding and the runtime (S1): whether the Linux runtime is there, its
+ * Onboarding and the runtime: whether the Linux runtime is there, its
  * install, repair and reset, what is measured about it, and what Android
  * allows iCode (notifications, battery).
  */
@@ -105,7 +105,7 @@ internal class RuntimeCoordinator(
             runtimeInstallReason = reason,
         ) }
         // The Installing state above is background work: the foreground service keeps the
-        // process while it lasts (docs/long-operations-plan.md §6).
+        // process while it lasts (docs/runtime-and-terminal.md).
         val began = System.currentTimeMillis()
         installJob = scope.launch {
             try {

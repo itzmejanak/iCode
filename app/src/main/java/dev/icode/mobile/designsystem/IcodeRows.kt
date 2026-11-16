@@ -182,7 +182,7 @@ fun SettingRow(
  * Label/value pair used by detail, runtime, build and recovery sections; [valueIcon] leads the value,
  * in its colour. The label keeps its width and a gap, and the value takes the rest, at the end and the
  * label's size, on two lines at most — so however long the value, it never meets its label
- * (docs/screens-polish-plan.md D1).
+ * (docs/design-and-navigation.md).
  */
 @Composable
 fun DetailRow(
@@ -210,7 +210,7 @@ fun DetailRow(
 }
 
 /**
- * One file or folder, the same height in every list of them (docs/screens-polish-plan.md D1): the
+ * One file or folder, the same height in every list of them (docs/design-and-navigation.md): the
  * explorer's, Recent's, Find's. [leading] — its type's icon or thumbnail, or a tick — then its [name]
  * over its [detail], one line each, and [trailing] at its end. A detail that is a folder
  * ([detailIsPath]) loses its start rather than its end, so the folders nearest the file show.

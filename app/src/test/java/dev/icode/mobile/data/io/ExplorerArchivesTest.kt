@@ -25,7 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** The explorer's Extract and Compress (docs/explorer-gaps-plan.md §3.11): every format, and what an untrusted archive may not do. */
+/** The explorer's Extract and Compress (docs/workspaces-and-files.md): every format, and what an untrusted archive may not do. */
 class ExplorerArchivesTest {
     @get:Rule val temp = TemporaryFolder()
 

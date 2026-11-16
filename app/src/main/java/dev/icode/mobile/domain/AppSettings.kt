@@ -43,17 +43,17 @@ data class AppearanceSettings(
     /** 100 is the validated original UI; editor, Markdown and terminal sizes are independent. */
     val uiTextScalePercent: Int = 100,
     val compactLayout: Boolean = true,
-    /** Lines around cards, menus and bars; off, surfaces stand apart by tone (docs/border-lines-plan.md). */
+    /** Lines around cards, menus and bars; off, surfaces stand apart by tone (docs/design-and-navigation.md). */
     val borderLines: Boolean = true,
     /** Opaque ARGB chosen over the theme's own accent; null keeps the theme's. App-wide. */
     val accentColor: Int? = null,
     /**
-     * Each theme's variant by id (docs/theme-variants-plan.md D1). A theme without one is drawn as
+     * Each theme's variant by id (docs/design-and-navigation.md). A theme without one is drawn as
      * iCode's own. Each theme keeps its own, so switching theme brings that theme's back.
      */
     val variants: Map<AppTheme, String> = emptyMap(),
     /**
-     * Auto (docs/theme-variants-plan.md T6): Light while the phone is light, [nightTheme] while it is
+     * Auto (docs/design-and-navigation.md): Light while the phone is light, [nightTheme] while it is
      * dark, each in its own variant. Off, [theme] is shown whatever the phone is.
      */
     val followSystem: Boolean = false,
@@ -78,7 +78,7 @@ data class AppearanceSettings(
     }
 }
 
-/** What a theme variant's id may be (docs/theme-variants-plan.md D1). iCode's own variant is stored as no id. */
+/** What a theme variant's id may be (docs/design-and-navigation.md). iCode's own variant is stored as no id. */
 object ThemeVariantRules {
     /** iCode's own variant of each theme. */
     const val ICODE = "icode"
@@ -93,7 +93,7 @@ object ThemeVariantRules {
 }
 
 /**
- * Which build of iCode this is (docs/environments-plan.md): each installs beside the others with its own
+ * Which build of iCode this is (docs/build-and-release.md): each installs beside the others with its own
  * icon, and its theme accent is that icon's warm colour, the role Ember plays in the stable icon. Null:
  * Ember, the production icon's own.
  */
@@ -184,20 +184,20 @@ data class EditorSettings(
     val lineNumbers: Boolean = true,
     val minimap: Boolean = false,
     val bracketMatching: Boolean = true,
-    /** The keys row above the keyboard (docs/editor-plan.md §4). */
+    /** The keys row above the keyboard (docs/editor-and-language-services.md). */
     val keys: List<EditorKey> = EditorKey.entries,
     /** Off: the keyboard is asked not to suggest or autocorrect inside code. */
     val keyboardSuggestions: Boolean = false,
-    /** The gutter's Git change markers and their sheet (docs/editor-plan.md §3). */
+    /** The gutter's Git change markers and their sheet (docs/editor-and-language-services.md). */
     val changeMarkers: Boolean = true,
     /** Typing an opening bracket or quote adds its closing one. */
     val autoCloseBrackets: Boolean = true,
-    /** A language server's semantic tokens coloured over the grammar's (docs/syntax-highlighting-plan.md D8). */
+    /** A language server's semantic tokens coloured over the grammar's (docs/editor-and-language-services.md). */
     val semanticHighlighting: Boolean = true,
 )
 
 /**
- * A key of the editor's keys row (docs/editor-plan.md §4): an editing action, or a symbol typed as
+ * A key of the editor's keys row (docs/editor-and-language-services.md): an editing action, or a symbol typed as
  * from the keyboard — [text], what it types. How each is drawn is the UI's (KeyFaces.kt).
  */
 enum class EditorKey(val text: String? = null) {
@@ -212,7 +212,7 @@ enum class EditorKey(val text: String? = null) {
 enum class TerminalExtraKey { Escape, Tab, Ctrl, Alt, Left, Up, Down, Right }
 
 /**
- * A keys row as Settings arranges it (docs/editor-plan.md §4.1), the editor's or the terminal's: the
+ * A keys row as Settings arranges it (docs/editor-and-language-services.md), the editor's or the terminal's: the
  * keys it shows, in the order the user put them, which is the order the row shows them.
  */
 object KeyRows {

@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.voice
 
 /**
- * What is spoken of the assistant (docs/phone-agent-plan.md §5.8): its replies and its questions, read
+ * What is spoken of the assistant (docs/voice-and-phone-control.md): its replies and its questions, read
  * as a person reads them — no Markdown, no code blocks, no links — sentence by sentence as they are
  * written ([ready]).
  */

@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Manage storage's sums, and how its findings follow iCode's own changes (docs/explorer-gaps-plan.md §3.10). */
+/** Manage storage's sums, and how its findings follow iCode's own changes (docs/workspaces-and-files.md). */
 class StorageInsightsTest {
     private val photo = ScannedFile("/s/DCIM/a.jpg", 10, changedAt = 1, FileTypes.Image)
     private val copy = ScannedFile("/s/Download/a.jpg", 10, changedAt = 2, FileTypes.Image)

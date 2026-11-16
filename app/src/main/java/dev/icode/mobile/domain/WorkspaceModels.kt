@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Workspaces: the folders in iCode's storage a user works in (docs/workspace-storage-plan.md), and storage.
+// Workspaces: the folders in iCode's storage a user works in (docs/workspaces-and-files.md), and storage.
 
 /** Where the workspaces are in the runtime; each is at `/workspace/<name>`, the path people see. */
 object WorkspaceRuntimePath {
@@ -16,7 +16,7 @@ object WorkspaceRuntimePath {
 }
 
 /**
- * Where the next clone or import goes (docs/workspace-destinations-plan.md): a folder in a
+ * Where the next clone or import goes (docs/workspaces-and-files.md): a folder in a
  * workspace. None means a new workspace, as ever.
  */
 data class ProjectDestination(

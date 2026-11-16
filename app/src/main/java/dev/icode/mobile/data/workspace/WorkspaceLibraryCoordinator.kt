@@ -32,10 +32,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * The user's library of workspaces (docs/workspace-storage-plan.md §4.3): every folder in iCode's
+ * The user's library of workspaces (docs/workspaces-and-files.md): every folder in iCode's
  * workspaces, most recently opened first — the folder is the registry, so nothing in the list can
  * go stale — and what they and the runtime take up in storage. And the file explorer's listing, of
- * iCode's storage and of phone storage (docs/storage-explorer-plan.md §4.3), with Recent and
+ * iCode's storage and of phone storage (docs/workspaces-and-files.md), with Recent and
  * Favorites, kept in the same store.
  */
 internal class WorkspaceLibraryCoordinator(
@@ -51,7 +51,7 @@ internal class WorkspaceLibraryCoordinator(
     /** Clearing the cache under a running task would pull files out from under it. */
     private val tasksRunning: () -> Boolean,
 ) {
-    /** Recent and Favorites (docs/explorer-gaps-plan.md §3.14). */
+    /** Recent and Favorites (docs/workspaces-and-files.md). */
     val shortcuts = FileShortcuts(stateHolder, store, runtimeLayout.workspaces)
 
     private var storageJob: Job? = null
@@ -160,7 +160,7 @@ internal class WorkspaceLibraryCoordinator(
         stateHolder.update { it.copy(projectDestination = destination) }
     }
 
-    /** The explorer showing [view] in place of a folder (docs/explorer-gaps-plan.md §3.10); none, its folder again. */
+    /** The explorer showing [view] in place of a folder (docs/workspaces-and-files.md); none, its folder again. */
     private fun showing(view: ExplorerView?) = stateHolder.update { it.copy(explorer = it.explorer.copy(view = view)) }
 
     /** The explorer goes to [path]; an older listing still running stops, and is never shown after a newer one. */

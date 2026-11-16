@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.voice.SpeechWay
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.domain.voice.VoiceFrom
 
-/** Voice in and out (docs/phone-agent-plan.md §5.8): the microphone, the spoken answer, and when answers are read aloud. */
+/** Voice in and out (docs/voice-and-phone-control.md): the microphone, the spoken answer, and when answers are read aloud. */
 sealed interface VoiceIntent : ICodeIntent {
     /** Whether the microphone may be used, read again: Android's prompt answered, or iCode back in front. */
     data object Refresh : VoiceIntent
@@ -32,7 +32,7 @@ sealed interface VoiceIntent : ICodeIntent {
     data class ChooseSpokenReplies(val spoken: SpokenReplies) : VoiceIntent
 }
 
-/** The speech providers (docs/speech-plan.md §5, docs/tts-plan.md §5): the pages' operations, which the agent's tools share. */
+/** The speech providers (docs/voice-and-phone-control.md): the pages' operations, which the agent's tools share. */
 sealed interface SpeechIntent : VoiceIntent {
     /** [provider]'s page opens: a new one has the ID "". */
     data class Edit(val provider: SpeechProvider) : SpeechIntent

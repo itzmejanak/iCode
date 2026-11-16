@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.phone.PhoneOverlay
 
 /**
  * The screen's edges in iCode's accent, one continuous light faded towards the middle
- * (docs/phone-agent-plan.md §5.6; redesigned 2026-11-04). Four thin accessibility overlays that take
+ * (docs/voice-and-phone-control.md; redesigned 2026-11-04). Four thin accessibility overlays that take
  * no touch, so nothing of the screen is ever covered. It breathes slowly while the agent acts — not
  * when the system's animations are off — and dims while it waits.
  */

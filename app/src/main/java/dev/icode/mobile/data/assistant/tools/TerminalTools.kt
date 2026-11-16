@@ -17,7 +17,7 @@ import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
 
-// The terminal for the assistant (docs/agent-control-plan.md §4.3): its commands run in the user's own
+// The terminal for the assistant (docs/assistant-and-mcp.md): its commands run in the user's own
 // terminal tabs — the chat's own, a new one, or one of the user's, asked about first — through the
 // TerminalRuns the Terminal panel's sessions are; the user sees each as it runs and can answer it.
 

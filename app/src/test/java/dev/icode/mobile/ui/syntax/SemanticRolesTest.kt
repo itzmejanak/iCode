@@ -8,7 +8,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** A server's token types and modifiers through VS Code's scopes to the one table's roles (S7). */
+/** A server's token types and modifiers through VS Code's scopes to the one table's roles. */
 class SemanticRolesTest {
     private val roles = SemanticRoles.shipped
 

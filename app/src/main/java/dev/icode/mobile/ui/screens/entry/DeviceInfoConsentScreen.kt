@@ -23,7 +23,7 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 
-/** What sharing means, in the user's words (docs/device-telemetry-plan.md §2 — keep the two in step). */
+/** What sharing means, in the user's words (PRIVACY.md — keep the two in step). */
 private val reasons = listOf(
     "Shared: app version, Android version, phone model, language, and whether the Linux runtime is installed.",
     "Never shared: your workspaces, files, Git remotes, keys, terminal or assistant conversations.",

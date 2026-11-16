@@ -13,7 +13,7 @@ import dev.icode.mobile.domain.BackgroundPlace
 
 /**
  * What iCode posts, each under one id of its own and, where there are many at once, a tag of the
- * thing's own id (docs/notices-redesign-plan.md D7): no ranges to keep apart, nothing to collide.
+ * thing's own id (docs/engineering-rules.md): no ranges to keep apart, nothing to collide.
  */
 internal enum class NotificationKey(val id: Int) {
     /** The runtime service's own, its group's summary. */
@@ -45,7 +45,7 @@ internal sealed interface NotificationLink {
     /** Its workspace, the Terminal panel, that tab. */
     data class Session(val id: String) : NotificationLink
 
-    /** Where iCode shows that work (docs/long-operations-plan.md §6). */
+    /** Where iCode shows that work (docs/runtime-and-terminal.md). */
     data class Work(val place: BackgroundPlace) : NotificationLink
 
     /** The notice's sheet — or, with no [id], the Notifications page; [act]: its main action done instead, an Open. */
@@ -86,7 +86,7 @@ internal sealed interface NotificationLink {
 }
 
 /**
- * The one way iCode builds and posts its notifications (D7): its icon and colour, a registered
+ * The one way iCode builds and posts its notifications: its icon and colour, a registered
  * channel ([IcodeChannels]), the place as the header's sub-text, a key ([NotificationKey]) and a tap
  * that opens a [NotificationLink].
  */

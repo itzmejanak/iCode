@@ -41,7 +41,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** Pins how clone, fetch, pull and push behave as they leave the gateway (S5.3). */
+/** Pins how clone, fetch, pull and push behave as they leave the gateway. */
 class GitTransferCoordinatorTest {
     private val originalWriter = BackendLog.writer
     private val files = Files.createTempDirectory("files").toFile().canonicalFile

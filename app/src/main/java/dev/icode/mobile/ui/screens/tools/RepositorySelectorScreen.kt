@@ -22,7 +22,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Which repository Source Control works in, when the open workspace holds more than one
- * (docs/workspace-destinations-plan.md §2.6, D7): a sheet over the screen it was opened from, as
+ * (docs/workspaces-and-files.md): a sheet over the screen it was opened from, as
  * the branch selector is. Each is named by its folder in the workspace; the one Git works in is
  * ticked. Everything on Source Control and the sync page — changes, commit, branch, pull and
  * push — is the chosen one's.

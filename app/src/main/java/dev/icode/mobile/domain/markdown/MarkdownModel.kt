@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.markdown
 
 /**
- * A Markdown document as iCode draws it (docs/markdown-rendering-plan.md §3.1). Its references are
+ * A Markdown document as iCode draws it (docs/editor-and-language-services.md). Its references are
  * resolved: a link to a defined label leads where the definition says, and a footnote reference has
  * its number. A block that did not change since the last reading is the same object, so the screen
  * does not draw it again.

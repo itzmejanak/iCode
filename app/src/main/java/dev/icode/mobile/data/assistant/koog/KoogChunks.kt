@@ -9,12 +9,12 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
 /**
- * A streamed chunk as Koog's OpenAI client can read it (docs/runtime-foundation-plan.md §3.13). Koog
+ * A streamed chunk as Koog's OpenAI client can read it (docs/runtime-and-terminal.md). Koog
  * reads every event of a stream as a whole chunk of OpenAI's and throws on any that is not one,
  * ending the reply where it is: a chunk without `id`, `object`, `created` or `model`, a choice
  * without `index` or `delta`, a call without `index`, a blank or non-JSON event, an event of another
- * kind (a keep-alive) (F15). A compatible server need not be as strict as OpenAI (F14); the OpenAI SDK
- * reads them all. Such a chunk is completed with values Koog does not use and iCode never reads; an
+ * kind (a keep-alive). A compatible server need not be as strict as OpenAI; the OpenAI SDK reads
+ * them all. Such a chunk is completed with values Koog does not use and iCode never reads; an
  * event that carries no chunk is read as an empty one; one that says the provider failed is that
  * failure, in the provider's words.
  */

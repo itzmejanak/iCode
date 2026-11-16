@@ -24,7 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** Google, ElevenLabs, Azure and OpenAI-compatible servers, each sentence one request (docs/tts-plan.md §4.3), against servers here that answer as theirs do. */
+/** Google, ElevenLabs, Azure and OpenAI-compatible servers, each sentence one request (docs/voice-and-phone-control.md), against servers here that answer as theirs do. */
 class SentenceVoicesTest {
     @Volatile private var answer: suspend RoutingContext.() -> Unit = { call.respondText("{}", ContentType.Application.Json) }
     @Volatile private var body = ""

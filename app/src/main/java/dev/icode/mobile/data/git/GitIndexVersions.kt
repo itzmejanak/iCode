@@ -4,7 +4,7 @@ package dev.icode.mobile.data.git
 internal class IndexVersion(val mode: String, val bytes: ByteArray)
 
 /**
- * Files' versions in Git's index, in one process (docs/editor-plan.md §3.1): [script] prints the
+ * Files' versions in Git's index, in one process (docs/editor-and-language-services.md): [script] prints the
  * index's entries for the paths (`ls-files -s -z`) and writes each one's checkout form
  * (`cat-file --filters`) to a numbered file of a folder in the guest's /tmp; [read] takes them
  * back. Both halves of the protocol live here, as [stageScript] writes one back.

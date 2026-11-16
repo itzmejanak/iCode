@@ -55,7 +55,7 @@ import kotlinx.coroutines.delay
 private enum class RunNeed { AndroidSdk, NativeTools, InstallApps }
 
 /**
- * The Terminal panel's Run tab (docs/run-tab-plan.md §2.3): the open workspace's Android apps, then
+ * The Terminal panel's Run tab (docs/runtime-and-terminal.md): the open workspace's Android apps, then
  * the commands the user saved, as flat rows — name and kind, the command, the state, and ▶ or ■. A
  * tap opens the run's output ([onShowOutput]); a long press on a saved command opens its sheet
  * ([onHold], [RunCommandAsks]).

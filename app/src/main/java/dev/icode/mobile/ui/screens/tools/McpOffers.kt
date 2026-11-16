@@ -27,7 +27,7 @@ import dev.icode.mobile.domain.McpStatus
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * What the connected MCP servers offer the user (docs/mcp-plan.md M8): their prompts, filled in and
+ * What the connected MCP servers offer the user (docs/assistant-and-mcp.md): their prompts, filled in and
  * taken into the message, and their resources, read into it — the user's to read and change before
  * it is sent. Nothing shows when no server offers any.
  */

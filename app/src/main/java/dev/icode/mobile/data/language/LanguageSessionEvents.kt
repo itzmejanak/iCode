@@ -8,7 +8,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 /**
- * What the servers say and do, turned into the owner's state (docs/lsp-plan.md D10): rows, the log,
+ * What the servers say and do, turned into the owner's state (docs/editor-and-language-services.md): rows, the log,
  * notices for the server's errors and warnings, problems, and edits it asks for.
  */
 internal class LanguageSessionEvents(

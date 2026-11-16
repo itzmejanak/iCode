@@ -42,7 +42,8 @@ import androidx.compose.ui.zIndex
 import kotlin.math.abs
 
 /**
- * The tab strip of the editor's documents and the terminal's sessions (layout.md §13.1): tabs
+ * The tab strip of the editor's documents and the terminal's sessions
+ * (docs/design-and-navigation.md): tabs
  * scrolling sideways, the selected one on the editor's background and brought into view, each with
  * its [mark] — drawn in the title's colour unless it has its own — its title and a close button.
  * A long press that moves reorders; one that does not goes to [onPress] (the tab's sheet).

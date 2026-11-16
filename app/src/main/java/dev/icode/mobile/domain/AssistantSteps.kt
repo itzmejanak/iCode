@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * The assistant's tools by the name the model calls them (docs/assistant-sheets-plan.md §2.1): what a
+ * The assistant's tools by the name the model calls them (docs/assistant-and-mcp.md): what a
  * step's sheet is titled, and how a run of steps says what they did — [one] for one call, [many] with
  * its count. The data layer's tools take their names from here, so each is written once. Then each
  * call, its result, and the tab a running call's command runs in.
@@ -66,7 +66,7 @@ val AssistantStepStatus.word: String get() = when (this) {
     AssistantStepStatus.Failed -> "Failed"
 }
 
-/** How a run of steps is drawn and said (docs/assistant-sheets-plan.md §2.1). */
+/** How a run of steps is drawn and said (docs/assistant-and-mcp.md). */
 object AssistantStepRules {
     /**
      * [entries] with each run of steps, one after another with nothing said between them, made one
@@ -146,7 +146,7 @@ data class AssistantResult(
     val output: String,
     val failed: Boolean,
     val changes: LineChanges? = null,
-    /** What a command printed, as printed — colours and all, bounded: its step replays it as a terminal (docs/agent-control-plan.md §6). */
+    /** What a command printed, as printed — colours and all, bounded: its step replays it as a terminal (docs/assistant-and-mcp.md). */
     val printed: String? = null,
 )
 
@@ -156,7 +156,7 @@ data class AssistantCode(val label: String, val text: String)
 /**
  * read_file's answer as the model reads it, each line after its number and a tab, written and read in
  * this one place: a step's page shows the numbers apart from the file's lines, which it colours as the
- * file is (docs/syntax-highlighting-plan.md S5).
+ * file is (docs/editor-and-language-services.md).
  */
 object NumberedLines {
     fun write(start: Int, lines: List<String>): String = lines.mapIndexed { index, line -> "${start + index}\t$line" }.joinToString("\n")

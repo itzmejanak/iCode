@@ -13,7 +13,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * The editor's semantic tokens (docs/syntax-highlighting-plan.md D8): asked of the first ready server
+ * The editor's semantic tokens (docs/editor-and-language-services.md): asked of the first ready server
  * that serves the open file, has it open and offers them, after the file's text has reached it. A
  * server that answers deltas is asked for the change since its last answer for the file. Nothing is
  * sent, not even the file's pending change, when no server offers them.

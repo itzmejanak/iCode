@@ -66,7 +66,7 @@ fun IcodeScreen(
 
 /**
  * A page's content under its top bar, scrolling: [IcodeSpacing.Gutter] from the screen's edges, its
- * sections ([IcodeSection]) [IcodeSpacing.SectionGap] apart (layout.md §4.5).
+ * sections ([IcodeSection]) [IcodeSpacing.SectionGap] apart (docs/design-and-navigation.md).
  */
 @Composable
 fun IcodePageColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -160,7 +160,7 @@ fun IcodeTopBar(
     IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, leaving, subtitleContent, actions)
 }
 
-/** What a top bar's leading button does: ← back, or ✕ out of a mode — selection (docs/explorer-gaps-plan.md §3.2). */
+/** What a top bar's leading button does: ← back, or ✕ out of a mode — selection (docs/workspaces-and-files.md). */
 enum class BarLeave(val icon: ImageVector, val label: String) {
     Back(Icons.AutoMirrored.Outlined.ArrowBack, "Back"),
     Selection(Icons.Outlined.Close, "Leave selection"),
@@ -168,7 +168,7 @@ enum class BarLeave(val icon: ImageVector, val label: String) {
 
 /**
  * A setup page — onboarding's, and a rebuild of the runtime — drawn one way, so they read as one flow
- * (docs/onboarding-polish-plan.md §3.3): its [stage] in small capitals at the top, the page, and its
+ * (docs/design-and-navigation.md): its [stage] in small capitals at the top, the page, and its
  * [bar] at the foot ([IcodeActionBar], as every page's). The page sets its own [IcodeSpacing.Gutter],
  * as [IcodePageColumn] does.
  */

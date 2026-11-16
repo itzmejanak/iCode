@@ -27,7 +27,7 @@ import dev.icode.mobile.domain.AssistantRules
 /**
  * What the model thought before it answered, as its provider sent it: one quiet line —
  * "Reasoning · 1.2k words" — so the answer stays what the page leads with. Once the reply is
- * recorded the line [onOpen]s the thinking in a sheet (docs/assistant-sheets-plan.md §2.3); while
+ * recorded the line [onOpen]s the thinking in a sheet (docs/assistant-and-mcp.md); while
  * it is still being written it shows under the line, smaller and muted beside a rule, to be watched.
  */
 @Composable

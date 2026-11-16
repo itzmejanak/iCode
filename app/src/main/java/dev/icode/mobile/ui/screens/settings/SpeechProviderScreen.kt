@@ -47,7 +47,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * One speech provider (docs/speech-plan.md §5, docs/tts-plan.md §5): its account — name, key (masked,
+ * One speech provider (docs/voice-and-phone-control.md): its account — name, key (masked,
  * never shown again once saved), its server's address where it has one, its language — then a part for
  * each way it serves. Listening: its model, where its audio goes, Test, Use for Listening. Speaking: its
  * voice, model and speed where it has them, where the answer goes, Hear It, Use for Speaking. Saved, the
@@ -75,7 +75,7 @@ fun SpeechProviderScreen(actions: NavigationActions) {
     var voiceModel by rememberSaveable(editing.id) { mutableStateOf(saved?.voiceModelUsed.orEmpty()) }
     var speed by rememberSaveable(editing.id) { mutableStateOf(saved?.speed) }
     var region by rememberSaveable(editing.id) { mutableStateOf(saved?.region.orEmpty()) }
-    // An OpenAI provider may take its key from the assistant's OpenAI provider: linked, never copied (speech-plan.md §9 D4).
+    // An OpenAI provider may take its key from the assistant's OpenAI provider: linked, never copied (docs/voice-and-phone-control.md).
     var keyFrom by rememberSaveable(editing.id) { mutableStateOf(saved?.keyFrom) }
     val assistantKeys = LocalICodeSnapshot.current.assistant.settings.providers
         .filter { kind == SpeechProviderKind.OpenAI && it.kind == AssistantProviderKind.OpenAI && it.hasKey }

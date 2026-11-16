@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.ManagedProcess
 import java.io.File
 
 /**
- * Where a chat's commands and processes start (docs/agent-control-plan.md §4.2): the directory its own
+ * Where a chat's commands and processes start (docs/assistant-and-mcp.md): the directory its own
  * terminal tab's shell is in, as the shell last said — so a `cd` there carries over, as in any
  * terminal — else the workspace's top. Its commands run in that tab ([TerminalRuns]); its processes
  * are managed ([RuntimeProcesses]), started from the same directory with the login environment.
@@ -41,8 +41,9 @@ internal class AssistantShell(
     }
 
     /**
-     * What [command] reaches for [chat], as far as its text shows (docs/assistant-permissions-plan.md
-     * §4.5): the directory it starts in, and each path it names ([CommandPaths]), from there.
+     * What [command] reaches for [chat], as far as its text shows
+     * (docs/assistant-and-mcp.md): the directory it starts in, and each path it names ([CommandPaths]),
+     * from there.
      */
     fun reach(workspace: AssistantWorkspace, chat: String, command: String): List<File> {
         val start = directory(workspace, chat).first

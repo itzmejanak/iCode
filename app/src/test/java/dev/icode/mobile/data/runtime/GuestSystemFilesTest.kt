@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** What iCode writes into the runtime says so (docs/runtime-contract-plan.md §6), and the README says what the runtime is. */
+/** What iCode writes into the runtime says so (docs/runtime-and-terminal.md), and the README says what the runtime is. */
 class GuestSystemFilesTest {
     private val rootfs = Files.createTempDirectory("system-files").toFile()
 

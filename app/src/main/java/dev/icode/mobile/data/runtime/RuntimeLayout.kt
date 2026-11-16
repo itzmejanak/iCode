@@ -39,7 +39,7 @@ internal class RuntimeLayout(context: Context) {
     /** The guest home, `/root`: Repair keeps it ([RuntimeHomeBackup]). */
     val home: File = File(rootfs, GUEST_HOME.removePrefix("/"))
 
-    /** Each runtime tool setup's receipt, by id: `~/.icode/runtime-tools/<id>` (docs/android-toolchain-plan.md §4.2). */
+    /** Each runtime tool setup's receipt, by id: `~/.icode/runtime-tools/<id>` (docs/runtime-and-terminal.md). */
     val toolReceipts: File = File(home, ".icode/runtime-tools")
 
     /** Marks a verified, fully extracted root filesystem. */
@@ -47,7 +47,7 @@ internal class RuntimeLayout(context: Context) {
 
     /**
      * Written when a build of the runtime completes, and removed once its Set Up Tools page is
-     * answered (docs/runtime-tools-plan.md §3.5). A runtime built before the page existed has
+     * answered (docs/runtime-and-terminal.md). A runtime built before the page existed has
      * none, and is not offered it.
      */
     val toolsOffer: File = File(runtimeRoot, "tools-offer")
@@ -144,7 +144,7 @@ internal class RuntimeLayout(context: Context) {
 
     /**
      * PRoot's own environment, which no guest program inherits ([prootCommand] starts each with
-     * exactly its variables, docs/runtime-contract-plan.md §3.1).
+     * exactly its variables, docs/runtime-and-terminal.md).
      *
      * `PROOT_LOADER` is the load-bearing entry: without it PRoot writes its
      * loader into a temporary directory and executes it, which Android refuses.
@@ -159,7 +159,7 @@ internal class RuntimeLayout(context: Context) {
             // PROOT_NO_SECCOMP is deliberately absent. PRoot's seccomp filter
             // lets calls that need no path translation (read, write, poll…)
             // run natively; with it off, every one stopped in PRoot at ~50 µs
-            // (docs/terminal-maturity-plan.md §6).
+            // (docs/runtime-and-terminal.md).
             // PRoot's own notes ("proot info: vpid 1: terminated with signal
             // 9") would land in the user's terminal and in captured git
             // output. Below zero PRoot keeps only its errors; how a command
@@ -183,7 +183,7 @@ internal class RuntimeLayout(context: Context) {
     /**
      * Builds the PRoot command line. Every launch sees the same tree: the runtime's root, the
      * phone's [GuestPaths.HOST_PATHS], and every workspace at `/workspace`
-     * (docs/runtime-contract-plan.md §4.1).
+     * (docs/runtime-and-terminal.md).
      */
     fun prootCommand(
         guestCommand: List<String>,
@@ -220,7 +220,7 @@ internal class RuntimeLayout(context: Context) {
             }
         }
         // Phone storage where Android has it, readable with All Files Access, and `/sdcard` naming it
-        // (docs/phone-agent-plan.md L8). Bound in every launch, so a terminal opened before the access
+        // (docs/voice-and-phone-control.md). Bound in every launch, so a terminal opened before the access
         // was given reads it once it is.
         paths.shared?.takeIf { it.isDirectory }?.let { shared ->
             File(rootfs, shared.path.removePrefix("/")).mkdirs()
@@ -255,7 +255,7 @@ internal class RuntimeLayout(context: Context) {
 
         /**
          * What every file iCode writes into the runtime says of itself, in a comment: the first line,
-         * or after a script's `#!` (docs/runtime-contract-plan.md §6). `grep -rl` finds them all.
+         * or after a script's `#!` (docs/runtime-and-terminal.md). `grep -rl` finds them all.
          */
         const val MANAGED = "Managed by iCode:"
 

@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.phone
 
-// The phone's screen as the assistant reads it (docs/phone-agent-plan.md §5.2): Android's accessibility
+// The phone's screen as the assistant reads it (docs/voice-and-phone-control.md): Android's accessibility
 // tree, platform-free, turned into numbered elements and the text the model reads.
 
 /** A rectangle on the screen, in pixels. */

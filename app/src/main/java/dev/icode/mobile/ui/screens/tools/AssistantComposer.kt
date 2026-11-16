@@ -110,7 +110,7 @@ internal fun AssistantComposer(
                 if (draft.isEmpty()) {
                     Text(
                         when {
-                            // The questions above it wait: what is sent now answers them (D5).
+                            // The questions above it wait: what is sent now answers them.
                             state.replying -> "Or answer in your own words"
                             settings.mode == AssistantMode.Ask -> state.workspace?.let { "Ask about ${AssistantPlace.name(it)}" } ?: "Ask anything"
                             settings.mode == AssistantMode.Plan -> "Plan what to build"
@@ -195,7 +195,7 @@ internal fun AssistantComposer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-permissions-plan.md §4.1).
+                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-and-mcp.md).
                 Choice(
                     state.permission.label, "Permissions", AssistantPermission.entries, state.permission, AssistantPermission::label,
                     { permissionLine(it, state.workspace?.let(AssistantPlace::name)) },
@@ -209,7 +209,7 @@ internal fun AssistantComposer(
 
 /**
  * What [permission] lets run in [workspace], by its name, said where it is chosen. In no workspace
- * (null) there is none to run in without asking: only Full access asks nothing (docs/home-plan.md §2).
+ * (null) there is none to run in without asking: only Full access asks nothing (docs/design-and-navigation.md).
  */
 internal fun permissionLine(permission: AssistantPermission, workspace: String?): String = when {
     workspace == null && permission == AssistantPermission.FullAccess -> "Changes and commands run without asking"

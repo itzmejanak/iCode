@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
  * Filled primary action. Labels are uppercase by design; [icon] leads the label. [compact]: as tall
  * as a bar's choice, among other compact actions; Material keeps its touch target whole.
  *
- * [busy] (docs/loading-plan.md §4.2): what it started is running. It takes no tap from then on, keeps
+ * [busy] (docs/design-and-navigation.md): what it started is running. It takes no tap from then on, keeps
  * its colour a little dimmed — working, not unavailable — and its label, and shows the spinner in
  * place of its icon once the wait is worth seeing. Every button in iCode says it is working this way.
  */
@@ -330,7 +330,7 @@ fun JumpToLatestButton(visible: Boolean, contentDescription: String, onClick: ()
 }
 
 /**
- * The floating + of a list (docs/storage-explorer-plan.md §3.3): what can be made where the list is,
+ * The floating + of a list (docs/workspaces-and-files.md): what can be made where the list is,
  * from a menu anchored on it ([menu]). The floating stack stands above it.
  */
 @Composable

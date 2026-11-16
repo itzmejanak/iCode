@@ -4,7 +4,7 @@ import dev.icode.mobile.domain.phone.PhoneScreen
 import org.json.JSONObject
 
 /**
- * What a phone act's step and approval say (docs/phone-agent-plan.md §5.3, L6) — "Tap [12] “Send”" —
+ * What a phone act's step and approval say (docs/voice-and-phone-control.md) — "Tap [12] “Send”" —
  * and the app it acts in, read from the screen it was asked on.
  */
 internal object PhoneSummaries {

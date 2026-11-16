@@ -20,8 +20,7 @@ enum class TerminalStatus {
  * One terminal session as the UI sees it.
  *
  * [status], [exitCode] and [exitSignal] come from `waitpid`, never from the
- * fact that a command was launched (architecture.md section 18: screens must
- * not infer process state from button clicks). The screen contents are not
+ * fact that a command was launched: screens must not infer process state from button clicks. The screen contents are not
  * here: they belong to the terminal emulator, which the view reads directly.
  */
 data class TerminalSessionState(
@@ -31,15 +30,15 @@ data class TerminalSessionState(
     val exitCode: Int? = null,
     val exitSignal: Int? = null,
     val failure: String? = null,
-    /** The process whose output this tab shows (docs/runtime-foundation-plan.md §6 P3); null for a shell. */
+    /** The process whose output this tab shows (docs/runtime-and-terminal.md); null for a shell. */
     val follows: String? = null,
-    /** The chat whose tab this is, where its commands run (docs/agent-control-plan.md §3 A4); null for the user's. */
+    /** The chat whose tab this is, where its commands run (docs/assistant-and-mcp.md); null for the user's. */
     val assistant: String? = null,
-    /** A command runs in it now, as its shell's marks say (docs/agent-control-plan.md §4.1); a shell without them says nothing. */
+    /** A command runs in it now, as its shell's marks say (docs/assistant-and-mcp.md); a shell without them says nothing. */
     val commandRunning: Boolean = false,
     /**
      * How many of its commands have ended after running at least [TerminalSettingRules.FINISH_ALERT_MILLIS]: one more
-     * is what the finish alert tells and the dock suggests (docs/dock-navigation-plan.md D8).
+     * is what the finish alert tells and the dock suggests (docs/design-and-navigation.md).
      */
     val longRunsEnded: Int = 0,
 ) {

@@ -90,7 +90,7 @@ fun SourceControlScreen(actions: NavigationActions) {
 
     val staged = state.gitChanges.filter { it.staged }
     val changes = state.gitChanges.filterNot { it.staged }
-    // The message the model writes from the staged changes (docs/commit-message-generator-plan.md).
+    // The message the model writes from the staged changes (docs/assistant-and-mcp.md).
     val written = state.assistant.commitMessage?.takeIf { it.workspace == state.activeWorkspaceLocation }
     LaunchedEffect(written?.message) {
         // Into the field once; a failure leaves what was typed as it was.

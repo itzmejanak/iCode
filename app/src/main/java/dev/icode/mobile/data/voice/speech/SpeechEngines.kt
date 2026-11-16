@@ -12,7 +12,7 @@ import io.ktor.client.plugins.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * The engines for a provider (docs/speech-plan.md §4.2, docs/tts-plan.md §4.2): one branch per kind for
+ * The engines for a provider (docs/voice-and-phone-control.md): one branch per kind for
  * each way. A new provider is a kind, an adapter — or one already here that speaks its protocol — and
  * its branch; nothing else changes.
  */

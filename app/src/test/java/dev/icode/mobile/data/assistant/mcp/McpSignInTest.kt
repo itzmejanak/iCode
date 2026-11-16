@@ -20,7 +20,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * docs/mcp-plan.md §8.2 against an authorization server on this machine: discovery from the 401's
+ * docs/assistant-and-mcp.md against an authorization server on this machine: discovery from the 401's
  * challenge, registration in the spec's order, PKCE, `state` and `iss` on the way back, the tokens kept
  * and renewed.
  */

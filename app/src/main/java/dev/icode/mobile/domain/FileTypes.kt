@@ -12,7 +12,7 @@ enum class FileFamily { Code, Data, Document, Image, Video, Audio, Archive, App,
  * A kind of file: the [language] the editor colours it as, by its id in the language catalog
  * ([dev.icode.mobile.domain.syntax.Languages]), if one is shipped, its family, and whether it is
  * [text] — what the editor opens — or bytes of a format of their own. Only [FileTypes] makes them
- * (docs/file-kinds-icons-plan.md D1).
+ * (docs/workspaces-and-files.md).
  */
 data class FileType(val id: String, val family: FileFamily, val language: String?, val text: Boolean = true)
 
@@ -119,8 +119,9 @@ object FileTypes {
     fun extensionOf(type: FileType): String? = rules.firstOrNull { it.type == type }?.extensions?.firstOrNull()
 
     /**
-     * Whether [name] says too little for its kind, so its first bytes decide (docs/file-kinds-icons-plan.md
-     * D2): a name no rule knows, or one two formats share. Every other name is never read.
+     * Whether [name] says too little for its kind, so its first bytes decide
+     * (docs/workspaces-and-files.md): a name no rule knows, or one two formats share. Every other name
+     * is never read.
      */
     fun needsContent(name: String): Boolean {
         val lower = name.lowercase()

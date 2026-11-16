@@ -1,14 +1,14 @@
 package dev.icode.mobile.data.runtime
 
 /**
- * Who a process in the runtime runs for (docs/runtime-contract-plan.md §3.2). Every guest process is
+ * Who a process in the runtime runs for (docs/runtime-and-terminal.md). Every guest process is
  * told its own in [GuestVariables.CONTEXT], and starts with [GuestVariables.of] it: the base a Linux
  * login sets, the user's profile over it where the context reads one, the context's own over both.
  */
 internal enum class GuestContext(val id: String, val readsProfile: Boolean) {
     /** A terminal tab: its login shell reads the profile itself. */
     Terminal("terminal", readsProfile = false),
-    /** A chat's terminal tab (docs/agent-control-plan.md §4.2): a terminal whose bash reads the profile itself, where nothing pages and nothing waits on a password the assistant cannot see. */
+    /** A chat's terminal tab (docs/assistant-and-mcp.md): a terminal whose bash reads the profile itself, where nothing pages and nothing waits on a password the assistant cannot see. */
     AssistantTerminal("assistant-terminal", readsProfile = false),
     /** What runs on the user's behalf without a terminal: the assistant's commands and processes, the Run tab, Build & Run, the Runtime Tools' installs. */
     Command("command", readsProfile = true),

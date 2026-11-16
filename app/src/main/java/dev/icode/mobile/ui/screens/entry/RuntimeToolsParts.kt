@@ -149,7 +149,7 @@ internal fun LicenceAgreement(plan: RuntimeToolPlan, tools: RuntimeToolsState, a
 
 /**
  * Asked, and the run has not begun: it waits for the package lists being read, which it needs
- * (docs/onboarding-polish-plan.md §3.4), or for apt to say anything.
+ * (docs/design-and-navigation.md), or for apt to say anything.
  */
 @Composable
 internal fun ToolsStarting(measuring: RuntimeToolMeasuring?) {

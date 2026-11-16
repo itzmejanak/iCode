@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.notices
 
 import dev.icode.mobile.domain.countOf
 
-/** What Settings › Storage tells (docs/notices-redesign-plan.md D8): the runtime's cache, cleared or not. */
+/** What Settings › Storage tells (docs/engineering-rules.md): the runtime's cache, cleared or not. */
 object StorageNotices {
     private val runtime = NoticePlace(NoticePlaces.RUNTIME)
 

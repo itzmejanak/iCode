@@ -9,7 +9,7 @@ import java.io.IOException
 import java.nio.file.Files
 
 /**
- * Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md §4.2): the top of
+ * Phone storage, the file explorer's Shared place (docs/workspaces-and-files.md): the top of
  * internal storage, read with All Files Access and changed only by what the user does in the
  * explorer — a paste, a rename, a delete, a new folder or file. Nothing outside [root] is listed or
  * chosen, whatever a path or a link says.

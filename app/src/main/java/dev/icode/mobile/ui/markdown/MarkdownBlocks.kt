@@ -63,7 +63,7 @@ internal fun MarkdownBlocks(blocks: List<MarkdownBlock>, context: MarkdownContex
     }
 }
 
-/** One block as GitHub draws it, in iCode's type and colours (docs/markdown-rendering-plan.md §3.5). */
+/** One block as GitHub draws it, in iCode's type and colours (docs/editor-and-language-services.md). */
 @Composable
 internal fun MarkdownBlockView(block: MarkdownBlock, context: MarkdownContext, type: MarkdownType, modifier: Modifier = Modifier) {
     when (block) {

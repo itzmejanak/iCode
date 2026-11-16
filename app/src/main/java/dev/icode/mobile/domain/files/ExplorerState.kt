@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.files
 
 /**
- * What every explorer shares (docs/explorer-gaps-plan.md §4): the one clipboard, the question an
+ * What every explorer shares (docs/workspaces-and-files.md): the one clipboard, the question an
  * operation waits on, what Undo and Redo would do, and what Trash holds.
  */
 data class ExplorerState(
@@ -20,19 +20,19 @@ data class ExplorerState(
     /** The explorers' settings, as kept: what each listing hides, and each look. */
     val settings: ExplorerSettings = ExplorerSettings(),
     /**
-     * Recent (§3.14): the files opened in iCode, in workspaces and on phone storage, newest first, each
+     * Recent: the files opened in iCode, in workspaces and on phone storage, newest first, each
      * dated when last opened or saved; a file gone left out.
      */
     val recent: List<BrowsedItem> = emptyList(),
     /** Folders pinned app-wide, in the order pinned; one gone is kept, not shown. */
     val favorites: List<FavoriteFolder> = emptyList(),
-    /** The view the file explorer shows in place of a folder (§3.10); none, it shows a folder. */
+    /** The view the file explorer shows in place of a folder; none, it shows a folder. */
     val view: ExplorerView? = null,
     /** One of Manage storage's views, listed from its scan while it is shown. */
     val scanned: ScannedView? = null,
 )
 
-/** A folder pinned to Favorites (docs/explorer-gaps-plan.md §3.14): its name, where it is, and its path as the runtime names it. */
+/** A folder pinned to Favorites (docs/workspaces-and-files.md): its name, where it is, and its path as the runtime names it. */
 data class FavoriteFolder(val name: String, val location: String, val path: String)
 
 /** Extract of [archive] into [folder] waits on its password, which is never kept: the answer is Extract again, with it. */

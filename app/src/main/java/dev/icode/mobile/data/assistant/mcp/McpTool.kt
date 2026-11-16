@@ -30,7 +30,7 @@ import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
 
 /**
- * One of a server's tools as the assistant calls it (docs/mcp-plan.md §6): named for the model by
+ * One of a server's tools as the assistant calls it (docs/assistant-and-mcp.md): named for the model by
  * [McpRules.toolName][dev.icode.mobile.domain.McpRules.toolName], its schema read by [McpSchema], asked
  * about as a place outside the workspace — the server — unless the user set it to run, its result read
  * by [McpResults]. Its own time stands still while the server's question waits on the user.
@@ -51,7 +51,7 @@ internal class McpTool(
 
     override val description: String = bounded(listOfNotNull(tool.description ?: shown, "From the MCP server ${server.name}.").joinToString("\n"), MAX_DESCRIPTION)
 
-    /** A reading mode is offered what the server says only reads (§6.4); every call still asks. */
+    /** A reading mode is offered what the server says only reads; every call still asks. */
     override val kind: AssistantToolKind = if (tool.annotations?.readOnlyHint == true) AssistantToolKind.Read else AssistantToolKind.Command
 
     override fun summary(arguments: JSONObject): String = "${server.name} · $shown"
@@ -104,9 +104,9 @@ internal class McpTool(
         private const val MAX_INSTRUCTIONS = 2_000
 
         /**
-         * What a turn is offered of [connected], in their order, in [room] (§6.1): each tool not Off,
+         * What a turn is offered of [connected], in their order, in [room]: each tool not Off,
          * whose schema reads, that the mode [offers], named apart from [taken]; and, for each server
-         * whose tools go, its instructions, marked as its own words (§6.5).
+         * whose tools go, its instructions, marked as its own words.
          */
         fun offer(
             connected: List<Pair<McpServer, McpConnection>>,

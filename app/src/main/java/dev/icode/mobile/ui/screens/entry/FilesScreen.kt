@@ -54,9 +54,9 @@ import dev.icode.mobile.ui.selectionActions
 import kotlinx.coroutines.launch
 
 /**
- * The file explorer (docs/storage-explorer-plan.md §3; docs/explorer-gaps-plan.md), as ZArchiver's:
- * where it is — a folder ([FolderExplorer]) or one of its views (§3.10) ([ViewExplorer]), ▾ going
- * between them — as the snapshot says. The folder picker (§3.5), started from either, picks among
+ * The file explorer (docs/workspaces-and-files.md), as ZArchiver's:
+ * where it is — a folder ([FolderExplorer]) or one of its views ([ViewExplorer]), ▾ going
+ * between them — as the snapshot says. The folder picker, started from either, picks among
  * folders; Show in folder, from a view, opens the file's folder with it ticked. [choosing] is that
  * picker from the clone's page, in Private, choosing where the clone goes: always among folders.
  */
@@ -86,8 +86,8 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
  * The folder shown and where it is, ▾ to the other place, a favorite or a view, 🔍 and ☰ for the
  * folder shown, ⋮, `..` up, a long press for an item's sheet, + to make something here, and the paste
  * bar while something is held. At Private's top the folders are the workspaces. A tap on an item's
- * icon, or Select, starts a selection (§3.2): the bars change to its own, and it ends with Back, ✕,
- * an action, or going elsewhere. [pick] makes it a folder picker (§3.5): folders only, and the
+ * icon, or Select, starts a selection: the bars change to its own, and it ends with Back, ✕,
+ * an action, or going elsewhere. [pick] makes it a folder picker: folders only, and the
  * picker's bar. [reveal] is the file Show in folder asked for, ticked once its folder is listed.
  */
 @Composable
@@ -102,7 +102,7 @@ private fun FolderExplorer(
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     val browser = state.filesBrowser
-    // Folders' one look, and hidden files listed or not, as kept (§3.12, §3.13).
+    // Folders' one look, and hidden files listed or not, as kept.
     val settings = state.explorer.settings
     val look = settings.look(null)
     val preferences = LocalWorkspacePreferencesRepository.current
@@ -112,7 +112,7 @@ private fun FolderExplorer(
     var creating by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
     var placesOpen by remember { mutableStateOf(false) }
     var newOpen by remember { mutableStateOf(false) }
-    // One item's sheet; or, selecting, the selection's. A selection belongs to the folder shown (§3.2).
+    // One item's sheet; or, selecting, the selection's. A selection belongs to the folder shown.
     var actionsFor by rememberSaveable { mutableStateOf<String?>(null) }
     // Show in folder's file, once its folder is listed: ticked, and brought into view.
     val focus by rememberSaveable(browser?.path) { mutableStateOf(reveal?.takeIf { it.substringBeforeLast('/') == browser?.path }) }
@@ -177,7 +177,7 @@ private fun FolderExplorer(
                     )
                 },
                 leaving = if (selection.selecting) BarLeave.Selection else BarLeave.Back,
-                // The path in segments, each where a tap goes (§3.14).
+                // The path in segments, each where a tap goes.
                 subtitleContent = browser?.crumbs?.let { crumbs -> { IcodeBreadcrumb(crumbs.map { it.label }, onCrumb = { browse(crumbs[it].location) }) } },
                 actions = {
                     IconButton(onClick = { searching = !searching; query = "" }) {

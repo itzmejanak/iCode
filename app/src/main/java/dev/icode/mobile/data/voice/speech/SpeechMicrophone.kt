@@ -23,7 +23,7 @@ internal fun interface SpeechAudio {
 }
 
 /**
- * The phone's microphone for every engine but Android's (docs/speech-plan.md §4.4): `AudioRecord`,
+ * The phone's microphone for every engine but Android's (docs/voice-and-phone-control.md): `AudioRecord`,
  * tuned for speech, at the rate the engine takes — or, where the phone refuses that rate, at 48 kHz
  * brought down to it. Nothing is kept: each frame goes to the engine as it comes. The voice coordinator
  * checks the permission, and the service that holds the microphone away from iCode, before any engine starts.

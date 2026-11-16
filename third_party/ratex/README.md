@@ -1,7 +1,7 @@
 # RaTeX
 
 `jniLibs/arm64-v8a/libratex_ffi.so` is RaTeX's native library: it parses LaTeX and lays it out as
-KaTeX does, and iCode draws what it returns (docs/markdown-rendering-plan.md §2.4, §3.2). It is
+KaTeX does, and iCode draws what it returns (docs/editor-and-language-services.md). It is
 copied unchanged from
 
 - artifact: `io.github.darriousliu:ratex-android:0.1.15` on Maven Central (2026-10-16), its
@@ -38,7 +38,7 @@ Open Font License 1.1: `app/src/main/resources/licenses/OFL-KaTeX.txt`.
 ## Upgrading
 
 The release is built with `panic = "abort"`: a panic in RaTeX ends iCode's process. An upgrade
-therefore repeats the checks of docs/markdown-rendering-plan.md §2.4 before it lands:
+therefore repeats the checks of docs/editor-and-language-services.md before it lands:
 
 1. the new AAR's checksum against Maven Central's, and the library's alignment, API level and
    linked libraries;

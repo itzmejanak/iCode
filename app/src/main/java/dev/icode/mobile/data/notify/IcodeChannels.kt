@@ -4,7 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 
-/** How Android's settings list iCode's channels (docs/notices-redesign-plan.md D7). */
+/** How Android's settings list iCode's channels (docs/engineering-rules.md). */
 internal enum class IcodeChannelGroup(val id: String, val title: String) {
     Running("icode.group.running", "Running"),
     NeedsYou("icode.group.needs-you", "Needs you"),
@@ -12,7 +12,7 @@ internal enum class IcodeChannelGroup(val id: String, val title: String) {
 }
 
 /**
- * Every channel iCode posts to (D7). An id that keeps its meaning stays, so the user's choices for it
+ * Every channel iCode posts to. An id that keeps its meaning stays, so the user's choices for it
  * stay: Android lets a channel's name, description and group change, never its behaviour once made.
  */
 internal enum class IcodeChannel(

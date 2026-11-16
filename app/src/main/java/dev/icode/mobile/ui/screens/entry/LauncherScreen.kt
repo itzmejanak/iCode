@@ -67,9 +67,9 @@ import dev.icode.mobile.ui.spoken
 import dev.icode.mobile.ui.tint
 
 /**
- * The launcher, as VS Code's Welcome page (docs/home-plan.md): Start — Import, Clone and the way to
+ * The launcher, as VS Code's Welcome page (docs/design-and-navigation.md): Start — Import, Clone and the way to
  * the Workspaces page, where every workspace is managed and New Folder lives — then the recently
- * opened workspaces (docs/workspaces-page-plan.md §2.1), over the logo as a letterpress, and VS Code's
+ * opened workspaces (docs/workspaces-and-files.md), over the logo as a letterpress, and VS Code's
  * status bar at the foot ([HomeStatusBar]). [empty] renders the first-run empty state.
  */
 @Composable
@@ -109,7 +109,7 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                     contentPadding = PaddingValues(start = IcodeSpacing.RowGutter, top = IcodeSpacing.Space2, end = IcodeSpacing.RowGutter),
                 ) {
                     item { HomeLabel("Start") }
-                    // Import and Workspaces open the one file explorer, at phone storage and at iCode's (docs/storage-explorer-plan.md §1).
+                    // Import and Workspaces open the one file explorer, at phone storage and at iCode's (docs/workspaces-and-files.md).
                     item { StartLink(Icons.Outlined.FolderOpen, "Import…") { explore(StoragePlace.Shared) } }
                     item { StartLink(Icons.Outlined.AccountTree, "Clone Repository…") { actions.navigate(Route.CloneRepository) } }
                     item { StartLink(Icons.Outlined.FolderCopy, "Workspaces") { explore(StoragePlace.Private) } }
@@ -165,7 +165,7 @@ private fun StartLink(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 /**
- * VS Code's status bar (docs/home-plan.md §1), a floor the floating stack stands above. On its left the
+ * VS Code's status bar (docs/design-and-navigation.md), a floor the floating stack stands above. On its left the
  * runtime as VS Code's remote button: the accent while it is healthy, amber while it needs installing
  * (owner, 2026-09-30: what the user can act on is the way in). Then Terminal and Assistant, drawn and
  * badged as the dock draws them, opening their own pages as the Explorer's rail does; the bell on the right.
@@ -193,7 +193,7 @@ private fun HomeStatusBar(state: ICodeSnapshot, actions: NavigationActions) {
             )
         }
         StatusTool(WorkspaceTool.Terminal, state) { actions.openPanel(ToolPanelTab.Terminal) }
-        // Both open outside the workspace: Terminal's tabs and the Assistant's chats start in `$HOME` (docs/home-plan.md §2).
+        // Both open outside the workspace: Terminal's tabs and the Assistant's chats start in `$HOME` (docs/design-and-navigation.md).
         StatusTool(WorkspaceTool.Assistant, state) { actions.navigate(Route.Assistant) }
         Spacer(Modifier.weight(1f))
         // Unsaved work waiting in Document Recovery keeps the dot until it is resolved.

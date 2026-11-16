@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.countOf
 import java.io.File
 
 /**
- * What the language servers tell (docs/notices-redesign-plan.md D8, D9): by the server's name, in
+ * What the language servers tell (docs/engineering-rules.md): by the server's name, in
  * the open workspace. Their words ([LanguageFailure]'s, a server's own) are said as they are.
  */
 object LanguageNotices {

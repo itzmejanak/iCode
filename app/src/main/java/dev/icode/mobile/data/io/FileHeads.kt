@@ -7,7 +7,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * What a file is, read where it lies (docs/file-kinds-icons-plan.md D2): by its name, and where the
+ * What a file is, read where it lies (docs/workspaces-and-files.md): by its name, and where the
  * name says too little — none known, or one two formats share — by its first bytes. Only those names
  * are opened; one that cannot be read is what its name says.
  */

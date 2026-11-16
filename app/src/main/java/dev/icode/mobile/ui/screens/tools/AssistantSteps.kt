@@ -62,7 +62,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 import java.io.File
 
 /**
- * A run of steps (docs/assistant-sheets-plan.md §2.1): how it went, what it did — one step by its
+ * A run of steps (docs/assistant-and-mcp.md): how it went, what it did — one step by its
  * summary, more by what each tool did — what it changed, and › to its sheet. A long press on one
  * step about a file [onHold]s it, for the file's sheet: open it, see its changes, copy its path.
  */
@@ -86,7 +86,7 @@ internal fun AssistantStepsRow(entry: AssistantEntry.Steps, onOpen: () -> Unit, 
 
 /**
  * A line of the chat with more behind it — a run of steps, the reasoning, a compaction — that
- * [onOpen]s it in a sheet (§2): its icon, what it is, [detail] after it, what it changed, and ›.
+ * [onOpen]s it in a sheet: its icon, what it is, [detail] after it, what it changed, and ›.
  * Without [onOpen] it is only the line, as reasoning still being written is. A long press goes to
  * [onHold] where there is one, saying [holdLabel]. On a sheet's [rail], a line joins its icon to its neighbours'.
  */
@@ -137,7 +137,7 @@ internal fun AssistantOpenRow(
     }
 }
 
-/** Where a step sits on its run's sheet (§2.2): a line runs up to the step before it, and down to the one after. */
+/** Where a step sits on its run's sheet: a line runs up to the step before it, and down to the one after. */
 internal enum class AssistantRail(val before: Boolean, val after: Boolean) {
     First(false, true),
     Middle(true, true),

@@ -44,9 +44,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Voice in and out (docs/phone-agent-plan.md §5.8), one per process: the microphone for the chat and the
- * bubble, heard by the provider that listens (docs/speech-plan.md), and the assistant read aloud by the
- * provider that speaks (docs/tts-plan.md) as Spoken replies says — each sentence as soon as it is
+ * Voice in and out (docs/voice-and-phone-control.md), one per process: the microphone for the chat and the
+ * bubble, heard by the provider that listens (docs/voice-and-phone-control.md), and the assistant read aloud by the
+ * provider that speaks (docs/voice-and-phone-control.md) as Spoken replies says — each sentence as soon as it is
  * written ([SpokenTurn]), from one speech session per turn. What is heard and said is never logged; a
  * failure logs its type only.
  */
@@ -60,10 +60,10 @@ internal class VoiceCoordinator(
     private val iCodeOnScreen = TerminalSessionManager.get(app).screenVisible
     private val reader = SpokenTurn()
 
-    /** The speech providers' owner: the pages' and the agent's (docs/speech-plan.md §1). */
+    /** The speech providers' owner: the pages' and the agent's (docs/voice-and-phone-control.md). */
     val providers = SpeechProviders(SpeechProviderStore(app), stateHolder, scope, assistantKey = ::assistantKey)
 
-    /** The assistant's providers' keys, read only: an OpenAI speech provider may use one (docs/speech-plan.md §9 D4). */
+    /** The assistant's providers' keys, read only: an OpenAI speech provider may use one (docs/voice-and-phone-control.md). */
     private val assistantKeys by lazy { SharedPreferencesAssistantProviderStore(app) }
     private val engines = SpeechEngines(app, scope)
     private val hearings = SpeechHearings(

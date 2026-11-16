@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Signed commits (docs/gpg-signing-plan.md): gpg-agent asks for a key's passphrase, or a yes or no,
+// Signed commits (docs/source-control.md): gpg-agent asks for a key's passphrase, or a yes or no,
 // through iCode's pinentry, and iCode asks in its own sheet. The passphrase is kept by gpg-agent alone.
 
 /** One question gpg-agent asks, in its own words. */

@@ -48,7 +48,7 @@ internal val MarkdownAlignment.textAlign: TextAlign
     }
 
 /**
- * A line of Markdown as one text (docs/markdown-rendering-plan.md §3.2–3.5): styles as spans, links
+ * A line of Markdown as one text (docs/editor-and-language-services.md): styles as spans, links
  * as link annotations, inline math as inline content on the line's baseline. Selected and copied, a
  * formula is its LaTeX, `$…$`.
  */

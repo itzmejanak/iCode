@@ -16,7 +16,7 @@ import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
-// What the assistant changes (§4.3, §4.5): any file in the runtime (docs/runtime-contract-plan.md §4.3),
+// What the assistant changes: any file in the runtime (docs/runtime-and-terminal.md),
 // through the file service the editor saves with — atomic, fingerprint-checked, the file's encoding
 // kept — and never under the user's unsaved edits.
 

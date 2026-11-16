@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import the editor's TextMate grammars into iCode's language catalog (docs/syntax-highlighting-plan.md §4.1).
+"""Import the editor's TextMate grammars into iCode's language catalog (docs/editor-grammar-provenance.md).
 
 Usage:
     tools/import-grammars.py

@@ -38,7 +38,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-/** Pins how local Git work behaves as it leaves the gateway (S5.2): same calls, same state, same messages. */
+/** Pins how local Git work behaves as it leaves the gateway: same calls, same state, same messages. */
 class GitWorkspaceCoordinatorTest {
     private val root = "/workspace/app"
     private val change = GitChange(GitStatusCodes.MODIFIED, "a.txt", "a.txt", staged = false)

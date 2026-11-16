@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.notices.WorkspaceNotices
 import java.io.File
 
 /**
- * The Explorer's tree of the open workspace (S3): folders read so far, which
+ * The Explorer's tree of the open workspace: folders read so far, which
  * are expanded, and the rows that makes — each marked with its Git status;
  * hidden files listed as the setting says.
  *

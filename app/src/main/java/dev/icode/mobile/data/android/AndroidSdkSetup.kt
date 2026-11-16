@@ -24,7 +24,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * The Android SDK tool's setup (docs/android-toolchain-plan.md §4.2), after apt has installed JDK 17:
+ * The Android SDK tool's setup (docs/runtime-and-terminal.md), after apt has installed JDK 17:
  *
  * 1. Google's **Command-line Tools**, pinned with Google's SHA-1, into `cmdline-tools/latest`;
  * 2. the **licence** the user accepted, recorded as sdkmanager records it;

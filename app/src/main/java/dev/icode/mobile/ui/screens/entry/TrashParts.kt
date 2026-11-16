@@ -24,7 +24,7 @@ import dev.icode.mobile.ui.PropertyLine
 import dev.icode.mobile.ui.SheetIcon
 
 /**
- * What Trash's items do (docs/explorer-gaps-plan.md §3.7), from an item's sheet or a selection's bar:
+ * What Trash's items do (docs/workspaces-and-files.md), from an item's sheet or a selection's bar:
  * Restore — back where each was, ending it ([onActed]) — then [properties] where there is one, and
  * Delete permanently, asked first ([onForGood]).
  */
@@ -69,7 +69,7 @@ internal fun TrashSheet(item: TrashedItem, onForGood: () -> Unit, onClose: () ->
 }
 
 /**
- * Delete permanently, or with [all] Empty Trash, asked first (§3.7): [items] are gone for good, with
+ * Delete permanently, or with [all] Empty Trash, asked first: [items] are gone for good, with
  * no way back. Confirmed, the selection it came from ends ([onActed]).
  */
 @Composable

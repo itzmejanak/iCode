@@ -52,7 +52,7 @@ import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 import dev.icode.mobile.ui.screens.entry.icon
 
 /**
- * Settings › Storage (docs/explorer-gaps-plan.md §3.15), one list: the device's use on a bar, then
+ * Settings › Storage (docs/workspaces-and-files.md), one list: the device's use on a bar, then
  * what iCode keeps — the workspaces, which open Private; the runtime; Trash, which opens its view; the
  * cache, cleared when asked first — and Manage storage. Then the explorers' hidden files, and All
  * Files Access, Android's own setting, which iCode shows and opens. Sizes are measured, never guessed.

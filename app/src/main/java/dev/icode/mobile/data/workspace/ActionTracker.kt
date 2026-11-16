@@ -9,7 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * The one owner of [dev.icode.mobile.domain.ICodeSnapshot.busy] (docs/loading-plan.md §4.1). An
+ * The one owner of [dev.icode.mobile.domain.ICodeSnapshot.busy] (docs/design-and-navigation.md). An
  * action's busy is published on the dispatching thread, before its work is launched — before it waits
  * on the mutation lock, the disk or the runtime — so the screen answers the tap in the same frame; a
  * second tap of an action that drops repeats is refused there too, so nothing runs twice. It is taken

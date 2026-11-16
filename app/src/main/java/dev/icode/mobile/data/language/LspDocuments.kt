@@ -9,7 +9,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * One server's view of the documents it has open (docs/lsp-plan.md §5.6, D3): each one's version
+ * One server's view of the documents it has open (docs/editor-and-language-services.md): each one's version
  * and the text last sent, so a change is one splice from that text — however many keystrokes it
  * took — and versions only grow. Every message goes into the connection's one queue as it is made, so an
  * open, a change and the request after it reach the server in that order.

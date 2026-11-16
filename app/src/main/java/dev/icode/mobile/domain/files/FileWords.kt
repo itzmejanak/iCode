@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.files
 import dev.icode.mobile.domain.countOf
 
 /**
- * How an operation is said, done and undone (docs/explorer-gaps-plan.md §3.8): the undo pill's line
+ * How an operation is said, done and undone (docs/workspaces-and-files.md): the undo pill's line
  * and the ⋮'s Undo and Redo. One item by its name, more by how many.
  */
 object FileWords {

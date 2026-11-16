@@ -113,7 +113,7 @@ fun IcodeConfirmSheet(
     destructive: Boolean = false,
     confirmEnabled: Boolean = true,
     /**
-     * What the confirm started runs (docs/loading-plan.md §4.2): its button busy, the sheet held open
+     * What the confirm started runs (docs/design-and-navigation.md): its button busy, the sheet held open
      * over it and not dismissed — Cancel would not stop it.
      */
     confirmBusy: Boolean = false,
@@ -199,7 +199,7 @@ fun IcodeSaveDiscardSheet(
  * field and the button that submits it — stays in view above the keyboard.
  * Content that fits that height instead — a picture — does not [scroll].
  * [subtitle] says the state of what it shows; [onBack] leads back to the sheet's page before this
- * one, by ← before the title (docs/assistant-sheets-plan.md §2.5). [leading] stands before the title:
+ * one, by ← before the title (docs/assistant-and-mcp.md). [leading] stands before the title:
  * the icon or thumbnail of the item the sheet is about.
  *
  * Swiped down, it closes as × does (owner's request, 2026-11-04): the sheet follows the finger —

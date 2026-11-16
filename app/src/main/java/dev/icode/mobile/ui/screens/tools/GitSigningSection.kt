@@ -36,7 +36,7 @@ import java.time.Instant
 import java.time.ZoneId
 
 /**
- * The Signing step of Git Credentials (docs/gpg-signing-plan.md §7): the gpg key Git signs every
+ * The Signing step of Git Credentials (docs/source-control.md): the gpg key Git signs every
  * commit with — made here from the default identity, or one gpg already holds — its public half for
  * the provider's form, and its passphrase, which GnuPG asks in its own sheet.
  */

@@ -22,7 +22,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Manage storage's walk (docs/explorer-gaps-plan.md §3.10): every file where it looks, by its
+ * Manage storage's walk (docs/workspaces-and-files.md): every file where it looks, by its
  * category — no link followed, the hidden-files setting not applied. `.git` is in no list: its space
  * is Git's history, apart. Trash's folders are left out: Trash has its own row, and Shared's lies
  * inside phone storage. Then the copies among the files: those of one size are hashed, a first block

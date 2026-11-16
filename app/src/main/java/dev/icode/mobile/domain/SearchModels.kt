@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Search (S4): Quick Open's file index and find-in-files results.
+// Search: Quick Open's file index and find-in-files results.
 
 /** Availability of the shared ripgrep engine, including first-use provisioning. */
 sealed interface SearchEngineState {

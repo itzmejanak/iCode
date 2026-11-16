@@ -56,7 +56,7 @@ internal class FileTransferTree(root: File) : TransferTree {
 }
 
 /**
- * A copy between iCode's storage and phone storage (docs/storage-explorer-plan.md §4.1), Import's
+ * A copy between iCode's storage and phone storage (docs/workspaces-and-files.md), Import's
  * both ways: [plan] walks the item once — what will be copied, in order, its bytes, and what cannot
  * be — and [copy] writes exactly that, each entry's time kept. The source is only read.
  */

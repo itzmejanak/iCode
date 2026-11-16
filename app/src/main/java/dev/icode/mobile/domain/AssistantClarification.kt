@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * What the model asks the user mid-turn with its `ask_user` call (docs/assistant-questions-plan.md):
+ * What the model asks the user mid-turn with its `ask_user` call (docs/assistant-and-mcp.md):
  * one to four [questions], answered together. The turn waits until the user replies or stops it.
  */
 data class AssistantClarification(val call: AssistantCall, val questions: List<AssistantQuestion>)
@@ -32,7 +32,7 @@ sealed interface AssistantReply {
     data object Skipped : AssistantReply
 }
 
-/** What an `ask_user` call may ask, and how it and its reply are said (docs/assistant-questions-plan.md D3, D4). */
+/** What an `ask_user` call may ask, and how it and its reply are said (docs/assistant-and-mcp.md). */
 object AssistantQuestionRules {
     const val MAX_QUESTIONS = 4
     const val MIN_OPTIONS = 2

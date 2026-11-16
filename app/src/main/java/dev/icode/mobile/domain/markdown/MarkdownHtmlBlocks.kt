@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.markdown
 import dev.icode.mobile.domain.markdown.MarkdownHtml.Node
 
 /**
- * An HTML block's elements as blocks (docs/markdown-rendering-plan.md §3.5). A container left open
+ * An HTML block's elements as blocks (docs/editor-and-language-services.md). A container left open
  * at the block's end — `<details>`, `<div align="center">` — holds the Markdown after it, up to its
  * end tag ([MarkdownAssembly.blocks]).
  */

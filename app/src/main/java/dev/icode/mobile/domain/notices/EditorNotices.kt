@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.countOf
 import java.io.File
 
 /**
- * What the editor tells (docs/notices-redesign-plan.md D8, D9): of the document at a location, by its
+ * What the editor tells (docs/engineering-rules.md): of the document at a location, by its
  * name, with where it is — its workspace and folder, read from the snapshot ([at]) — as the place. A
  * save by hand, and one that failed, fold when told again soon after.
  */

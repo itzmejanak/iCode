@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The Light variants: antigem's light themes (Santoshkurmi/antigem 2a04d61) and four classics
  * from their projects' own palettes, each role as its Dark sibling takes it.
- * Seeds as listed in docs/theme-variants-plan.md §1.2 and D6; sources in THIRD_PARTY_NOTICES.md.
+ * Seeds as listed in docs/design-and-navigation.md; sources in THIRD_PARTY_NOTICES.md.
  */
 internal val LightSeeds: List<ThemeSeed> = listOf(
     ThemeSeed(

@@ -38,23 +38,23 @@ import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.FileProperties
 import dev.icode.mobile.domain.files.PropertyRow
 
-/** The pages an item's or a selection's sheet opens within itself (docs/explorer-gaps-plan.md §3.1). */
+/** The pages an item's or a selection's sheet opens within itself (docs/workspaces-and-files.md). */
 internal enum class ItemPage { Rename, Compress, Properties }
 
 /**
- * The folder a sheet acts in (§3.3, §3.4): its name — null at a place's top — and runtime path, the
+ * The folder a sheet acts in: its name — null at a place's top — and runtime path, the
  * names in it, and whether it ignores case, as phone storage does.
  */
 internal class SheetFolder(val name: String?, val runtimePath: String, val names: Set<String>, val ignoreCase: Boolean)
 
 /**
- * The one sheet of actions on files and folders, wherever they are listed (§3.1, §3.2): the file
+ * The one sheet of actions on files and folders, wherever they are listed: the file
  * explorer's, the IDE's tree, the home screen's workspaces. One item's, or a selection's: [leading],
  * [title] and [detail] over the actions [actions] lists ([FileItemActions]) with the sheet's own
  * Rename… and pages. Rename… — one name, or many by a rule — Compress… and Properties open within
  * it, ← back to the actions. [folder] is where a selection of many is acted in; one item has none.
- * Many's Rename… and Compress… go by that folder: a view's selection, gathered from many folders
- * (§3.10), has none, and is not offered them. [branch] is a workspace's, for Properties. Each action
+ * Many's Rename… and Compress… go by that folder: a view's selection, gathered from many folders,
+ * has none, and is not offered them. [branch] is a workspace's, for Properties. Each action
  * but a page also does [onActed]: a selection ends once it is acted on.
  */
 @Composable
@@ -91,7 +91,7 @@ internal fun ItemSheet(
     }
 }
 
-/** What leads an item sheet's head (§3.1) when it is no one file or folder: a selection's icon. */
+/** What leads an item sheet's head when it is no one file or folder: a selection's icon. */
 @Composable
 internal fun SheetIcon(icon: ImageVector, tint: Color) {
     Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(IcodeSizes.IconXl))
@@ -102,7 +102,7 @@ internal fun SheetIcon(icon: ImageVector, tint: Color) {
 internal fun SheetIcon(name: String, folder: Boolean, location: String? = null) =
     FileTypeIcon(name, folder, size = IcodeSizes.IconXl, parent = location?.let(::parentName))
 
-/** Rename… (§3.1): the new name as it is typed, checked by the same rules as everywhere; done, the sheet closes. */
+/** Rename…: the new name as it is typed, checked by the same rules as everywhere; done, the sheet closes. */
 @Composable
 private fun RenamePage(target: ActionTarget, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
@@ -120,7 +120,7 @@ private fun RenamePage(target: ActionTarget, onBack: (() -> Unit)?, onClose: () 
 }
 
 /**
- * Compress… (§3.11): the format, what it keeps, and the archive's name — one item's, or for many the
+ * Compress…: the format, what it keeps, and the archive's name — one item's, or for many the
  * folder's; it goes into that folder, under a free name.
  */
 @Composable
@@ -158,7 +158,7 @@ private fun CompressPage(targets: List<ActionTarget>, folderName: String?, subje
 }
 
 /**
- * Properties (§3.9): what is known shown at once, a folder's size — or many items' together —
+ * Properties: what is known shown at once, a folder's size — or many items' together —
  * measured while the page is open. [path] is the one item's, or the folder the many are in — none for
  * a view's, gathered from many.
  */

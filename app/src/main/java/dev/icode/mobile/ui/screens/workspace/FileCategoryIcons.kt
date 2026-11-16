@@ -20,7 +20,7 @@ import dev.icode.mobile.domain.files.FileCategory
 import dev.icode.mobile.ui.FileIconColours
 import java.util.concurrent.ConcurrentHashMap
 
-/** What stands for each kind of file Manage storage counts (docs/explorer-gaps-plan.md §3.10). */
+/** What stands for each kind of file Manage storage counts (docs/workspaces-and-files.md). */
 internal val FileCategory.icon: ImageVector
     get() = when (this) {
         FileCategory.Images -> Icons.Outlined.Image

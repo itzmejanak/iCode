@@ -45,13 +45,13 @@ import dev.icode.mobile.domain.notices.AssistantNotices
 
 /**
  * What is drawn over the chat: its history, the model picker, what to attach, the processes it
- * started, what a row of it holds (docs/assistant-sheets-plan.md §2), or what a row offers, from a
- * long press (docs/explorer-gaps-plan.md §3.1).
+ * started, what a row of it holds (docs/assistant-and-mcp.md), or what a row offers, from a
+ * long press (docs/workspaces-and-files.md).
  */
 internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry, Actions, Terminal }
 
 /**
- * The assistant (docs/assistant-koog-plan.md §3, §12): a chat of the open workspace — VS Code's
+ * The assistant (docs/assistant-and-mcp.md): a chat of the open workspace — VS Code's
  * Chat view on a phone. The top bar names the chat and opens its history; the composer holds the
  * message, its files, the mode, the model, the effort and the permissions. Without a provider it
  * explains itself and offers its settings; nothing else in iCode asks for one.
@@ -79,7 +79,7 @@ fun AssistantScreen(actions: NavigationActions) {
     // The message being written and the files going with it: this page's own until sent.
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
     var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<DraftFile>()) }
-    // An MCP server's prompt or resource, taken into the message for the user to read before sending (M8).
+    // An MCP server's prompt or resource, taken into the message for the user to read before sending.
     LaunchedEffect(snapshot.mcp.draft) {
         val taken = snapshot.mcp.draft ?: return@LaunchedEffect
         draft = listOf(draft, taken).filter(String::isNotBlank).joinToString("\n\n")

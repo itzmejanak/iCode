@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.countOf
 
 /**
- * What is ticked in an explorer (docs/explorer-gaps-plan.md §3.2): locations, of the folder shown or
+ * What is ticked in an explorer (docs/workspaces-and-files.md): locations, of the folder shown or
  * of a view. Select all and Invert work on what is shown — with a search open, on what it found.
  */
 object FileSelection {

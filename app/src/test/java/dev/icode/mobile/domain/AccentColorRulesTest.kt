@@ -43,7 +43,7 @@ class AccentColorRulesTest {
         }
     }
 
-    @Test fun `development and staging take their icon's colours (docs_environments-plan_md)`() {
+    @Test fun `development and staging take their icon's colours`() {
         assertEquals(0xFFB0A99A.toInt(), AccentColorRules.themeAccent(AppTheme.Dark, AppEnvironment.Development))
         assertEquals(0xFF757167.toInt(), AccentColorRules.themeAccent(AppTheme.Light, AppEnvironment.Development))
         assertEquals(0xFF9C85C9.toInt(), AccentColorRules.themeAccent(AppTheme.Amoled, AppEnvironment.Staging))

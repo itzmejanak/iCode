@@ -29,7 +29,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * What stopped a turn, in the words the page shows (§6). The provider's own error message is kept
+ * What stopped a turn, in the words the page shows. The provider's own error message is kept
  * when nothing plainer fits; a key is never part of one.
  */
 internal object KoogFailures {
@@ -38,14 +38,14 @@ internal object KoogFailures {
         val chain = generateSequence(failure) { it.cause }.take(MAX_DEPTH).toList()
         // iCode's own reason, however deep Koog's runner wrapped it.
         chain.firstNotNullOfOrNull { it as? AssistantTurnException }?.let { return it }
-        // The standard agent's own limit (§12 R1): the turn asks whether it goes on.
+        // The standard agent's own limit: the turn asks whether it goes on.
         if (chain.any { it is AIAgentMaxNumberOfIterationsReachedException }) return AssistantStepLimitException()
         val host = host(connection)
         // Koog's clients wrap what failed on the way to and from the server; a file read is not that.
         val fromServer = chain.any { it is LLMClientException || it is KoogHttpClientException }
         // A stream that broke after it began: Ktor wraps what broke with the stream's own 200 — which
         // Koog carries as the failure's status — and says nothing of the answer. What broke is deeper
-        // (§3.13). Ktor's own refusals of a stream (another status, not an event stream) carry no cause.
+        // Ktor's own refusals of a stream (another status, not an event stream) carry no cause.
         val broke = chain.indexOfFirst { it is SSEClientException && it.cause != null }
         val reasons = if (broke < 0) chain else chain.drop(broke + 1)
         // Its types only: a parser's message quotes the reply.

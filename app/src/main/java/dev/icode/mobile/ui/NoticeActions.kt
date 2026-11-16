@@ -10,7 +10,7 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
 
-/** Does what a notice offers (docs/notices-redesign-plan.md D1), once [NoticeRules.available] has said it can. */
+/** Does what a notice offers (docs/engineering-rules.md), once [NoticeRules.available] has said it can. */
 internal fun act(action: NoticeAction, gateway: ICodeGateway, navigation: NavigationActions) {
     when (action) {
         is NoticeAction.OpenFile -> gateway.dispatch(ICodeIntent.OpenFile(action.location))

@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CompletableDeferred
 
 /**
- * The question an operation waits on when a name is already there (docs/explorer-gaps-plan.md §3.6):
+ * The question an operation waits on when a name is already there (docs/workspaces-and-files.md):
  * shown in the snapshot, the oldest first, and answered by id — never behind the mutation lock, which
  * the operation does not hold while it waits. Its task stays, cancellable, saying so.
  */

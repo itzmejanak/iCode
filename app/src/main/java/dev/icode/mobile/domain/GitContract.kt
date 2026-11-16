@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Git (S5): every Git model — status, repository, commits, diffs, conflicts,
+// Git: every Git model — status, repository, commits, diffs, conflicts,
 // operations and credentials — so the feature's vocabulary lives in one file.
 
 /** How one line participates in a diff. */
@@ -195,7 +195,7 @@ data class GitAuthState(
     val lastTest: GitAuthTestResult? = null,
     /** What the page is doing, one thing at a time; each button says its own. */
     val work: GitAuthWork? = null,
-    /** The Signing step: gpg's keys, and what Git signs with (docs/gpg-signing-plan.md §7). */
+    /** The Signing step: gpg's keys, and what Git signs with (docs/source-control.md). */
     val signing: GitSigningState = GitSigningState(),
 ) {
     val hasHttpsCredential: Boolean get() = httpsAccount != null

@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * What installing each runtime tool would download now (docs/onboarding-polish-plan.md §3.4): apt's
+ * What installing each runtime tool would download now (docs/design-and-navigation.md): apt's
  * archives, as apt computes them (`--print-uris`), and its setup's pinned files unless its receipt
  * matches. apt takes no lock to measure, and neither does this, so a feature's install never waits
  * on a size: tools naming the same packages are measured once, [AT_ONCE] at a time. Only the lists

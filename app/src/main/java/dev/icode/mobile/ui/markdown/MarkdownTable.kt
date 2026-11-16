@@ -26,7 +26,7 @@ import dev.icode.mobile.designsystem.edgeLine
 import dev.icode.mobile.domain.markdown.MarkdownBlock
 
 /**
- * A table (docs/markdown-rendering-plan.md §3.5): each column as wide as its widest cell, up to three
+ * A table (docs/editor-and-language-services.md): each column as wide as its widest cell, up to three
  * quarters of the page, its cells wrapping past that; each row as tall as its tallest cell, the others
  * centred in it, as a browser centres them. Wider than the page, it scrolls sideways. The header is
  * bold on a raised ground; cell lines follow Border Lines, and every other row is shaded, as GitHub

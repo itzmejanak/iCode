@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.markdown
 
 /**
  * An answer's `\(…\)` and `\[…\]` as the parser reads math, `$…$` and `$$…$$`
- * (docs/markdown-rendering-plan.md §3.2). Models write both; the parser reads only dollars, and
+ * (docs/editor-and-language-services.md). Models write both; the parser reads only dollars, and
  * Markdown's escapes would turn `\(` into `(` before math could see it.
  *
  * Fed an answer as it streams, it returns what is settled, and what it returned never changes, so the

@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Display lists RaTeX 0.1.15's core laid out for the owner's formulas (docs/markdown-rendering-plan.md §2.4). */
+/** Display lists RaTeX 0.1.15's core laid out for the owner's formulas (docs/editor-and-language-services.md). */
 class MathLayoutTest {
     private fun fixture(name: String) = File("src/test/resources/ratex/$name.json").readText()
 

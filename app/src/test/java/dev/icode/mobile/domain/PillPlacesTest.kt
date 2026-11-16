@@ -7,7 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /**
- * docs/dock-navigation-plan.md D11: the floating pills anywhere on the screen's four edges, docked
+ * docs/design-and-navigation.md: the floating pills anywhere on the screen's four edges, docked
  * where they are let go, and never over one another.
  */
 class PillPlacesTest {

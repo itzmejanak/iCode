@@ -12,7 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * A program in the Linux runtime that speaks a protocol over its stdin and stdout — an MCP server
- * (docs/mcp-plan.md §7), a language server (docs/lsp-plan.md §5.2): a PRoot of its own that ends
+ * (docs/assistant-and-mcp.md), a language server (docs/editor-and-language-services.md): a PRoot of its own that ends
  * with iCode, exactly the [variables] given, its command and arguments as argv — never read again by
  * a shell — and stderr in a log of its own under [logs], so nothing it prints lands among the
  * protocol's bytes (the native bridge joins stderr to stdout, icode_spawn.c).

@@ -14,7 +14,7 @@ internal class ICodeWebClient(private val baseUrl: String = BuildConfig.ICODE_WE
     /** False in builds without a website address: every web feature then stays off. */
     val configured: Boolean get() = baseUrl.startsWith("https://") || baseUrl.startsWith("http://")
 
-    /** This build updates from its own channel (docs/environments-plan.md); development and staging from none. */
+    /** This build updates from its own channel (docs/build-and-release.md); development and staging from none. */
     val updates: Boolean get() = configured && BuildConfig.UPDATE_CHANNEL.isNotEmpty()
 
     fun appConfig(): WebJson.Config = WebJson.config(getJson("/api/v1/app/config"))

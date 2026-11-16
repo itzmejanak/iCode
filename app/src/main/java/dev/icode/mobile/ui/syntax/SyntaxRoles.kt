@@ -13,9 +13,9 @@ internal data class SyntaxStyle(
 )
 
 /**
- * A token's [SyntaxStyle] from its scopes (docs/syntax-highlighting-plan.md D5), by the same [rules] the
+ * A token's [SyntaxStyle] from its scopes (docs/editor-and-language-services.md), by the same [rules] the
  * editor's TextMate theme is made of ([editorTheme]) and with tm4e's own precedence, so a read-only view
- * and the editor draw a token alike (A4). As tm4e's theme does: each scope, from the root to the token's
+ * and the editor draw a token alike. As tm4e's theme does: each scope, from the root to the token's
  * own, takes the rule whose last selector matches the most of its dotted segments, among those the
  * rule's parent selectors (`source.css variable`) match in its enclosing scopes; a scope no rule names
  * keeps what encloses it, and colour and font style are kept apart, so a link in bold text stays bold.

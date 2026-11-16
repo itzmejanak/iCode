@@ -22,7 +22,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 
 /**
- * One language server in one workspace (docs/lsp-plan.md §5.2): its process, its connection, what it
+ * One language server in one workspace (docs/editor-and-language-services.md): its process, its connection, what it
  * said it can do and the documents it has open. `initialize` → `initialized` → running →
  * `shutdown` → `exit`; anything it asks of iCode goes to [client].
  */
@@ -97,7 +97,7 @@ internal class LanguageServerSession(
         connection?.notify(method, params)
     }
 
-    /** `shutdown`, then `exit`, then the process's own stop (§5.2); never waits past its deadlines. */
+    /** `shutdown`, then `exit`, then the process's own stop; never waits past its deadlines. */
     suspend fun stop() {
         if (!stopping.compareAndSet(false, true)) return
         val rpc = connection

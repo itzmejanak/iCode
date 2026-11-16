@@ -11,7 +11,7 @@
 #                       while no document is open; no separate edge needed.
 #   LauncherEmpty       rendered by LauncherScreen whenever no workspace exists;
 #                       its only edge was onboarding without storage access,
-#                       which is gone (docs/workspace-storage-plan.md §4.8).
+#                       which is gone (docs/workspaces-and-files.md).
 #   ExternalFileChange  a dialog over the screen where the change is found
 #                       (ExternalChangePrompt); the route renders it for capture.
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/CloneProgressScreen.kt|2

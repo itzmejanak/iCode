@@ -9,7 +9,7 @@ import android.media.AudioTrack
 import dev.icode.mobile.domain.voice.SpeechFailure
 import kotlinx.coroutines.delay
 
-/** Where a cloud voice's audio plays: 16-bit mono PCM, in the order it is given (docs/tts-plan.md §4.4). */
+/** Where a cloud voice's audio plays: 16-bit mono PCM, in the order it is given (docs/voice-and-phone-control.md). */
 internal interface VoiceOutput {
     /** Plays [pcm] — whole samples ([WholeSamples]) — at [rate] after what came before; returns once it is queued. */
     suspend fun play(pcm: ByteArray, rate: Int)
@@ -99,7 +99,7 @@ internal class VoicePlayer : VoiceOutput {
 }
 
 /**
- * While anything is read aloud, other sound is lowered (docs/tts-plan.md §9 D5): transient focus with
+ * While anything is read aloud, other sound is lowered (docs/voice-and-phone-control.md): transient focus with
  * ducking, whichever engine speaks, given back once it stops.
  */
 internal class VoiceFocus(context: Context) {

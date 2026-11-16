@@ -48,7 +48,7 @@ internal interface TerminalSessions {
     suspend fun follow(output: FollowedOutput): String?
 
     /**
-     * A chat's tab (docs/agent-control-plan.md §3 A4): its running one unless [fresh], else a new one;
+     * A chat's tab (docs/assistant-and-mcp.md): its running one unless [fresh], else a new one;
      * the user's own selection stays. Null without a runtime.
      */
     suspend fun openAssistant(workspaceHostPath: String?, chat: String, fresh: Boolean): String?
@@ -70,7 +70,7 @@ internal interface TerminalSessions {
 }
 
 /**
- * The terminal as iCode sees it (S6): opening and closing tabs,
+ * The terminal as iCode sees it: opening and closing tabs,
  * showing a session from its notification, following the sessions into the
  * snapshot, and what a finished command means for the open workspace. The
  * sessions themselves belong to the process ([TerminalSessionManager]) and
@@ -119,7 +119,7 @@ internal class TerminalCoordinator(
     @Volatile private var finishAlerts = TerminalSettings().finishAlerts
 
     /**
-     * A long command's end (docs/notices-redesign-plan.md D9), unless the user watched it end: kept on
+     * A long command's end (docs/engineering-rules.md), unless the user watched it end: kept on
      * the Notifications page, where it ran, and — when the user asked for it — posted to Finished
      * while iCode is out of view.
      */

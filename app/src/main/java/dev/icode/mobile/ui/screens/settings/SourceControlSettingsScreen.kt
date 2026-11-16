@@ -33,7 +33,7 @@ import dev.icode.mobile.ui.screens.tools.AssistantModelsSheet
 
 /**
  * Source Control's settings: Git's credentials, and the model that writes commit messages
- * (docs/commit-message-generator-plan.md M5, M8) — the assistant's, unless another is chosen here.
+ * (docs/assistant-and-mcp.md) — the assistant's, unless another is chosen here.
  */
 @Composable
 fun SourceControlSettingsScreen(actions: NavigationActions) {

@@ -34,11 +34,11 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * The Linux runtime's tools (docs/runtime-tools-plan.md §8), as Android Studio sets up its SDK.
+ * The Linux runtime's tools (docs/runtime-and-terminal.md), as Android Studio sets up its SDK.
  * Offered once after a runtime is built, **Set Up Tools**: Install Type (Standard or Custom), Select
  * Tools (Custom only), Verify Settings, the install, Finish. From Settings, **Runtime Tools**, the SDK
  * Manager: what is installed is ticked; tick to add, untick to remove, Apply, Confirm Changes. A tool
- * with a licence adds the License Agreement last (docs/android-toolchain-plan.md §4.2). While the
+ * with a licence adds the License Agreement last (docs/runtime-and-terminal.md). While the
  * run goes the page is its progress; Run in Background leaves it to its notification.
  */
 @Composable

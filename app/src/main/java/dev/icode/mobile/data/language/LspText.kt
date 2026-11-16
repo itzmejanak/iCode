@@ -12,7 +12,7 @@ import kotlinx.serialization.json.put
 
 /**
  * Places in a text as LSP counts them (spec 3.17, "Text Documents"): zero-based lines split at
- * `\n`, `\r\n` and `\r`, and columns in UTF-16 code units — Kotlin's and Sora's own (D2), so an
+ * `\n`, `\r\n` and `\r`, and columns in UTF-16 code units — Kotlin's and Sora's own, so an
  * offset needs no conversion of characters, only of lines.
  */
 internal object LspText {

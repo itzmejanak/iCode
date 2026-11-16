@@ -1,4 +1,4 @@
-Theme palettes used by iCode's theme variants (docs/theme-variants-plan.md)
+Theme palettes used by iCode's theme variants (docs/design-and-navigation.md)
 
 iCode takes these projects' published colour values: their palettes and terminal colours,
 from the files named. No code is taken from them. Each is under the MIT licence below, with

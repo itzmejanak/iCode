@@ -4,7 +4,7 @@ import dev.icode.mobile.domain.StorageMeasurement
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** What is ticked, and what a selection acts on (docs/explorer-gaps-plan.md §3.2). */
+/** What is ticked, and what a selection acts on (docs/workspaces-and-files.md). */
 class FileSelectionTest {
     private val shown = listOf("/w/a", "/w/b", "/w/c")
 

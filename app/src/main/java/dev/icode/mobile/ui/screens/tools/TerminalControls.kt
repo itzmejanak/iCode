@@ -67,7 +67,7 @@ internal fun ExtraKeyRow(
 }
 
 /**
- * The terminal's bar while the keyboard is down (layout.md §17.3): Editor where the editor's bar
+ * The terminal's bar while the keyboard is down (docs/runtime-and-terminal.md): Editor where the editor's bar
  * has Terminal, so one spot goes back and forth between the code and the shell; then, for a running
  * shell, Paste, Stop (Ctrl+C) and Clear (Ctrl+L).
  */

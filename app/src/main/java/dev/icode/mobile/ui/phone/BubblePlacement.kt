@@ -40,7 +40,7 @@ internal class OverlayFrame(context: Context, private val touched: (MotionEvent)
 }
 
 /**
- * Where the bubble's window, the bar's and the target's sit (docs/phone-agent-plan.md §5.7), in the
+ * Where the bubble's window, the bar's and the target's sit (docs/voice-and-phone-control.md), in the
  * screen's own pixels — the finger's: what keeps them clear of the system bars is added here. The
  * bubble docks on the bottom edge or a side, where it was let go along it, kept for the next time it
  * shows. The bar and the voice bubble open in a window of their own at the bottom — where the bubble

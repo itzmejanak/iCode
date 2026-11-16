@@ -22,7 +22,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** One speech session at a time, whichever engine says it (docs/tts-plan.md §4). */
+/** One speech session at a time, whichever engine says it (docs/voice-and-phone-control.md). */
 class VoiceSessionsTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val voice = FakeVoice()

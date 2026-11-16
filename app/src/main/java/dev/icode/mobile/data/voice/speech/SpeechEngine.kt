@@ -9,7 +9,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 
 /**
- * One way to hear the user (docs/speech-plan.md §4.1): every provider's adapter is one, and the voice
+ * One way to hear the user (docs/voice-and-phone-control.md): every provider's adapter is one, and the voice
  * coordinator knows none of them. What is heard is never logged.
  */
 internal interface SpeechEngine {

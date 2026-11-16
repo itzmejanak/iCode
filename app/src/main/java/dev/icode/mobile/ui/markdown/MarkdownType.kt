@@ -12,7 +12,7 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.PlexMono
 
 /**
- * A document's type and colours (docs/markdown-rendering-plan.md §3.5), from its body text: headings
+ * A document's type and colours (docs/editor-and-language-services.md), from its body text: headings
  * on the design system's scale (22, 20 and 16 for a 14 body; H4–H6 the body, bold), code in Plex Mono
  * at the editor's 13, math at KaTeX's 1.21. All in proportion, so a pinch scales them together, and
  * the [gap] between blocks too.

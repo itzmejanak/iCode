@@ -8,7 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** docs/mcp-plan.md §6.2: each of iCode's parameter types as exactly one of Koog's, nested as it is. */
+/** docs/assistant-and-mcp.md: each of iCode's parameter types as exactly one of Koog's, nested as it is. */
 class KoogToolTest {
     @Test
     fun `primitives map one to one`() {

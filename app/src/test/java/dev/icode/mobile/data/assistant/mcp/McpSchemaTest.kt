@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** docs/mcp-plan.md §6.2: a tool's JSON Schema as iCode's parameter types, each case, and what is refused. */
+/** docs/assistant-and-mcp.md: a tool's JSON Schema as iCode's parameter types, each case, and what is refused. */
 class McpSchemaTest {
     private fun schema(json: String): ToolSchema {
         val body = Json.parseToJsonElement(json).jsonObject

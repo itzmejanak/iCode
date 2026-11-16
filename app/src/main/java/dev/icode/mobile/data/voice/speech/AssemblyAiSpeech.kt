@@ -15,7 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * AssemblyAI's streaming speech-to-text, v3 (docs/speech-plan.md §2.2, §4.3), read from AssemblyAI's
+ * AssemblyAI's streaming speech-to-text, v3 (docs/voice-and-phone-control.md), read from AssemblyAI's
  * own SDK: one WebSocket per hearing, the key in `Authorization` as it is. The microphone's PCM goes
  * up as it comes; each `Turn` comes back as the words so far, and the end of the turn, formatted, is
  * final. Done sends `ForceEndpoint`; the hearing over, `Terminate`.

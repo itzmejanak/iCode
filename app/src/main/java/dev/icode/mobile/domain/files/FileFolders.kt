@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.files
 
 /**
- * Where a file is, as a list of files says it under its name (docs/screens-polish-plan.md D1): its
+ * Where a file is, as a list of files says it under its name (docs/design-and-navigation.md): its
  * folder in the workspace, never the phone's folders iCode keeps the workspace in.
  */
 object FileFolders {

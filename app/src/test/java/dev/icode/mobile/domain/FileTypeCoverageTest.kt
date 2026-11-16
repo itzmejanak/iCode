@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Every text type the icon theme names is coloured (docs/syntax-highlighting-plan.md A9): each language id,
+ * Every text type the icon theme names is coloured (docs/editor-and-language-services.md): each language id,
  * extension and file name in assets/file-icons/theme.json opens, through [FileTypes], a type with a grammar
  * in the catalog, or a format of other bytes, or is exempted here with its reason, by the icon it is drawn
  * with (a group) or one by one. An exemption nothing needs any more fails too.

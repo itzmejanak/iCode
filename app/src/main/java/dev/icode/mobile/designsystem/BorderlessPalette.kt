@@ -7,7 +7,7 @@ import dev.icode.mobile.domain.AccentColorRules
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * This palette for cards drawn without their outline (docs/border-lines-plan.md §3): a card and its
+ * This palette for cards drawn without their outline (docs/design-and-navigation.md): a card and its
  * page at least [CARD_STEP] : 1 apart; every other surface its own step from what it sits on; and
  * every colour drawn on a surface that moved reading at least as well as before, or as well as WCAG
  * AA asks. A tone moves only in lightness, its hue and chroma kept ([Oklch.readable]). The accent is
@@ -19,7 +19,7 @@ private fun IcodePalette.derived(): IcodePalette {
     // Light's cards are white already: its page moves down, and the editor's deeper page with it.
     val pageMoves = kind == PaletteKind.Light
     // Each tone keeps to the side of its neighbour it was on: a variant's raised tone can move past its
-    // track (Rosé Pine Dawn), and the track must then follow it, not turn back (docs/theme-variants-plan.md T2).
+    // track (Rosé Pine Dawn), and the track must then follow it, not turn back (docs/design-and-navigation.md).
     val page = if (pageMoves) apart(background, surface, CARD_STEP, side(background, surface)) else background
     val deep = if (pageMoves) apart(backgroundDeep, page, contrast(backgroundDeep, background), side(backgroundDeep, background)) else backgroundDeep
     val card = if (pageMoves) surface else apart(surface, page, CARD_STEP, side(surface, background))
@@ -62,7 +62,7 @@ private val borderlessPalettes = ConcurrentHashMap<IcodePalette, IcodePalette>()
 /**
  * A card and its page with no line between them, at least this far apart: iOS keeps its grouped
  * cells 1.116 : 1 from their page, Material 3's dark scheme a container 1.141 : 1 from its page. In
- * steps of 0.01 lightness each theme lands just past it (docs/border-lines-plan.md §3); the owner
+ * steps of 0.01 lightness each theme lands just past it (docs/design-and-navigation.md); the owner
  * chose it from mockups of the three (2026-10-19).
  */
 private const val CARD_STEP = 1.12

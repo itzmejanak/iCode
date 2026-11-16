@@ -39,7 +39,7 @@ internal fun projectProblem(name: String, destination: ProjectDestination?): Str
 }
 
 /**
- * Where a clone goes (docs/workspace-destinations-plan.md): a new workspace, or a folder of one,
+ * Where a clone goes (docs/workspaces-and-files.md): a new workspace, or a folder of one,
  * chosen in the file explorer.
  */
 @Composable

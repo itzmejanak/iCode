@@ -16,7 +16,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** Manage storage's scan (docs/explorer-gaps-plan.md §3.10): categories, the largest, copies, `.git` and Trash apart, and iCode's own changes followed. */
+/** Manage storage's scan (docs/workspaces-and-files.md): categories, the largest, copies, `.git` and Trash apart, and iCode's own changes followed. */
 class StorageScanTest {
     @get:Rule val temp = TemporaryFolder()
 

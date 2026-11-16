@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * The floating stack's pills (docs/dock-navigation-plan.md D6, D11). Each starts where the stack has
+ * The floating stack's pills (docs/design-and-navigation.md). Each starts where the stack has
  * always put it, at the end edge's foot; held and dragged anywhere on the screen, it docks on the edge
  * it is let go nearest — left, right, top or bottom — where it was let go along it, and stays there.
  */

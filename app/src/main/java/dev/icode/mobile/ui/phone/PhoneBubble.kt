@@ -65,7 +65,7 @@ import kotlin.math.sin
 
 /** What the bubble does, as its windows and the backend answer it. */
 internal class PhoneBubbleActions(
-    /** The bubble tapped: what that does follows its state (§5.7). */
+    /** The bubble tapped: what that does follows its state. */
     val tap: () -> Unit,
     /** The bubble dragged: it follows the finger on the screen. */
     val drag: () -> Unit,
@@ -83,7 +83,7 @@ internal class PhoneBubbleActions(
     val cancel: () -> Unit,
 )
 
-/** The bubble's states (§5.7): docked alone; expanded into the bar; the bar given way to the voice bubble. */
+/** The bubble's states: docked alone; expanded into the bar; the bar given way to the voice bubble. */
 internal enum class BubbleMode { Closed, Typing, Voice }
 
 /** What the bubble's windows show now. */
@@ -100,7 +100,7 @@ internal class PhoneBubbleView(
 )
 
 /**
- * The bubble over other apps (docs/phone-agent-plan.md §5.7; redesigned 2026-11-04, after Gemini):
+ * The bubble over other apps (docs/voice-and-phone-control.md; redesigned 2026-11-04, after Gemini):
  * one small bubble docked on the screen's edge, which expands into a compact bar to type in,
  * and while the microphone listens becomes a voice bubble — the words heard so far under a waveform,
  * with a microphone to mute and a Stop to throw the hearing away. Nothing else: no header, no cards
@@ -133,7 +133,7 @@ internal fun overlayPanelWidth(): Dp =
     minOf(IcodeSizes.BubblePanel, (LocalConfiguration.current.screenWidthDp.dp - IcodeSpacing.Space4 * 2).coerceAtLeast(IcodeSizes.Bubble))
 
 /**
- * The bubble itself (§5.7): the iCode mark at its smallest, growing a ring, a spinner or a waveform as
+ * The bubble itself: the iCode mark at its smallest, growing a ring, a spinner or a waveform as
  * the agent and the microphone get to work — pressed, it gives a little; dragged, it goes free; while
  * the bar is open, it shrinks away where it sits.
  */
@@ -240,7 +240,7 @@ internal fun OverlayButton(icon: ImageVector, description: String, tint: Color, 
     }
 }
 
-/** The target dragging shows at the top of the screen: dropped on it, the bubble is put away with the glow (§5.7). */
+/** The target dragging shows at the top of the screen: dropped on it, the bubble is put away with the glow. */
 @Composable
 internal fun PhoneBubbleTarget(working: Boolean, over: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {

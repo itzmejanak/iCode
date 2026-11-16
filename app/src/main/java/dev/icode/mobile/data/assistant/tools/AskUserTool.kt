@@ -13,7 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * `ask_user` (docs/assistant-questions-plan.md D1): the model asks the user mid-turn — one to four
+ * `ask_user` (docs/assistant-and-mcp.md): the model asks the user mid-turn — one to four
  * questions, each with its options — and the turn waits on [step] for the reply, which the model
  * reads as the call's result. Its parameters are Claude Code's AskUserQuestion's, so a model that
  * knows that tool uses this one. It reads nothing and changes nothing: no approval is asked for it.

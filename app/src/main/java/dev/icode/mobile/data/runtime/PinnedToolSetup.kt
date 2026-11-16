@@ -16,7 +16,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * A runtime tool that is one pinned archive and nothing from apt (docs/mcp-plan.md R1): unpacked whole
+ * A runtime tool that is one pinned archive and nothing from apt (docs/assistant-and-mcp.md): unpacked whole
  * into the guest home's `.local/share/icode/<id>`, its programs linked into `~/.local/bin` — first on
  * the runtime's PATH ([RuntimeLayout]) — and run once to show they work. Everything is in the home,
  * so Repair keeps it. Node.js and uv: what MCP servers start with (`npx`, `uvx`).

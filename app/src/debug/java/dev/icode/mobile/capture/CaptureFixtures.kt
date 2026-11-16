@@ -97,7 +97,7 @@ object CaptureFixtures {
             behind = 1,
         ),
         diagnostics = emptyList(),
-        // As a TypeScript server would report them (docs/lsp-plan.md §5.4): exact ranges, zero-based.
+        // As a TypeScript server would report them (docs/editor-and-language-services.md): exact ranges, zero-based.
         languageDiagnostics = listOf(
             languageProblem(Severity.Error, "src/App.tsx", "Property 'name' does not exist on type 'User'.", 41, 14, 18, "2339"),
             languageProblem(Severity.Warning, "src/App.tsx", "'tempData' is declared but its value is never read.", 14, 7, 15, "6133"),

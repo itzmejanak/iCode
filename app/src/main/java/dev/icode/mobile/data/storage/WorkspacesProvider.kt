@@ -25,7 +25,7 @@ import java.nio.file.LinkOption
 
 /**
  * The workspaces in Android's Files app, and to every app the user picks them for
- * (docs/workspace-storage-plan.md §4.6). One root, iCode. A document's ID is its path in the
+ * (docs/workspaces-and-files.md). One root, iCode. A document's ID is its path in the
  * runtime — `/workspace/app/src` — the path iCode shows everywhere. Only the workspaces are
  * exposed: an ID must stay inside them, and so must the file it leads to, so a link never takes
  * another app into the runtime or the rest of iCode's data. A whole workspace is made here with
@@ -189,7 +189,7 @@ class WorkspacesProvider : DocumentsProvider() {
         )
 
         /**
-         * A file's kind as other apps are told it (docs/file-kinds-icons-plan.md D4): Android's name for
+         * A file's kind as other apps are told it (docs/workspaces-and-files.md): Android's name for
          * its extension, unless iCode's own table says it is text and Android calls it a video or a sound
          * — Android's `.ts` is an MPEG transport stream, TypeScript's is text. Null for one Android does
          * not know.

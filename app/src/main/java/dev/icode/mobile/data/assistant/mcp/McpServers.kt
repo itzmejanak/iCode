@@ -28,12 +28,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The assistant's MCP servers (docs/mcp-plan.md §5, §7.3): the ones the user added and the open
+ * The assistant's MCP servers (docs/assistant-and-mcp.md): the ones the user added and the open
  * workspace's, each connected when it is wanted — saved, switched on, the Assistant page opened, a
  * turn starting — and stopped when it idles. What they are and how they are goes to the snapshot as it
  * changes; a turn is offered their tools ([offer]); their questions go to the user ([McpQuestions]).
  * The pages' intents and the agent's tools change them through the same operations ([save], [import],
- * [remove], [enable], [choose]: docs/agent-control-plan.md §5), one at a time; a refusal is the
+ * [remove], [enable], [choose]: docs/assistant-and-mcp.md), one at a time; a refusal is the
  * user's notice, or the model's words.
  */
 internal class McpServers(

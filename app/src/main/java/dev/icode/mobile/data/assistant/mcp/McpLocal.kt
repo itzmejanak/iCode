@@ -14,7 +14,7 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 
 /**
- * A local server in the Linux runtime (docs/mcp-plan.md §7), started as every protocol program in
+ * A local server in the Linux runtime (docs/assistant-and-mcp.md), started as every protocol program in
  * the runtime is ([GuestStdio]): a PRoot of its own that ends with iCode, the user's login
  * environment with the server's over it, its command and arguments as argv, and stderr in its own log.
  */

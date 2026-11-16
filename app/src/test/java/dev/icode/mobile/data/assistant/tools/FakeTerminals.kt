@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * Terminal tabs whose bash answers as iCode's does (docs/agent-control-plan.md §4.2): a prompt with its
+ * Terminal tabs whose bash answers as iCode's does (docs/assistant-and-mcp.md): a prompt with its
  * directory (OSC 7) and A and B marks; a pasted command and Enter run as [answer] says — its output,
  * code and directory, between C and D, then the next prompt — or, [Answer.hang] for it, until Ctrl-C
  * ends it with 130, unless it does not [Answer.stop] at Ctrl-C.

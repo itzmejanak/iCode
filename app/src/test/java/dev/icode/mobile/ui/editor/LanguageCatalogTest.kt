@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The language catalog (`assets/textmate/catalog.json`, docs/syntax-highlighting-plan.md D3) against
+ * The language catalog (`assets/textmate/catalog.json`, docs/editor-grammar-provenance.md) against
  * what it describes: the assets, the grammars' own scopes, includes and origins, and the provenance doc.
  */
 class LanguageCatalogTest {
@@ -33,7 +33,7 @@ class LanguageCatalogTest {
         assertEquals(emptyList<String>(), wrong)
     }
 
-    /** The includes are what the engine loads with a language (S3); the grammar files are what they must say. */
+    /** The includes are what the engine loads with a language; the grammar files are what they must say. */
     @Test fun `each language's includes are what its grammar pulls in`() {
         val pulled = ShippedGrammars.all.associate { it.scope to it.includes - it.scope }
         val wrong = catalog.all.filter { it.includes != pulled[it.scope] }.map { "${it.id}: ${pulled[it.scope].orEmpty().sorted()}" }

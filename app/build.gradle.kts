@@ -8,7 +8,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// The release being built (docs/environments-plan.md): the release workflow passes its channel and, for
+// The release being built (docs/build-and-release.md): the release workflow passes its channel and, for
 // a pre-release, its number, from the tag (v0.2.0-beta.3: beta, 3). A local build is stable, numbered 0.
 val releaseChannel = (project.findProperty("releaseChannel") as String?) ?: "stable"
 val releaseNumber = (project.findProperty("releaseNumber") as String?)?.toInt() ?: 0
@@ -19,7 +19,7 @@ val releaseStage = mapOf("preview" to 1, "beta" to 2, "stable" to 9)[releaseChan
 
 // One version for the editor engine: the dependency, and what About reports.
 val soraEditorVersion = "0.24.6"
-// One version for the assistant's Koog modules; an upgrade repeats docs/assistant-koog-plan.md §9 D1 and D9.
+// One version for the assistant's Koog modules; an upgrade repeats docs/assistant-and-mcp.md.
 val koogVersion = "1.3.0"
 
 android {
@@ -63,7 +63,7 @@ android {
     // relies on a log call throwing (GrammarAssetsTest checks what the parser returns).
     testOptions {
         unitTests.isReturnDefaultValues = true
-        // SyntaxBenchmark runs only when asked: -Picode.benchmark=true (docs/syntax-highlighting-plan.md §3.7).
+        // SyntaxBenchmark runs only when asked: -Picode.benchmark=true (docs/editor-and-language-services.md).
         unitTests.all { it.systemProperty("icode.benchmark", providers.gradleProperty("icode.benchmark").getOrElse("false")) }
     }
 
@@ -82,7 +82,7 @@ android {
         buildConfig = true
     }
 
-    // One build type per environment (docs/environments-plan.md), as Firefox for Android has one per
+    // One build type per environment (docs/build-and-release.md), as Firefox for Android has one per
     // channel: each installs beside the others, with its own icon in src/<type>/res and its icon's accent.
     // debug is development; release is stable, the original icon in src/main.
     buildTypes {
@@ -132,7 +132,7 @@ android {
             "/META-INF/LICENSE*",
             "/META-INF/NOTICE*",
             // Seventeen of the assistant's libraries (Koog, Ktor, kotlinx, Jackson) carry one each;
-            // an Android app has no Java module path (docs/assistant-koog-plan.md §4.9).
+            // an Android app has no Java module path (docs/assistant-and-mcp.md).
             "/META-INF/versions/9/module-info.class",
         )
         jniLibs {
@@ -166,13 +166,13 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.17.0")
     // Accent colour picker. 1.1.4 is the newest release built for Kotlin 2.3 and
-    // Compose 1.10+; later ones need Kotlin 2.4 (docs/accent-color-plan.md).
+    // Compose 1.10+; later ones need Kotlin 2.4 (docs/design-and-navigation.md).
     implementation("com.github.skydoves:colorpicker-compose:1.1.4")
     implementation("org.apache.commons:commons-compress:1.27.1")
     // Commons Compress's own optional dependency for .7z and .xz (0BSD, pure Java;
-    // docs/explorer-gaps-plan.md §3.11).
+    // docs/workspaces-and-files.md).
     implementation("org.tukaani:xz:1.10")
-    // The renderer and input view. Apache-2.0 per termux-app LICENSE.md; see docs/terminal-maturity-plan.md §3.
+    // The renderer and input view. Apache-2.0 per termux-app LICENSE.md; see docs/runtime-and-terminal.md.
     // Its emulator is built from third_party/termux-terminal-emulator, the same release with iCode's tap.
     implementation("com.github.termux.termux-app:terminal-view:v0.118.3") {
         exclude(module = "terminal-emulator")
@@ -182,31 +182,31 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.datastore:datastore-preferences:1.2.1")
-    // The opt-in device heartbeat (docs/device-telemetry-plan.md): periodic, network-constrained, survives restarts.
+    // The opt-in device heartbeat (PRIVACY.md): periodic, network-constrained, survives restarts.
     implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
-    // The file and folder icons (Material Icon Theme, docs/file-kinds-icons-plan.md D6) and SVG thumbnails.
+    // The file and folder icons (Material Icon Theme, docs/workspaces-and-files.md) and SVG thumbnails.
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("io.github.rosemoe:editor")
     implementation("io.github.rosemoe:language-textmate")
     // The regex engine the TextMate grammars are written for (Oniguruma, as in VS Code).
     // Without it tm4e falls back to joni, which rejects variable-length lookbehinds and
-    // dropped CSS selectors, TypeScript's `export default`, C#'s `await` (editor-colors-plan).
+    // dropped CSS selectors, TypeScript's `export default`, and C#'s `await`.
     implementation("io.github.rosemoe:oniguruma-native")
     // Markdown as GitHub reads it, math included, for the preview and the assistant's answers
-    // (docs/markdown-rendering-plan.md §2.1). Pure Kotlin; depends only on kotlin-stdlib.
+    // (docs/editor-and-language-services.md). Pure Kotlin; depends only on kotlin-stdlib.
     implementation("org.jetbrains:markdown:0.7.17")
-    // The assistant's agent runtime (docs/assistant-koog-plan.md §2, §4.9): the modules it uses,
+    // The assistant's agent runtime (docs/assistant-and-mcp.md): the modules it uses,
     // not the koog-agents umbrella (Bedrock's AWS SDK, OpenTelemetry…). Not the DeepSeek client:
     // its Android build calls List.removeLast(), which Android 11–14 lack; DeepSeek is reached as
     // an OpenAI-compatible server instead.
     implementation("ai.koog:agents-core:$koogVersion")
     implementation("ai.koog:agents-tools:$koogVersion")
-    // The standard agent's events: each reply, tool call and result as it happens (§12 R1).
+    // The standard agent's events: each reply, tool call and result as it happens.
     implementation("ai.koog:agents-features-event-handler:$koogVersion")
     implementation("ai.koog:prompt-executor-openai-client:$koogVersion")
     implementation("ai.koog:prompt-executor-anthropic-client:$koogVersion")
@@ -215,16 +215,16 @@ dependencies {
     implementation("ai.koog:prompt-executor-ollama-client:$koogVersion")
     implementation("ai.koog:http-client-ktor:$koogVersion")
     // The HTTP engine Koog's clients and the MCP client run on, handed to them explicitly. 3.5.2 is
-    // the Ktor the MCP SDK needs; Koog 1.3.0 was built with 3.3.3 (docs/mcp-plan.md M0).
+    // the Ktor the MCP SDK needs; Koog 1.3.0 was built with 3.3.3 (docs/assistant-and-mcp.md).
     implementation("io.ktor:ktor-client-okhttp:3.5.2")
-    // MCP servers' tools for the assistant (docs/mcp-plan.md): the official SDK's client only.
+    // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client only.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
-    // JSON for the language servers' protocol (docs/lsp-plan.md D1): the version Koog and the MCP SDK
+    // JSON for the language servers' protocol (docs/editor-and-language-services.md): the version Koog and the MCP SDK
     // already resolve, declared because the language client uses it directly.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     // The coroutines the MCP SDK runs on; Android's dispatcher at the same version.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    // Shizuku (docs/phone-agent-plan.md §5.11): its binder, the user's permission, and a UserService of
+    // Shizuku (docs/voice-and-phone-control.md): its binder, the user's permission, and a UserService of
     // iCode's own in a shell process. Apache-2.0 / MIT, on Maven Central.
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
@@ -234,10 +234,10 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
-    // A real MCP server, over Streamable HTTP on this machine, for the client's tests (docs/mcp-plan.md M2).
+    // A real MCP server, over Streamable HTTP on this machine, for the client's tests (docs/assistant-and-mcp.md).
     testImplementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
     testImplementation("io.ktor:ktor-server-cio:3.5.2")
-    // Speech providers' WebSockets, served on this machine for their adapters' tests (docs/speech-plan.md §7).
+    // Speech providers' WebSockets, served on this machine for their adapters' tests (docs/voice-and-phone-control.md).
     testImplementation("io.ktor:ktor-server-websockets:3.5.2")
     // Android provides org.json in production; this supplies the same API to local JVM parser tests.
     testImplementation("org.json:json:20260814")
@@ -285,9 +285,9 @@ abstract class CheckPageAlignment : DefaultTask() {
 /**
  * The file types each language opens, from the language catalog (assets/textmate/catalog.json, written by
  * tools/import-grammars.py) as a Kotlin table for domain/FileTypes.kt, so a language is declared once, in
- * the catalog, and FileTypes answers at once, with no asset to read first (docs/syntax-highlighting-plan.md
- * §4.1). Each "files" entry: type (the language's id when absent), family, extensions, names, prefixes,
- * firstLine.
+ * the catalog, and FileTypes answers at once, with no asset to read first
+ * (docs/editor-grammar-provenance.md). Each "files" entry: type (the language's id when absent), family,
+ * extensions, names, prefixes, firstLine.
  */
 abstract class GenerateCatalogFileTypes : DefaultTask() {
     @get:InputFile

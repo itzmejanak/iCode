@@ -6,7 +6,7 @@ import org.json.JSONObject
 /**
  * The root filesystem this build installs, read from the packaged manifest. [entries] is how many the
  * pinned archive holds (`tar -tzf … | wc -l`), what extraction counts against
- * (docs/onboarding-polish-plan.md §3.2).
+ * (docs/design-and-navigation.md).
  */
 internal data class RootfsDescriptor(
     val id: String,
@@ -27,7 +27,7 @@ internal data class PinnedFile(val url: String, val bytes: Long?, val checksum: 
 }
 
 /**
- * `assets/runtime/manifest.json` (docs/android-toolchain-plan.md §4.2): the root filesystem, the PRoot it
+ * `assets/runtime/manifest.json` (docs/runtime-and-terminal.md): the root filesystem, the PRoot it
  * runs under, the files a runtime tool downloads itself ([archives]), and the size of what a tool's own
  * installer fetches ([packageBytes] — the Android SDK's packages, as Google's repository lists them).
  * One reader, so a pin is written once.

@@ -34,7 +34,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.flow.first
 
 /**
- * Source Control's History sheet (docs/git-history-plan.md §4), opened from Last Commit's corner:
+ * Source Control's History sheet (docs/source-control.md), opened from Last Commit's corner:
  * HEAD's commits, newest first, a line each beside the graph of where they branched and merged
  * ([GitHistoryLine]). The history is read afresh each time the sheet opens, and again when HEAD
  * moves while it is open; the next page as the list nears its end.

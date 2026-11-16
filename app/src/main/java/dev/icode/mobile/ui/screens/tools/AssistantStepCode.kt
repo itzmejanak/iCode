@@ -15,7 +15,7 @@ import dev.icode.mobile.ui.syntax.languageOf
 import dev.icode.mobile.ui.syntax.rememberSyntax
 import dev.icode.mobile.ui.syntax.rememberSyntaxLines
 
-// A step's code, coloured as its file's language as the editor colours it (docs/syntax-highlighting-plan.md S5).
+// A step's code, coloured as its file's language as the editor colours it (docs/editor-and-language-services.md).
 
 /** The text a change waiting for its answer writes, under its label. */
 @Composable

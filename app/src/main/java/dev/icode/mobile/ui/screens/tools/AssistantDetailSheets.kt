@@ -47,7 +47,7 @@ import dev.icode.mobile.ui.SheetIcon
 import dev.icode.mobile.ui.copyText
 
 /**
- * What a row of the chat opens (docs/assistant-sheets-plan.md §2.2–§2.3): a run of steps, the
+ * What a row of the chat opens (docs/assistant-and-mcp.md): a run of steps, the
  * reasoning, or a compaction's summary. [entry] is the chat's as it is
  * now, so what a step does while its sheet is open shows there. [step] opens a run at that step;
  * [approval] is the question waiting, which its step's page shows and answers; [workspace] is its name, null in no workspace.
@@ -73,9 +73,9 @@ internal fun AssistantEntrySheet(
 }
 
 /**
- * What a long press on a row of the chat offers, as a sheet (docs/explorer-gaps-plan.md §3.1): for
+ * What a long press on a row of the chat offers, as a sheet (docs/workspaces-and-files.md): for
  * the user's message, Copy, Edit — its words back in the composer ([onEdit]) — Retry when it is the
- * last and nothing answered it, and Select text as its page (§2.4); for a step about a file, Open in
+ * last and nothing answered it, and Select text as its page; for a step about a file, Open in
  * Editor, Show Changes where Git has some, and Copy path.
  */
 @Composable
@@ -137,7 +137,7 @@ private fun StepFileSheet(step: AssistantEntry.Step, modifier: Modifier, onClose
 }
 
 /**
- * A run of steps (§2.2): each on a rail, a tap opening its page in the sheet, ← back. A run of one
+ * A run of steps: each on a rail, a tap opening its page in the sheet, ← back. A run of one
  * opens at its step, as one opened from the question waiting does.
  */
 @Composable
@@ -183,7 +183,7 @@ private fun AssistantStepsSheet(
 }
 
 /**
- * One step (§2.2): titled by its tool, with how it went; what it was for; its command or its file;
+ * One step: titled by its tool, with how it went; what it was for; its command or its file;
  * then all it answered — or, while it waits on [approval], all it will do, what it reaches and the
  * answers, as the card's.
  */
@@ -201,7 +201,7 @@ private fun StepPage(
     val command = step.call.command
     val file = fileActions(step, onDiff)
     // The tab its command runs in, live while it runs; then what it printed, its own input and output
-    // (docs/agent-control-plan.md §6). Typed into, the terminal is the sheet.
+    // (docs/assistant-and-mcp.md). Typed into, the terminal is the sheet.
     val snapshot = LocalICodeSnapshot.current
     val live = snapshot.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
         ?.session?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
@@ -272,7 +272,7 @@ private fun StepPage(
 }
 
 /**
- * Text to read and take from (§2.3, §2.4): the reasoning, a compaction's summary, a message. Android's
+ * Text to read and take from: the reasoning, a compaction's summary, a message. Android's
  * own handles and toolbar select and copy any part of it; Copy All takes it whole.
  */
 @Composable

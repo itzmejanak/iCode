@@ -36,7 +36,7 @@ internal data class StoredSettings(
 )
 
 /**
- * The assistant's providers and the chat page's choices (§4.7, §13 P1–P3). Each provider's key is
+ * The assistant's providers and the chat page's choices. Each provider's key is
  * its own, and leaves only as a turn's [AssistantConnection].
  */
 internal interface AssistantProviderStore {

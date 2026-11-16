@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Live notice of changes in the workspaces while iCode is on screen (S3): the
+ * Live notice of changes in the workspaces while iCode is on screen: the
  * folder that holds them, the folders the Explorer shows and the folders of
  * open files, watched with inotify — so a workspace, file or folder a terminal
  * or an agent makes appears. Measured on the phone (2026-09-28): files a

@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.notices.NoticeRules
 import dev.icode.mobile.domain.notices.NoticeTone
 
 /**
- * Notices in Android's shade (docs/notices-redesign-plan.md D7): what needs the user, unread, and work
+ * Notices in Android's shade (docs/engineering-rules.md): what needs the user, unread, and work
  * that finished while iCode was out of view — the newest [NoticeRules.MAX_POSTED], under one summary.
  * Each says where in its header. A Problem that comes while iCode is out of view pops up; what
  * finished away sounds, on Finished; the rest is silent, on Messages. Read, deleted or cleared in

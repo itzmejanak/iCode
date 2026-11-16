@@ -65,7 +65,7 @@ import dev.icode.mobile.ui.tint
 
 /**
  * File tree with the workspace activity rail. Select in a row's sheet starts a selection
- * (docs/explorer-gaps-plan.md §3.2): rows tick with a tap, the + gives way to Select all and Invert,
+ * (docs/workspaces-and-files.md): rows tick with a tap, the + gives way to Select all and Invert,
  * and its foot bar to the selection's. A folder ticked covers what is in it, so nothing is acted on
  * twice. Back, or ✕, leaves it; so does going to another workspace.
  */
@@ -105,7 +105,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
             )
             Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
                 ActivityRail(
-                    // Each tool as the dock shows it: its icon, name and badge (docs/dock-navigation-plan.md D7).
+                    // Each tool as the dock shows it: its icon, name and badge (docs/design-and-navigation.md).
                     entries = listOf(
                         railEntry(WorkspaceTool.Explorer, active = true),
                         railEntry(WorkspaceTool.Terminal, accented = true) { actions.openPanel(ToolPanelTab.Terminal) },

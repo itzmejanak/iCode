@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.channelFlow
 import org.json.JSONObject
 
 /**
- * Deepgram's live speech-to-text (docs/speech-plan.md §2.4, §4.3), as its AsyncAPI spec gives it: one
+ * Deepgram's live speech-to-text (docs/voice-and-phone-control.md), as its AsyncAPI spec gives it: one
  * socket to `/v1/listen` with `Authorization: Token`, 16 kHz linear16 with interim results. The words so
  * far are the final segments heard plus the one still being heard; `speech_final` ends the hearing.
  * Done sends `Finalize`, and its final segment ends it; the hearing over, `CloseStream`.

@@ -14,7 +14,7 @@ import androidx.compose.ui.text.style.TextOverflow
 data class IcodeFact(val label: String, val value: String)
 
 /**
- * Facts two to a row, each its label over its value (docs/screens-polish-plan.md D1): a build's, a
+ * Facts two to a row, each its label over its value (docs/design-and-navigation.md): a build's, a
  * runtime's. A label never meets its value, however long the value; a value takes two lines at most.
  * Put it in a card, or under a card's own heading.
  */

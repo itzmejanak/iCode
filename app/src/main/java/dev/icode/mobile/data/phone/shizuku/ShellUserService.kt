@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 /**
- * iCode's own code in a shell process (docs/phone-agent-plan.md §5.11): Shizuku starts it by this
+ * iCode's own code in a shell process (docs/voice-and-phone-control.md): Shizuku starts it by this
  * class's name, with the shell's identity, while iCode is bound to it. It answers a command line —
  * run by `sh`, its exit code and output — a picture of the screen, and Shizuku's reserved destroy
  * call. No AIDL: the transactions are written by hand, here and in [ShizukuShell].

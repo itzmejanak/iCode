@@ -15,7 +15,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Where the agent goes, what it refuses, and what shows over other apps (docs/phone-agent-plan.md §5). */
+/** Where the agent goes, what it refuses, and what shows over other apps (docs/voice-and-phone-control.md). */
 class PhoneRulesTest {
     private val apps = listOf(
         PhonePlaces.App("WhatsApp", "com.whatsapp", "com.whatsapp.Main"),

@@ -2,13 +2,13 @@ package dev.icode.mobile.domain.files
 
 import dev.icode.mobile.domain.FileType
 
-/** What one item is, as Properties names it (docs/explorer-gaps-plan.md §3.9). */
+/** What one item is, as Properties names it (docs/workspaces-and-files.md). */
 enum class FactKind { File, Folder, Workspace, Link }
 
 /**
- * What Properties shows (§3.9), for one item — [kind] — or many, [folders] of them folders. A file's
+ * What Properties shows, for one item — [kind] — or many, [folders] of them folders. A file's
  * size is known at once; a folder's, and many items', is [measured] as Properties is open, null until
- * then. There is no creation time: Android does not keep one (§2).
+ * then. There is no creation time because Android does not keep one.
  */
 data class FileFacts(
     val locations: List<String>,
@@ -22,7 +22,7 @@ data class FileFacts(
     val modifiedAt: Long? = null,
     /** A file in Private that runs. */
     val executable: Boolean? = null,
-    /** One file's kind, its first bytes read where its name could not say (docs/file-kinds-icons-plan.md D2). */
+    /** One file's kind, its first bytes read where its name could not say (docs/workspaces-and-files.md). */
     val type: FileType? = null,
     val measured: TreeFacts? = null,
 )

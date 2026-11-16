@@ -48,7 +48,7 @@ import dev.icode.mobile.ui.LocalNotices
 import dev.icode.mobile.ui.NoticeRow
 
 /**
- * What iCode has told the user, newest first (docs/notices-redesign-plan.md D6): All, what needs
+ * What iCode has told the user, newest first (docs/engineering-rules.md): All, what needs
  * them, or what was done, and of one place; opening the page marks it all seen, a tap opens one's
  * sheet, Clear all clears what the filters show.
  */

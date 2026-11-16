@@ -2,7 +2,7 @@ package dev.icode.mobile.domain
 
 /**
  * A permission iCode asks Android for. None is needed for a workspace: they live in iCode's own
- * storage (docs/workspace-storage-plan.md §4.8).
+ * storage (docs/workspaces-and-files.md).
  */
 enum class SystemPermission {
     /** Running terminal sessions are listed in the notification drawer. Onboarding offers it once. */
@@ -12,14 +12,14 @@ enum class SystemPermission {
     Battery,
 
     /**
-     * All Files Access: phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md).
+     * All Files Access: phone storage, the file explorer's Shared place (docs/workspaces-and-files.md).
      * Asked where it is needed, each time it is needed and missing; never in onboarding.
      */
     Storage,
 
     /**
-     * Install unknown apps: Build & Run installs the app it built (docs/android-toolchain-plan.md
-     * §4.5). Asked where it is needed, each time it is needed and missing; never in onboarding.
+     * Install unknown apps: Build & Run installs the app it built (docs/runtime-and-terminal.md).
+     * Asked where it is needed, each time it is needed and missing; never in onboarding.
      */
     InstallApps,
 }

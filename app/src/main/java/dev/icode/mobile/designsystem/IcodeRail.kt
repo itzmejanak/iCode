@@ -28,7 +28,7 @@ data class ActivityRailEntry(
     val badge: Int = 0,
     /** Keep a primary shortcut accented even while another rail item is selected. */
     val accented: Boolean = false,
-    /** What it started runs (docs/loading-plan.md §4.2): the spinner in its icon's place, and no second tap. */
+    /** What it started runs (docs/design-and-navigation.md): the spinner in its icon's place, and no second tap. */
     val busy: Boolean = false,
     /** Its icon's colour where its state gives one (the assistant waiting for you), over the accent's. */
     val tint: Color? = null,

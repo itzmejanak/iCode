@@ -6,8 +6,9 @@ import dev.icode.mobile.domain.LanguageServiceRules
 import org.json.JSONObject
 
 /**
- * Which icon a file or a folder draws with, as VS Code reads an icon theme (docs/file-kinds-icons-plan.md
- * D5) — here Material Icon Theme, shipped as its own data (`assets/file-icons/theme.json`, written by
+ * Which icon a file or a folder draws with, as VS Code reads an icon theme
+ * (docs/workspaces-and-files.md) — here Material Icon Theme, shipped as its own data
+ * (`assets/file-icons/theme.json`, written by
  * `tools/import-file-icons.py`). A file: its path in its folder (`.config/graphqlrc`), its whole name,
  * its extensions from the longest (`d.ts` before `ts`), then its language as [FileTypes] reads it — a name
  * no language claims has none — then the default file. A folder: its path, its name, then the default folder; open, its open icon. On a

@@ -6,12 +6,12 @@ import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.countOf
 
-/** One file Manage storage counted (docs/explorer-gaps-plan.md §3.10). */
+/** One file Manage storage counted (docs/workspaces-and-files.md). */
 data class ScannedFile(
     val location: String,
     val bytes: Long,
     val changedAt: Long,
-    /** What it is: by its name, and by its first bytes where the name could not say (docs/file-kinds-icons-plan.md D3). */
+    /** What it is: by its name, and by its first bytes where the name could not say (docs/workspaces-and-files.md). */
     val type: FileType,
 ) {
     val category: FileCategory = FileCategories.of(type, location.substringAfterLast('/'))
@@ -27,13 +27,13 @@ data class DuplicateGroup(val bytes: Long, val locations: List<String>) {
 }
 
 /**
- * One of Manage storage's views as its scan lists it, while it is shown (§3.10): its [rows] — for
+ * One of Manage storage's views as its scan lists it, while it is shown: its [rows] — for
  * Duplicates, each set's copies, the oldest first, the sets in [groups].
  */
 data class ScannedView(val view: ExplorerView, val rows: List<BrowsedItem>, val groups: List<DuplicateGroup> = emptyList())
 
 /**
- * What Manage storage shows (§3.10): every category's share, Git's history apart, the largest files'
+ * What Manage storage shows: every category's share, Git's history apart, the largest files'
  * and the extra copies' space, and when it was scanned — or, while it scans, how many files it has
  * seen so far.
  */

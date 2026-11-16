@@ -25,7 +25,7 @@ import dev.icode.mobile.domain.files.PasswordAsk
 
 /**
  * What an explorer's operation asks, over whatever screen is open, each a sheet on the one base
- * (docs/explorer-gaps-plan.md §3.6, §3.11): a name already there, which its task waits on, or a 7z's
+ * (docs/workspaces-and-files.md): a name already there, which its task waits on, or a 7z's
  * password. The task's own sheet steps aside while the question is open ([TaskSheets]).
  */
 @Composable
@@ -43,7 +43,7 @@ internal fun FileAsks(explorer: ExplorerState, gateway: ICodeGateway) {
 }
 
 /**
- * A name already there (§3.6): the two side by side, and the answers — Replace, putting the one there
+ * A name already there: the two side by side, and the answers — Replace, putting the one there
  * in Trash, or Merge two folders; Keep both; Skip — the same for the rest when ticked. ✕ stops the
  * operation, which keeps what it did, one step to undo.
  */
@@ -72,7 +72,7 @@ private fun QuestionSheet(question: FileConflict, gateway: ICodeGateway, modifie
     }
 }
 
-/** A 7z locked by a password (§3.11): asked here, sent with Extract and never kept — not even in saved state. */
+/** A 7z locked by a password: asked here, sent with Extract and never kept — not even in saved state. */
 @Composable
 private fun PasswordSheet(ask: PasswordAsk, gateway: ICodeGateway, modifier: Modifier) {
     var password by remember(ask) { mutableStateOf("") }

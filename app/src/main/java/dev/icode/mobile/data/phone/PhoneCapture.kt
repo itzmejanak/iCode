@@ -12,10 +12,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
- * A picture of the screen through accessibility (`takeScreenshot`, Android 11; docs/phone-agent-plan.md
- * §5.2), made small for the model: JPEG, its longest side at most [PhoneShot.MAX_SIDE]. Android allows
- * one every 333 ms and none of a secure window; iCode's own overlays are hidden for it below Android 14,
- * where a capture cannot be taken beneath them (§5.6).
+ * A picture of the screen through accessibility (`takeScreenshot`, Android 11;
+ * docs/voice-and-phone-control.md), made small for the model: JPEG, its longest side at most
+ * [PhoneShot.MAX_SIDE]. Android allows one every 333 ms and none of a secure window; iCode's own
+ * overlays are hidden for it below Android 14, where a capture cannot be taken beneath them.
  */
 internal object PhoneCapture {
     @Volatile private var last = 0L

@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The open workspace's repository (S5): what Git reports about it and the
+ * The open workspace's repository: what Git reports about it and the
  * local changes made to it — staging, commits, branches, diffs and discards.
  * Conflicts, network transfers and credentials have their own owners.
  */
@@ -158,7 +158,7 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun stageAll() = act({ SourceControlNotices.notStaged(null, it) }, { workspace -> git.stageAll(workspace) })
 
-    /** One change of an open file, from the editor's change sheet (docs/editor-plan.md §3.5). */
+    /** One change of an open file, from the editor's change sheet (docs/editor-and-language-services.md). */
     suspend fun stageLineChange(intent: StageLineChange) = act(SourceControlNotices::changeNotStaged, { lineChanges.stage(intent) })
 
     suspend fun unstageAll() = act({ SourceControlNotices.notUnstaged(null, it) }, { workspace -> git.unstageAll(workspace) })
@@ -225,7 +225,7 @@ internal class GitWorkspaceCoordinator(
      * Discards exactly the changes that were confirmed. Git is asked again
      * first: if anything changed since the question was put — in the file, or
      * in the folder — what the user agreed to is no longer what would be lost.
-     * The question stays, its button busy, until it is done (docs/loading-plan.md §4.2).
+     * The question stays, its button busy, until it is done (docs/design-and-navigation.md).
      */
     suspend fun confirmDiscard() {
         val confirmed = stateHolder.current.pendingDiscard ?: return

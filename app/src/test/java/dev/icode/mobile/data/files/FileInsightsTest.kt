@@ -29,7 +29,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** Properties and Manage storage, as the explorers ask for them (docs/explorer-gaps-plan.md §3.9, §3.10). */
+/** Properties and Manage storage, as the explorers ask for them (docs/workspaces-and-files.md). */
 class FileInsightsTest {
     @get:Rule val temp = TemporaryFolder()
 

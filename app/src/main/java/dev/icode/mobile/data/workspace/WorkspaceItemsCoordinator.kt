@@ -14,8 +14,8 @@ import dev.icode.mobile.domain.files.FileWords
 import java.io.File
 
 /**
- * New files and folders (S3), from the Explorer, the editor's tab menu and the file explorer, and an
- * item's rename — in a workspace and on phone storage alike (docs/storage-explorer-plan.md §4). The
+ * New files and folders, from the Explorer, the editor's tab menu and the file explorer, and an
+ * item's rename — in a workspace and on phone storage alike (docs/workspaces-and-files.md). The
  * sheet that asked is answered by request id; each change is kept to undo, and followed by
  * [follower]. A whole workspace is renamed by the [lifecycle]. Everything else an explorer does to
  * its files is the FileOperationsCoordinator's.

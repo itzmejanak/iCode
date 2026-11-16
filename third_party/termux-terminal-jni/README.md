@@ -24,4 +24,4 @@ left out of the APK (`packaging.jniLibs` in `app/build.gradle.kts`).
 `termux-app`'s `LICENSE.md` releases the repository under GPLv3, except the
 `terminal-emulator` and `terminal-view` libraries, which it names as Apache
 License 2.0 (derived from Jackpal's Terminal Emulator for Android). This file is
-part of `terminal-emulator`. See `docs/terminal-maturity-plan.md` §3.
+part of `terminal-emulator`. See `docs/runtime-and-terminal.md`.

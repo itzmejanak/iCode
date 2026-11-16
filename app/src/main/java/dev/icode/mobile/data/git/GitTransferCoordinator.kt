@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Clone, fetch, pull and push (S5): each contacts a network the app does not
+ * Clone, fetch, pull and push: each contacts a network the app does not
  * control, so each shows Git's own progress and reports only what Git returned.
  *
  * One runs at a time, as its own job: the screen that asked may close, and
@@ -155,7 +155,7 @@ internal class GitTransferCoordinator(
     }
 
     /**
-     * Git writes into iCode's staging (docs/workspace-storage-plan.md §4.5), renamed to
+     * Git writes into iCode's staging (docs/workspaces-and-files.md), renamed to
      * [directoryName] only when the clone is whole: a failed or cancelled one leaves nothing, and
      * no half repository is ever listed as a workspace.
      */

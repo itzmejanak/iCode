@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.notices
 
-/** What the iCode website says, and what iCode says of links (docs/notices-redesign-plan.md D8). */
+/** What the iCode website says, and what iCode says of links (docs/engineering-rules.md). */
 object WebNotices {
     /**
      * A notice the website's admin wrote, by its [level]: kept as needing the user whatever its level,

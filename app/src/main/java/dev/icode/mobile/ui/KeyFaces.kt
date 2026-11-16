@@ -22,7 +22,7 @@ import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.TerminalExtraKey
 
 /**
- * A key of the editor's keys row (docs/icons-plan.md §3): an editing key as its icon, spoken by its
+ * A key of the editor's keys row (docs/design-and-navigation.md): an editing key as its icon, spoken by its
  * name; a symbol as what it types.
  */
 @Composable

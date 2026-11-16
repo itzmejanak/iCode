@@ -5,10 +5,10 @@ import java.io.File
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * What runs in the runtime on the user's behalf beyond a terminal (docs/runtime-foundation-plan.md
- * §3): the login environment it starts with, the managed processes that outlive the command that
+ * What runs in the runtime on the user's behalf beyond a terminal (docs/runtime-and-terminal.md):
+ * the login environment it starts with, the managed processes that outlive the command that
  * started them, and gpg's agent, which outlives the command that needed it
- * (docs/gpg-signing-plan.md). One per process, as iCode's backend is.
+ * (docs/source-control.md). One per process, as iCode's backend is.
  */
 internal class RuntimeExecution(val layout: RuntimeLayout, scope: CoroutineScope, stateHolder: ICodeStateHolder) {
     val rootfs: File = layout.rootfs

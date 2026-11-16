@@ -53,8 +53,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 /**
- * What the floating stack — the undo pill above the bell — stands clear of (docs/explorer-gaps-plan.md
- * §3.8): the top edges of the + buttons and foot bars on screen, each reported by the design system's
+ * What the floating stack — the undo pill above the bell — stands clear of
+ * (docs/workspaces-and-files.md): the top edges of the + buttons and foot bars on screen, each reported
+ * by the design system's
  * own ([floor]), so no screen wires it; and the sheets open over the screen, which it is hidden under.
  */
 @Stable
@@ -123,7 +124,7 @@ internal class SheetMark(private val floors: IcodeFloors) : RememberObserver {
 }
 
 /**
- * The floating stack (§3.8): [pills] — the undo pill above the bell, the tool dock below them — at
+ * The floating stack: [pills] — the undo pill above the bell, the tool dock below them — at
  * the bottom end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; hidden while
  * a sheet is open or the stack is not [visible] ([IcodeFloors.hidesStack]). Hidden, the pills stay
  * composed, so each keeps what it holds: at rest or awake, the dock open, where it stands. They are

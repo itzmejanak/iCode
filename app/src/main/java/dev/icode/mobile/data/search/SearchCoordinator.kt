@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/** Search (S4): cancellable ripgrep content search and Quick Open indexing. */
+/** Cancellable ripgrep content search and Quick Open indexing. */
 internal class SearchCoordinator(
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,

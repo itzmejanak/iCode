@@ -4,7 +4,7 @@ import dev.icode.mobile.data.storage.PhoneStorage
 import java.io.File
 
 /**
- * iCode's two places (docs/storage-explorer-plan.md §4): Private, its workspaces, and Shared, phone
+ * iCode's two places (docs/workspaces-and-files.md): Private, its workspaces, and Shared, phone
  * storage — the files of each, and which one a location is in.
  */
 internal class FilePlaces(val workspaces: File, val storage: PhoneStorage) {
