@@ -76,7 +76,11 @@ jobs:
           badging=$("$tools/aapt2" dump badging "$unsigned")
           name=$(echo "$badging" | sed -nE "s/^package: .* versionName='([^']+)'.*/\1/p")
           code=$(echo "$badging" | sed -nE "s/^package: .* versionCode='([0-9]+)'.*/\1/p")
-          min=$(echo "$badging" | sed -nE "s/^sdkVersion:'([0-9]+)'.*/\1/p")
+          min=$(echo "$badging" | sed -nE "s/^minSdkVersion:'([0-9]+)'.*/\1/p")
+          # Stop before anything is published: the website step needs all three.
+          if [ -z "$name" ] || [ -z "$code" ] || [ -z "$min" ]; then
+            echo "::error::Could not read versionName, versionCode or minSdk from $unsigned"; exit 1
+          fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           out="iCode-$name-arm64-v8a.apk"
           "$tools/zipalign" -p -f 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
