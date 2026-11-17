@@ -33,6 +33,9 @@ object AssistantNotices {
 
     fun terminalNotOpened(words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't open the chat's terminal", output = words)
 
+    /** The transcript could not be written for the share sheet: why, by its kind only (a chat never reaches a notice's detail). */
+    fun notShared(why: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't share the chat", output = why)
+
     fun noPictures(model: String) = Notice(
         NoticeTone.HeadsUp, NoticeSource.Assistant, "$model doesn't see pictures",
         detail = "It goes on with the screen's text, and is set to read no images from now on.",

@@ -58,6 +58,8 @@ internal class AssistantCoordinator(
     private val forget: suspend (workspace: String?, chat: String) -> Unit = { _, _ -> },
     /** A chat's own terminal tab, opened if it has none ([AssistantToolbox.openTab]); throws with why it cannot be. */
     private val openTab: suspend (workspace: String?, chat: String) -> String = { _, _ -> error("No terminal") },
+    /** Where a shared chat's transcript is written for the share sheet: in the cache, only the latest kept. */
+    private val shares: File = File(System.getProperty("java.io.tmpdir"), "assistant-share"),
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
@@ -233,7 +235,20 @@ internal class AssistantCoordinator(
         val title = listed?.title ?: AssistantRules.sessionTitle(
             chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty(),
         )
-        scope.launch { stateHolder.emit(ICodeEffect.ShareChat(title, AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantPlace.name(workspace), chat.messages))) }
+        val text = AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantPlace.name(workspace), chat.messages)
+        scope.launch {
+            // Whole, as a file: a share's text has a size limit, a file has none (docs/assistant-and-mcp.md).
+            runCatching { written(title, text) }
+                .onSuccess { stateHolder.emit(ICodeEffect.ShareChat(title, it.path)) }
+                .onFailure { page.tell(AssistantNotices.notShared(it.javaClass.simpleName)) }
+        }
+    }
+
+    /** [text] as the one file in [shares], named by [title]. */
+    private fun written(title: String, text: String): File {
+        shares.deleteRecursively()
+        shares.mkdirs()
+        return File(shares, AssistantExports.fileName(title)).apply { writeText(text) }
     }
 
     companion object {
@@ -267,6 +282,7 @@ internal class AssistantCoordinator(
             mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot),
             forget = toolbox::forget,
             openTab = toolbox::openTab,
+            shares = File(context.applicationContext.cacheDir, "assistant-share"),
         )
     }
 }

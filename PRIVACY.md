@@ -22,7 +22,7 @@ Assistant chats are stored locally per workspace, with a separate area for chats
 - bounded tool results, including file content and terminal, Git, language-server, MCP, or build output returned to the chat; and
 - text attachments in chat data plus local copies of attached images and PDFs.
 
-The app keeps up to 400 messages for a chat and bounds each stored tool-result output to 48,000 characters. Deleting a chat removes its retained attachment directory. Deleting a workspace removes chats associated with that workspace.
+The app keeps every message of a chat and each stored tool-result output in full. Sharing a chat writes its whole transcript to a file in the app's cache for the app you share it with; only the latest one is kept. Deleting a chat removes its retained attachment directory. Deleting a workspace removes chats associated with that workspace.
 
 When a model request is made, the provider can receive the active retained context, including earlier messages and tool traffic needed for the turn. Compacted history can be represented by a summary. Do not attach or expose data you do not want that provider to process.
 

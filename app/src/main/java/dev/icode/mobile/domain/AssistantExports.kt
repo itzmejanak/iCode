@@ -3,13 +3,10 @@ package dev.icode.mobile.domain
 /**
  * A chat as it is shared: the transcript a session is shared by, mirroring the
  * page itself — what was said, what the assistant answered, and each step with what it did and the
- * output that followed. Text only, bounded: a chat holds a command's whole output, and a share
- * intent carries a limited amount.
+ * output that followed. Markdown, whole: it is shared as a file, so nothing is cut off
+ * (docs/assistant-and-mcp.md).
  */
 object AssistantExports {
-    /** A share intent's bound; above it, the transcript ends with what was cut off. */
-    const val MAX_CHARS = 100_000
-
     /** A session's transcript, as the page shows it: said, thinking, answered, each step and the compaction its read starts at. */
     fun transcript(session: AssistantSession, workspace: String, messages: List<AssistantMessage>): String {
         val builder = StringBuilder()
@@ -25,8 +22,18 @@ object AssistantExports {
                 is AssistantMessage.Compacted -> compacted(builder, message)
             }
         }
-        return bounded(builder.toString())
+        return builder.toString()
     }
+
+    /** The file a transcript is shared as: its title, made safe for a file name, as Markdown. */
+    fun fileName(title: String): String {
+        val safe = title.map { if (it.isISOControl() || it in UNSAFE) ' ' else it }.joinToString("").replace(Regex("\\s+"), " ").trim().take(MAX_NAME)
+        return safe.ifEmpty { "Chat" } + ".md"
+    }
+
+    /** Characters a file name cannot hold on the phones and computers a share reaches. */
+    private const val UNSAFE = "/\\:*?\"<>|"
+    private const val MAX_NAME = 80
 
     private fun user(out: StringBuilder, message: AssistantMessage.User) {
         out.appendLine("## You")
@@ -86,12 +93,6 @@ object AssistantExports {
 
     /** A tool's output, trimmed around: a trailing blank line is its printing, not its words. */
     private fun trimmed(output: String): String = output.trim('\n')
-
-    /** Beyond a share's bound: keep the head, say what was left out. */
-    private fun bounded(text: String): String = when {
-        text.length <= MAX_CHARS -> text
-        else -> text.take(MAX_CHARS).trimEnd() + "\n\n…cut off here: the chat continues past the first $MAX_CHARS characters."
-    }
 
     /** The results of the reply at [index]: those right after it, matched there as the page does. */
     private fun resultsOf(messages: List<AssistantMessage>, index: Int): List<AssistantResult> =

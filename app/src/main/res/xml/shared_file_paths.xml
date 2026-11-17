@@ -3,6 +3,8 @@
 <paths>
     <!-- The assistant's camera folder in the cache, for a capture. -->
     <cache-path name="camera" path="assistant-camera/" />
+    <!-- A shared chat's transcript, written for the share sheet. -->
+    <cache-path name="chats" path="assistant-share/" />
     <!-- The workspaces' files, to Open with or Share. -->
     <files-path name="workspaces" path="workspaces/" />
     <!-- Phone storage's files, to Open with or Share. -->

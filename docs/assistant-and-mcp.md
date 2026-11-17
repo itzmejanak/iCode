@@ -61,7 +61,9 @@ Chats are stored as app-private files. iCode writes each chat through a temporar
 
 Local chat files are **app-private, but their contents are not separately encrypted**. Provider keys, MCP secrets, and MCP sign-in material have separate Keystore-backed encryption; ordinary chat text does not.
 
-Persistent history is bounded. iCode keeps at most the newest 400 messages, starting at a user message, and bounds a stored tool result to 48,000 characters. A live in-memory chat can temporarily be longer before it is saved or reloaded.
+A chat keeps every message and every tool result in full, however long it grows. Each chat file holds one message a line: a change appends what is new and cuts back only what changed at its end, so a long chat is never written again, and a line half written when the process was killed is dropped when the chat is read. Only a model request is trimmed: it carries at most the newest 400 messages after the last compaction, starting at a user message. Chats an earlier build saved are read and kept in the new form from their next change.
+
+Sharing a chat writes its whole transcript, as Markdown, to a file in iCode's cache and hands that file to Android's share sheet, so nothing is cut off. Only the latest shared transcript stays in the cache.
 
 ### What the model receives
 

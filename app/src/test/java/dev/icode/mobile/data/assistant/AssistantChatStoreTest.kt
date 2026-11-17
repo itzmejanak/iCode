@@ -74,19 +74,52 @@ class AssistantChatStoreTest {
         assertEquals(AssistantRules.STOPPED, (loaded[2] as AssistantMessage.Results).results.single().output)
     }
 
-    @Test fun `it keeps its newest messages, starting at something the user said, each output bounded`() {
-        val long = (1..300).flatMap { listOf(AssistantMessage.User("q$it"), AssistantMessage.Reply("a$it")) }
-        // A command's output as its tool bounds it — 32 000 characters and its stderr — is kept whole.
-        val whole = "x".repeat(41_000)
-        val output = AssistantMessage.Results(listOf(AssistantResult("c", "run_command", whole, failed = false), AssistantResult("d", "read_file", "y".repeat(90_000), failed = false)))
-        val calls = listOf(call.copy(id = "c"), call.copy(id = "d"))
-        store.save("/w/app", "s1", AssistantChat(long + AssistantMessage.Reply("", calls) + output), now = 1)
-        val loaded = store.load("/w/app", "s1").messages
-        assertTrue(loaded.size <= 400)
-        assertTrue(loaded.first() is AssistantMessage.User)
-        val results = (loaded.last() as AssistantMessage.Results).results
-        assertEquals(whole, results[0].output)
-        assertTrue(results[1].output.length < 49_000)
+    @Test fun `every message and every output is kept in full, however long`() {
+        val long = (1..400).flatMap { listOf(AssistantMessage.User("q$it"), AssistantMessage.Reply("a$it")) }
+        val output = AssistantMessage.Results(listOf(AssistantResult("c", "run_command", "x".repeat(90_000), failed = false)))
+        val saved = AssistantChat(long + AssistantMessage.Reply("", listOf(call.copy(id = "c"))) + output)
+        store.save("/w/app", "s1", saved, now = 1)
+        assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
+    }
+
+    @Test fun `a change at the end is appended, and what came before is not written again`() {
+        val file = File(folder, Sha256.hex("/w/app") + "/s1.jsonl")
+        store.save("/w/app", "s1", chat, now = 1)
+        val before = file.readBytes()
+        val answered = chat.copy(messages = chat.messages + AssistantMessage.User("Next") + AssistantMessage.Reply("", listOf(call)))
+        store.save("/w/app", "s1", answered, now = 2)
+        assertTrue(file.readBytes().take(before.size) == before.toList())
+        // A result joins its reply's results, the last line written again; a message taken back is cut off.
+        val withResult = answered.copy(messages = answered.messages + AssistantMessage.Results(listOf(AssistantResult("call_1", "edit_file", "Edited a.kt", failed = false))))
+        store.save("/w/app", "s1", withResult, now = 3)
+        store.save("/w/app", "s1", withResult.copy(messages = withResult.messages.dropLast(3)), now = 4)
+        assertEquals(chat, AssistantChatStore(folder).load("/w/app", "s1"))
+        assertEquals(before.toList(), file.readBytes().toList())
+    }
+
+    @Test fun `a line a killed process left half written is dropped, and the next save writes the chat whole again`() {
+        val file = File(folder, Sha256.hex("/w/app") + "/s1.jsonl")
+        store.save("/w/app", "s1", chat, now = 1)
+        file.appendText("""{"role":"reply","text":"half""")
+        val fresh = AssistantChatStore(folder)
+        assertEquals(chat, fresh.load("/w/app", "s1"))
+        fresh.save("/w/app", "s1", chat.copy(messages = chat.messages + AssistantMessage.User("After")), now = 2)
+        assertEquals(chat.messages + AssistantMessage.User("After"), AssistantChatStore(folder).load("/w/app", "s1").messages)
+        assertTrue(file.readText().endsWith("\n"))
+    }
+
+    @Test fun `a chat an earlier build kept whole is read, and kept in lines from its next save`() {
+        val workspace = File(folder, Sha256.hex("/w/app")).apply { mkdirs() }
+        File(workspace, "s1.json").writeText(
+            """{"id":"s1","title":"Old","updatedAt":5,"messages":[{"role":"user","text":"Hi","attachments":[]},{"role":"reply","text":"Hello","calls":[]}]}""",
+        )
+        assertEquals(listOf(AssistantSession("s1", "Old", 5)), store.sessions("/w/app"))
+        val old = store.load("/w/app", "s1")
+        assertEquals(listOf(AssistantMessage.User("Hi"), AssistantMessage.Reply("Hello")), old.messages)
+        store.save("/w/app", "s1", old.copy(messages = old.messages + AssistantMessage.User("Again")), now = 6)
+        assertTrue(!File(workspace, "s1.json").exists())
+        assertEquals(old.messages + AssistantMessage.User("Again"), AssistantChatStore(folder).load("/w/app", "s1").messages)
+        assertEquals("Old", store.sessions("/w/app").single().title)
     }
 
     @Test fun `a call keeps the file and the command it names, and a change by how many lines`() {
@@ -129,6 +162,9 @@ class AssistantChatStoreTest {
     @Test fun `a list that cannot be read is made again from the chats`() {
         store.save("/w/app", "s1", chat, now = 1_000)
         store.save("/w/app", "s2", chat, now = 2_000)
+        // Made again, a chat's time is when its file last changed.
+        File(folder, Sha256.hex("/w/app") + "/s1.jsonl").setLastModified(1_000_000)
+        File(folder, Sha256.hex("/w/app") + "/s2.jsonl").setLastModified(2_000_000)
         File(folder, Sha256.hex("/w/app") + "/index.json").writeText("[{")
         assertEquals(listOf("s2", "s1"), store.sessions("/w/app").map { it.id })
         assertEquals(2, JSONArray(File(folder, Sha256.hex("/w/app") + "/index.json").readText()).length())
@@ -136,8 +172,8 @@ class AssistantChatStoreTest {
 
     @Test fun `a chat that cannot be read starts again, and nothing of it reaches the log`() {
         store.save("/w/app", "s1", chat, now = 1)
-        File(folder, Sha256.hex("/w/app") + "/s1.json").writeText("""{"messages":[{"role":"user","text":"secret-token-123"}, {"role":"x""")
-        assertEquals(AssistantChat(), store.load("/w/app", "s1"))
+        File(folder, Sha256.hex("/w/app") + "/s1.jsonl").writeText("""{"id":"s1","title":"t"}""" + "\n" + """{"role":"x","text":"secret-token-123"}""" + "\n")
+        assertEquals(emptyList<AssistantMessage>(), AssistantChatStore(folder).load("/w/app", "s1").messages)
         assertTrue(logged.single().startsWith("Unable to read a chat"))
         assertTrue(logged.none { "secret" in it })
     }

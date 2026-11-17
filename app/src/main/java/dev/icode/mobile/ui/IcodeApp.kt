@@ -217,11 +217,7 @@ fun IcodeApp(
                     }
                     is ICodeEffect.Told -> notices.arrived(effect.notice, pageOpen = navigation.current == Route.Notifications)
                     // A chat shared as its transcript: Android's share sheet, as the terminal's output is.
-                    is ICodeEffect.ShareChat -> {
-                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                            .putExtra(Intent.EXTRA_TEXT, effect.text)
-                        context.startActivity(Intent.createChooser(send, "Share ${effect.title}"))
-                    }
+                    is ICodeEffect.ShareChat -> SharedFiles.share(context, listOf(effect.location), gateway::dispatch)
                     is ICodeEffect.ViewFile -> fileViewer.show(effect.location, File(effect.location).name, effect.viewer)
                     is ICodeEffect.OpenInOtherApp -> SharedFiles.open(context, effect.location, gateway::dispatch)
                     is ICodeEffect.OpenExternalUrl -> {

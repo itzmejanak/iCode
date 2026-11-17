@@ -113,13 +113,22 @@ object AssistantRules {
         }
     }
 
-    /** What the model is sent of [messages]: from the last compaction on, its summary in front, every call answered. */
+    /**
+     * What the model is sent of [messages]: from the last compaction on, its summary in front, every
+     * call answered, and at most the newest [MODEL_MESSAGES] from something the user said. The chat
+     * itself keeps every message (docs/assistant-and-mcp.md); only a request is trimmed to fit.
+     */
     fun forModel(messages: List<AssistantMessage>): AssistantHistory {
         val closed = closed(messages)
         val last = closed.indexOfLast { it is AssistantMessage.Compacted }
-        if (last < 0) return AssistantHistory(null, closed)
-        return AssistantHistory((closed[last] as AssistantMessage.Compacted).summary, closed.drop(last + 1))
+        val summary = (closed.getOrNull(last) as? AssistantMessage.Compacted)?.summary
+        val since = closed.drop(last + 1)
+        val recent = if (since.size <= MODEL_MESSAGES) since else since.takeLast(MODEL_MESSAGES).dropWhile { it !is AssistantMessage.User }
+        return AssistantHistory(summary, recent)
     }
+
+    /** The most messages one request sends after its compaction: a chat longer than this is sent its newest. */
+    const val MODEL_MESSAGES = 400
 
     /** How full the context is, 0..1; null when the window is unknown or nothing was sent yet. */
     fun contextShare(tokens: Long?, window: Long?): Float? =

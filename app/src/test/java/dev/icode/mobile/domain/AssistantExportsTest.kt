@@ -62,19 +62,17 @@ class AssistantExportsTest {
         assertTrue("> **Compacted:** Summary of 4" in text)
     }
 
-    @Test fun `a chat beyond a share's bound keeps its head and says what was cut off`() {
-        val session = AssistantSession("s-1", "Long", 123L)
-        val text = AssistantExports.transcript(
-            session,
-            "app",
-            listOf(
-                AssistantMessage.User("Start"),
-                AssistantMessage.Reply("x".repeat(AssistantExports.MAX_CHARS + 10)),
-            ),
-        )
-        assertTrue(text.length <= AssistantExports.MAX_CHARS + 80)
-        assertTrue(text.endsWith("…cut off here: the chat continues past the first ${AssistantExports.MAX_CHARS} characters."))
-        assertTrue(!("x".repeat(AssistantExports.MAX_CHARS + 10) in text))
+    @Test fun `a long chat is shared whole, nothing cut off`() {
+        val long = "x".repeat(250_000)
+        val text = AssistantExports.transcript(AssistantSession("s-1", "Long", 123L), "app", listOf(AssistantMessage.User("Start"), AssistantMessage.Reply(long)))
+        assertTrue(long in text)
+    }
+
+    @Test fun `a transcript's file is named by its chat, safe for any phone or computer`() {
+        assertEquals("Fix the login test.md", AssistantExports.fileName("Fix the login test"))
+        assertEquals("a b c d.md", AssistantExports.fileName("a/b\\c:d"))
+        assertEquals("Chat.md", AssistantExports.fileName(" \n "))
+        assertEquals(83, AssistantExports.fileName("y".repeat(200)).length)
     }
 
     @Test fun `an empty chat is only its heading`() {

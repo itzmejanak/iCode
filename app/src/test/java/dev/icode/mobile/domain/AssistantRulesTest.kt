@@ -97,6 +97,15 @@ class AssistantRulesTest {
         assertEquals(3, never.messages.size)
     }
 
+    @Test fun `a long chat sends the model its newest messages, from something the user said, and the chat keeps all`() {
+        val long = (1..300).flatMap { listOf(AssistantMessage.User("q$it"), AssistantMessage.Reply("a$it")) }
+        val sent = AssistantRules.forModel(long).messages
+        assertTrue(sent.size <= AssistantRules.MODEL_MESSAGES)
+        assertEquals(AssistantMessage.User("q101"), sent.first())
+        assertEquals(long.last(), sent.last())
+        assertEquals(long.takeLast(10), AssistantRules.forModel(long.takeLast(10)).messages)
+    }
+
     @Test fun `the meter is the last request's share of the window, when both are known`() {
         assertEquals(0.5f, AssistantRules.contextShare(100_000, 200_000))
         assertEquals(1f, AssistantRules.contextShare(300_000, 200_000))

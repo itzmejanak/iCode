@@ -8,6 +8,13 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+- Chats keep every message and every command's output in full, however long they grow. A long
+  chat saves only what is new instead of writing the whole chat again, and a model request still
+  sends at most the newest 400 messages after the last compaction.
+- Sharing a chat sends its whole transcript as a Markdown file instead of text cut off at 100,000
+  characters.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

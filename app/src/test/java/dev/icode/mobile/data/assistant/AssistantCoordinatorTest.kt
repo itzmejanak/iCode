@@ -146,6 +146,7 @@ class AssistantCoordinatorTest {
                 opened += workspace to chat
                 tabRefusal?.let { throw TerminalRuns.Refused(it) } ?: "session-1"
             },
+            shares = File(temp.root, "shares"),
         )
     }
     private val forgotten = CopyOnWriteArrayList<Pair<String?, String>>()
@@ -605,9 +606,13 @@ class AssistantCoordinatorTest {
         until { effects.any { it is ICodeEffect.ShareChat } }
         val effect = effects.filterIsInstance<ICodeEffect.ShareChat>().last()
         assertEquals("Rename x", effect.title)
-        assertTrue("## Assistant" in effect.text)
-        assertTrue("Re: Rename x" in effect.text)
-        assertTrue("Worked in app" in effect.text)
+        // Shared as a file, whole: named by the chat, only the latest kept.
+        val file = File(effect.location)
+        assertEquals(File(temp.root, "shares/Rename x.md"), file)
+        val text = file.readText()
+        assertTrue("## Assistant" in text)
+        assertTrue("Re: Rename x" in text)
+        assertTrue("Worked in app" in text)
     }
 
     @Test fun `a chat with nothing in it is not shared`() {
@@ -625,7 +630,7 @@ class AssistantCoordinatorTest {
         until { state().turn == null && state().messages.lastOrNull() is AssistantMessage.Reply }
         coordinator.handle(ICodeIntent.ExportAssistantSession(state().session!!))
         until { effects.any { it is ICodeEffect.ShareChat } }
-        val text = effects.filterIsInstance<ICodeEffect.ShareChat>().last().text
+        val text = File(effects.filterIsInstance<ICodeEffect.ShareChat>().last().location).readText()
         assertTrue("### Edit a.kt" in text)
         assertTrue("+2 −1" in text)
         assertTrue("ok" in text)

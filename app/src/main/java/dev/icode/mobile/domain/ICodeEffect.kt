@@ -29,8 +29,8 @@ sealed interface ICodeEffect {
     /** What iCode tells the user: the bell, the Notifications page and Android's shade take it (docs/engineering-rules.md). */
     data class Told(val notice: Notice) : ICodeEffect
 
-    /** A chat was exported: its transcript, to be shared as text. */
-    data class ShareChat(val title: String, val text: String) : ICodeEffect
+    /** A chat was exported: its whole transcript, written to [location], to be shared as a file. */
+    data class ShareChat(val title: String, val location: String) : ICodeEffect
 
     /** A file asked to open that has a viewer of its own, shown in it (docs/workspaces-and-files.md). */
     data class ViewFile(val location: String, val viewer: FileViewer) : ICodeEffect
