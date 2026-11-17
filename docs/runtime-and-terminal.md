@@ -38,7 +38,7 @@ PRoot and its loader ship as extracted native libraries under Android's executab
 - pinned archives downloaded by tool-specific setup code, each with a digest and optional byte count;
 - expected download sizes for packages fetched by another installer, such as sdkmanager.
 
-The manifest is not an inventory of every installed file. Runtime installation reads the rootfs descriptor, while Android SDK, CMake, NDK, Node.js, and uv setup code reads its own named archive pins. The installer rejects a device whose supported ABI list does not contain the manifest architecture.
+The manifest is not an inventory of every installed file. Runtime installation reads the rootfs descriptor, while Android SDK, CMake, NDK, Node.js, and uv setup code reads its own named archive pins. Coding agents are pinned outside the manifest, in `assets/agents/registry.json`. The installer rejects a device whose supported ABI list does not contain the manifest architecture.
 
 A valid website-published manifest can override the bundled manifest when it uses the same schema and architecture. The last valid website copy remains cached when the website is unreachable, returns malformed content, or supplies an unusable schema or architecture. An explicit “not published” response clears the website cache and returns selection to the bundled manifest. Refreshing the manifest does not reinstall anything; the selected manifest applies to the next runtime installation or Runtime Tool download.
 
@@ -155,7 +155,8 @@ iCode has no artificial managed-process count cap. Android remains the external 
 Runtime Tools is the supported UI for optional guest tooling. The current catalog includes:
 
 - Standard: Git, OpenSSH client, and ripgrep;
-- optional: GnuPG, Android SDK, CMake 3.22.1, NDK 28.2.13676358, NDK 27.0.12077973, Node.js, uv, curl, Python 3, and native build tools.
+- optional: GnuPG, Android SDK, CMake 3.22.1, NDK 28.2.13676358, NDK 27.0.12077973, Node.js, uv, curl, Python 3, and native build tools;
+- coding agents, in their own section: Claude Agent, Codex, Gemini CLI, OpenCode, Cline, and Factory Droid, each installed into `~/.local/share/icode/agents/<id>` from the source `assets/agents/registry.json` pins — a binary by SHA-256, or an npm package at an exact version, which requires Node.js. Their download sizes are not pinned, so the page says "Size unknown" ([Assistant and MCP](assistant-and-mcp.md#external-coding-agents-acp)).
 
 A feature names a catalog tool rather than duplicating package names or paths. A tool counts as installed when dpkg contains all of its packages and, where it has a custom setup, the setup receipt matches this build's current pins. Receipts live under `/root/.icode/runtime-tools`, so Repair preserves them; a changed pin makes the prior setup no longer current.
 

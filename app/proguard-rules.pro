@@ -21,6 +21,10 @@
 # serializers found at run time. Kept whole, as Koog is, until a release build is checked.
 -keep class io.modelcontextprotocol.** { *; }
 
+# The Agent Client Protocol SDK (docs/assistant-and-mcp.md): the same, for the same reason — kotlinx.serialization
+# protocol types with custom and polymorphic serializers. Kept whole, as the MCP SDK is, until a release build is checked.
+-keep class com.agentclientprotocol.** { *; }
+
 # Shizuku starts iCode's shell service by its class name, with either constructor
 # (docs/voice-and-phone-control.md); its tag, not its name, identifies it after R8.
 -keep class dev.icode.mobile.data.phone.shizuku.ShellUserService { <init>(...); }

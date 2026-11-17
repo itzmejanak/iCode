@@ -60,9 +60,13 @@ object RuntimeToolTree {
     /** [catalog] as the page lists it: by section, each tool beneath the one it is [RuntimeTool.within], in the catalog's order. */
     fun sections(catalog: List<RuntimeTool> = RuntimeTools.all): List<RuntimeToolSection> {
         val roots = Builder(catalog).nodes(within = null, above = Above())
-        return listOf("Used by iCode" to true, "More tools" to false)
-            .map { (title, own) -> RuntimeToolSection(title, roots.filter { (it.usedBy != null) == own }) }
-            .filter { it.nodes.isNotEmpty() }
+        // The coding agents the Assistant's chats can be answered by have a section of their own (docs/assistant-and-mcp.md).
+        val agent = { node: RuntimeToolNode -> node is RuntimeToolNode.Tool && CodingAgents.ofTool(node.tool.id) != null }
+        return listOf(
+            RuntimeToolSection("Used by iCode", roots.filter { it.usedBy != null && !agent(it) }),
+            RuntimeToolSection("Coding agents", roots.filter(agent)),
+            RuntimeToolSection("More tools", roots.filter { it.usedBy == null }),
+        ).filter { it.nodes.isNotEmpty() }
     }
 
     fun tick(node: RuntimeToolNode, choice: Set<String>): RuntimeToolTick = when (node) {

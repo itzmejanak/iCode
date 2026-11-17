@@ -28,7 +28,7 @@
 
 iCode is a phone-first Kotlin and Jetpack Compose development environment for ARM64 Android devices. Supported tablets currently use the same single-surface phone shell at every width; adaptive tablet and landscape layouts remain [roadmap work](docs/roadmap.md#adaptive-tablet-landscape-foldable-and-multi-window-shell). iCode keeps workspaces in the app's private storage, exposes them through Android's system document provider, and gives the editor, Git, search, terminal, language servers, and assistant one consistent view of those files.
 
-iCode is local-first: workspace editing, local Git operations, search, and terminal execution do not require an iCode account or hosted workspace. Features that inherently use a network do send data outside the device. These include configured Git remotes, AI and speech providers, remote MCP servers, runtime and tool downloads, updates, reports, and opt-in device facts. See [Privacy](PRIVACY.md) for the exact boundaries.
+iCode is local-first: workspace editing, local Git operations, search, and terminal execution do not require an iCode account or hosted workspace. Features that inherently use a network do send data outside the device. These include configured Git remotes, AI and speech providers, coding agents you install, remote MCP servers, runtime and tool downloads, updates, reports, and opt-in device facts. See [Privacy](PRIVACY.md) for the exact boundaries.
 
 ## Current capabilities
 
@@ -38,7 +38,7 @@ iCode is local-first: workspace editing, local Git operations, search, and termi
 - **Linux and terminal:** an Ubuntu 24.04.5 ARM64 userspace runs under PRoot without root access. The Termux-based terminal retains sessions across navigation and activity recreation while iCode's Android process remains alive; process death ends them. Users can install compatible ARM64 Linux tools. PRoot is a compatibility layer, not a virtual machine or security boundary.
 - **Android development:** optional runtime tools can install the JDK, Android SDK, NDK, CMake, and Ninja needed to build projects. Build and Run uses a project's Gradle wrapper and hands APK installation to Android's package installer.
 - **Git:** status, diffs, staging, commits, branches, history, conflicts, fetch, pull, push, SSH and HTTPS authentication, and GPG commit signing.
-- **Assistant:** a bring-your-own-provider coding assistant with workspace tools, approval modes, local chat history, attachments, MCP servers, and terminal and language-service integration.
+- **Assistant:** a bring-your-own-provider coding assistant with workspace tools, approval modes, local chat history, attachments, MCP servers, and terminal and language-service integration; or, in the same page, an external coding agent — Claude Code, Codex, Gemini CLI, OpenCode, Cline, or Factory Droid — through the Agent Client Protocol.
 - **Optional phone and voice features:** phone control uses Android accessibility and, when authorized, Shizuku. Speech recognition and synthesis can use Android services or a configured provider.
 - **Interface:** dark, light, and AMOLED themes, theme variants, selectable accents, workspace tool navigation, and background-work notifications.
 

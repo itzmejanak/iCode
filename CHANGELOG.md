@@ -8,6 +8,10 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- External coding agents in the Assistant through the Agent Client Protocol: Claude Code, Codex, Gemini CLI, OpenCode, Cline, and Factory Droid, installed as runtime tools from pinned sources and chosen in the chat's model sheet. Their chats keep the Assistant's page, approvals with each agent's own options, questions, a plan row, the agent's settings as composer chips and its slash commands under "/", sign-in, the user's MCP servers, and the agent's own CLI in the chat's terminal tab.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

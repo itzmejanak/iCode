@@ -37,6 +37,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LocalCodeTextScale
 import dev.icode.mobile.designsystem.PrimaryButton
+import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantEntry
@@ -170,7 +171,7 @@ private fun AnswerAction(icon: ImageVector, label: String, clickLabel: String, o
 
 /** No provider yet: what the assistant does, what it needs, and that what it reads is sent. */
 @Composable
-internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
+internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit, onAgents: (() -> Unit)? = null) {
     IcodePageColumn(modifier) {
         EmptyState(
             title = "Set up the assistant",
@@ -185,6 +186,8 @@ internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
                 style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
             )
             PrimaryButton("Set Up Assistant", onSetUp, Modifier.fillMaxWidth())
+            // Or another vendor's coding agent, which brings its own models (docs/assistant-and-mcp.md).
+            onAgents?.let { SecondaryButton("Use a Coding Agent", it, Modifier.fillMaxWidth()) }
         }
     }
 }

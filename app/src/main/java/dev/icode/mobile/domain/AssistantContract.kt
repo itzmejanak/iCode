@@ -177,8 +177,8 @@ data class AssistantApproval(
     /** The text a change writes, coloured on its page as its file is (docs/editor-and-language-services.md). */ val code: List<AssistantCode> = emptyList(),
     /** What it reaches outside the chat's workspace; null when it asks as a change or a command only. */
     val reach: AssistantReach? = null,
-    /** Asked each time, in every mode (docs/assistant-and-mcp.md): no "Allow in". */
-    val always: Boolean = false,
+    /** Asked each time, in every mode (docs/assistant-and-mcp.md): no "Allow in". */ val always: Boolean = false,
+    /** A coding agent's own answers, in its order; empty for the built-in assistant's Deny, Allow in and Allow. */ val choices: List<AssistantApprovalChoice> = emptyList(),
 )
 
 /**
@@ -227,7 +227,7 @@ data class AssistantLive(val reasoning: String, val text: String)
 data class AssistantTurnEnd(val workspace: String?, val number: Int, val changedFiles: Boolean)
 
 /** One chat of a workspace, as its history lists it. */
-data class AssistantSession(val id: String, val title: String, val updatedAt: Long)
+data class AssistantSession(val id: String, val title: String, val updatedAt: Long, /** The coding agent answering it; null for the built-in assistant. */ val agent: String? = null)
 
 /** The assistant as the screens show it. */
 data class AssistantState(

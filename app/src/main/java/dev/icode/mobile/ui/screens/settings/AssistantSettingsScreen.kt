@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -43,13 +44,14 @@ import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.AssistantProvider
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant: its pages — Providers, MCP Servers, Voice, Phone Control — as Settings lists its categories
+ * Settings › Assistant: its pages — Providers, Coding Agents, MCP Servers, Voice, Phone Control — as Settings lists its categories
  * (owner's request, 2026-11-03). The chat's model, mode, effort and permissions are chosen on the chat page.
  */
 @Composable
@@ -75,6 +77,15 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                     if (settings.providers.isEmpty()) AccessState("NONE", allowed = false)
                     Chevron()
                 }
+                SettingRow(
+                    "Coding Agents",
+                    Modifier.fillMaxWidth(),
+                    subtitle = snapshot.agents.agents.count { agent -> RuntimeTools.byId(agent.tool)?.let(snapshot.runtimeTools::isInstalled) == true }.let { count ->
+                        if (count == 0) "Claude Code, Codex, Gemini CLI and more" else "$count installed" + (snapshot.agents.chosenAgent?.let { " · ${it.name} for new chats" } ?: "")
+                    },
+                    leadingIcon = Icons.Outlined.SmartToy,
+                    onClick = { actions.navigate(Route.CodingAgents) },
+                ) { Chevron() }
                 SettingRow(
                     "MCP Servers",
                     Modifier.fillMaxWidth(),

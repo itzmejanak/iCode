@@ -44,8 +44,9 @@ internal val settingsCategories = listOf(
             "background notifications battery optimization bell alert long command"),
     SettingsCategory("Source Control", "Git credentials, commit message model", Icons.Outlined.AccountTree, Route.SourceControlSettings,
         "git identity name email credentials authentication https token ssh key provider commit message write generate ai model"),
-    SettingsCategory("Assistant", "Providers, voice, phone control", Icons.Outlined.AutoAwesome, Route.AssistantSettings,
-        "ai agent assistant koog provider model api key openai anthropic claude gemini google openrouter ollama deepseek approval voice microphone speech spoken"),
+    SettingsCategory("Assistant", "Providers, coding agents, voice, phone control", Icons.Outlined.AutoAwesome, Route.AssistantSettings,
+        "ai agent assistant koog provider model api key openai anthropic claude gemini google openrouter ollama deepseek approval voice microphone speech spoken " +
+            "coding agents acp agent client protocol claude code codex gemini cli opencode cline droid factory"),
     SettingsCategory("Languages", "Language servers", Icons.Outlined.Public, Route.SettingsLanguages,
         "language server lsp command start stop restart"),
     SettingsCategory("Runtime", "Ubuntu environment, health, repair", Icons.Outlined.Storage, Route.SettingsRuntime,

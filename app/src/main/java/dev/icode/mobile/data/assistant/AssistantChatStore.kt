@@ -19,8 +19,11 @@ import java.nio.file.StandardCopyOption
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** One chat as kept: what was said, and the tokens its last request used (the context meter). */
-internal data class AssistantChat(val messages: List<AssistantMessage> = emptyList(), val contextTokens: Long? = null)
+/**
+ * One chat as kept: what was said, and the tokens its last request used (the context meter); and the
+ * coding agent that answers it, when one does — whose own session holds what was said (docs/assistant-and-mcp.md).
+ */
+internal data class AssistantChat(val messages: List<AssistantMessage> = emptyList(), val contextTokens: Long? = null, val agent: AgentBinding? = null)
 
 /**
  * Each workspace's chats, in iCode's storage: a folder per workspace named by the sha256 of its
@@ -39,30 +42,36 @@ internal class AssistantChatStore(private val folder: File) {
         val file = chatFile(workspace, session).takeIf { it.isFile } ?: return AssistantChat()
         return runCatching {
             val json = JSONObject(file.readText())
+            val agent = binding(json)
             AssistantChat(
-                messages = AssistantRules.closed(json.getJSONArray("messages").objects().map { decode(workspace, it) }),
+                // An agent's chat is read back from the agent: a file holds none of what was said.
+                messages = if (agent != null) emptyList() else AssistantRules.closed(json.getJSONArray("messages").objects().map { decode(workspace, it) }),
                 contextTokens = json.optLong("contextTokens", -1).takeIf { it >= 0 },
+                agent = agent,
             )
         }.onFailure { warn("read a chat", it) }.getOrDefault(AssistantChat())
     }
 
     /**
      * Saves [chat] as [session] of [workspace], updated at [now]: its newest [MAX_MESSAGES] from
-     * something the user said, each output bounded. Its title, once given, stays.
+     * something the user said, each output bounded. Its title, once given, stays. A coding agent's chat
+     * keeps its title, its agent and the agent's session only: the agent keeps the conversation, and it
+     * is read back from it — iCode keeps no second transcript (docs/assistant-and-mcp.md).
      */
     fun save(workspace: String?, session: String, chat: AssistantChat, now: Long) {
         val kept = chat.messages.takeLast(MAX_MESSAGES).dropWhile { it !is AssistantMessage.User }
         val others = listed(workspace)
         val title = others.firstOrNull { it.id == session }?.title
             ?: AssistantRules.sessionTitle(chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.let(::titled).orEmpty())
-        val entry = AssistantSession(session, title, now)
+        val entry = AssistantSession(session, title, now, chat.agent?.agent)
         val json = JSONObject()
             .put("id", entry.id)
             .put("title", entry.title)
             .put("updatedAt", entry.updatedAt)
             .put("workspace", workspace)
-            .put("messages", JSONArray().apply { kept.forEach { put(encode(workspace, it)) } })
+            .put("messages", JSONArray().apply { if (chat.agent == null) kept.forEach { put(encode(workspace, it)) } })
         chat.contextTokens?.let { json.put("contextTokens", it) }
+        chat.agent?.let { json.put(AGENT, bound(it)) }
         write(chatFile(workspace, session), json.toString())
         writeIndex(workspace, listOf(entry) + others.filter { it.id != session })
     }
@@ -122,7 +131,9 @@ internal class AssistantChatStore(private val folder: File) {
 
     private fun writeIndex(workspace: String?, sessions: List<AssistantSession>) {
         val json = JSONArray().apply {
-            sessions.forEach { put(JSONObject().put("id", it.id).put("title", it.title).put("updatedAt", it.updatedAt)) }
+            sessions.forEach { entry ->
+                put(JSONObject().put("id", entry.id).put("title", entry.title).put("updatedAt", entry.updatedAt).apply { entry.agent?.let { put(AGENT, JSONObject().put("id", it)) } })
+            }
         }
         write(File(folderOf(workspace), INDEX), json.toString())
     }
@@ -158,7 +169,14 @@ internal class AssistantChatStore(private val folder: File) {
         return File(folderOf(workspace), "$session.json")
     }
 
-    private fun session(json: JSONObject) = AssistantSession(json.getString("id"), json.getString("title"), json.getLong("updatedAt"))
+    private fun session(json: JSONObject) = AssistantSession(json.getString("id"), json.getString("title"), json.getLong("updatedAt"), json.optJSONObject(AGENT)?.optString("id")?.ifEmpty { null })
+
+    /** The agent a chat file names, and its session there; null for the built-in assistant's — every file before agents. */
+    private fun binding(json: JSONObject): AgentBinding? = json.optJSONObject(AGENT)?.let { agent ->
+        agent.optString("id").ifEmpty { null }?.let { AgentBinding(it, agent.optString("session").ifEmpty { null }) }
+    }
+
+    private fun bound(binding: AgentBinding) = JSONObject().put("id", binding.agent).apply { binding.session?.let { put("session", it) } }
 
     private fun encode(workspace: String?, message: AssistantMessage): JSONObject = when (message) {
         is AssistantMessage.User -> JSONObject().put("role", "user").put("text", message.text).put(
@@ -255,6 +273,8 @@ internal class AssistantChatStore(private val folder: File) {
     private companion object {
         const val TAG = "AssistantChatStore"
         const val INDEX = "index.json"
+        /** The coding agent a chat is answered by: absent for the built-in assistant. */
+        const val AGENT = "agent"
         const val MAX_MESSAGES = 400
         /** Above every command's output as its tool bounds it: the page shows what the model read. */
         const val MAX_OUTPUT = 48_000

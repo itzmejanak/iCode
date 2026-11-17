@@ -170,6 +170,7 @@ Run both scripts in normal verification mode. The tables below describe what the
 | `byte-format` | Reports likely division by 1024 or human-readable KB/MB/GB/KiB/MiB/GiB formatting outside `domain/ByteSize.kt`; comment lines are excluded. |
 | `notice-text` | Reports constructor-like `Notice(` calls outside `domain/notices/` and `data/notices/NoticeStore.kt`, excluding class declarations and positional constructions beginning with a number. |
 | `tm4e-owner` | Reports `org.eclipse.tm4e.*` and `io.github.rosemoe.sora.langs.textmate.registry.*` use outside `ui/syntax/`; comment lines and non-main source sets are not scanned. |
+| `acp-owner` | Reports `com.agentclientprotocol.*` use outside `data/assistant/acp/`, the one owner of the external coding agents; comment lines and non-main source sets are not scanned. |
 
 ### `tools/check-ui-consistency.sh`
 
