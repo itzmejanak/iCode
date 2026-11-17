@@ -154,7 +154,8 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         open = {
             to(BubbleMode.Closed)
             // Started straight from the service: a bound accessibility service may start activities from the background.
-            service.startActivity(NotificationLink.intent(service, NotificationLink.Work(BackgroundPlace.Assistant)))
+            val chat = snapshot?.assistant?.focus?.let { BackgroundPlace.AssistantChat(it.workspace, it.session) }
+            service.startActivity(NotificationLink.intent(service, NotificationLink.Work(chat ?: BackgroundPlace.Assistant)))
         },
         mute = ::mute,
         cancel = ::cancelVoice,
@@ -191,7 +192,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         to(BubbleMode.Closed)
     }
 
-    /** Sent to the chat iCode shows — "Open in iCode" opens the same one — and answered aloud. */
+    /** Sent to the chat iCode shows, and answered aloud; "Open in iCode" opens the chat the bubble follows. */
     private fun send(text: String) {
         if (text.isBlank()) return
         // Not opened yet: the open workspace's chats, else those in no workspace (docs/design-and-navigation.md).
@@ -210,7 +211,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         val words = heard.sent
         when {
             words == null -> if (mode == BubbleMode.Voice) to(BubbleMode.Typing)
-            mode == BubbleMode.Voice && next.assistant.turn == null -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
+            mode == BubbleMode.Voice && !next.assistant.runningHere -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
             else -> {
                 draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ")
                 if (mode == BubbleMode.Voice) {
@@ -271,7 +272,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         if (overTarget) {
             overTarget = false
             to(BubbleMode.Closed)
-            if (overlay.working) gateway.dispatch(ICodeIntent.StopAssistant)
+            snapshot?.assistant?.focus?.let { gateway.dispatch(ICodeIntent.StopAssistant(it.workspace, it.session)) }
             gateway.dispatch(VoiceIntent.Silence)
             gateway.dispatch(PhoneIntent.ShowBubble(false))
         }

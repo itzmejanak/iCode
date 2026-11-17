@@ -218,8 +218,8 @@ sealed interface ICodeIntent {
      * the open workspace's chats are shown; outside it, the chats in no workspace (docs/design-and-navigation.md).
      */
     data class OpenAssistant(val inWorkspace: Boolean) : AssistantIntent
-    /** One of the shown place's chats, from its history. */
-    data class OpenAssistantSession(val id: String) : AssistantIntent
+    /** [id] of [workspace] open on the page: from its place's history, or a chat at work's notification. */
+    data class OpenAssistantSession(val workspace: String?, val id: String) : AssistantIntent
     data class DeleteAssistantSession(val id: String) : AssistantIntent
     /** One of the shown place's chats, shared as its transcript. */
     data class ExportAssistantSession(val id: String) : AssistantIntent
@@ -232,13 +232,14 @@ sealed interface ICodeIntent {
         /** Sent from the bubble: answered aloud when Spoken replies says so (docs/voice-and-phone-control.md). */
         val aloud: Boolean = false,
     ) : AssistantIntent
-    /** Stops the turn in hand: the request, and a running command with everything it started. */
-    data object StopAssistant : AssistantIntent
-    data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent
-    /** The user's reply to the questions of the call [callId] (docs/assistant-and-mcp.md). */
-    data class ReplyAssistant(val callId: String, val reply: AssistantReply) : AssistantIntent
-    /** The turn's pause answered: it goes on (Continue, Done). Stop is [StopAssistant]. */
-    data object ContinueAssistant : AssistantIntent
+    /** Stops [session]'s turn in [workspace]: the request, and a running command with everything it started. */
+    data class StopAssistant(val workspace: String?, val session: String) : AssistantIntent
+    /** The user's answer to the approval of the call [callId], in [session] of [workspace]. */
+    data class AnswerAssistant(val workspace: String?, val session: String, val callId: String, val answer: AssistantAnswer) : AssistantIntent
+    /** The user's reply to the questions of the call [callId], in [session] of [workspace] (docs/assistant-and-mcp.md). */
+    data class ReplyAssistant(val workspace: String?, val session: String, val callId: String, val reply: AssistantReply) : AssistantIntent
+    /** The pause of [session]'s turn in [workspace] answered: it goes on (Continue, Done). Stop is [StopAssistant]. */
+    data class ContinueAssistant(val workspace: String?, val session: String) : AssistantIntent
     /** Summarizes the shown chat so later turns send less. */
     data object CompactAssistantChat : AssistantIntent
     /** The shown chat's own terminal tab, opened if it has none, for the menu's Terminal (docs/assistant-and-mcp.md). */

@@ -20,8 +20,11 @@ sealed interface BackgroundPlace {
     /** The tools' page: a tools install or removal, wherever it was asked for. */
     data object RuntimeTools : BackgroundPlace
 
-    /** The Assistant page: its turn in hand. */
+    /** The Assistant page, as it was left. */
     data object Assistant : BackgroundPlace
+
+    /** The Assistant page, open at [session] of [workspace]: a chat at work. */
+    data class AssistantChat(val workspace: String?, val session: String) : BackgroundPlace
 
     /** The Assistant page, where a workspace's managed processes are listed. */
     data object Processes : BackgroundPlace
@@ -29,9 +32,13 @@ sealed interface BackgroundPlace {
     /** gpg's question: its GnuPG sheet shows over whatever screen is open. */
     data object Gpg : BackgroundPlace
 
-    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `runtime-tools`, `assistant`, `processes`, `gpg`. */
+    /**
+     * As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `runtime-tools`, `assistant`,
+     * `chat:<session>` or `chat:<session>@<workspace>`, `processes`, `gpg`.
+     */
     fun encoded(): String = when (this) {
         is Task -> "$TASK$id"
+        is AssistantChat -> CHAT + session + workspace?.let { "@$it" }.orEmpty()
         Clone -> "clone"
         Sync -> "sync"
         Runtime -> "runtime"
@@ -43,11 +50,16 @@ sealed interface BackgroundPlace {
 
     companion object {
         private const val TASK = "task:"
+        private const val CHAT = "chat:"
 
         /** Null for anything [encoded] does not write. */
         fun decode(value: String?): BackgroundPlace? = when {
             value == null -> null
             value.startsWith(TASK) -> value.removePrefix(TASK).toLongOrNull()?.let(::Task)
+            // A session has no @; a workspace's location may.
+            value.startsWith(CHAT) -> value.removePrefix(CHAT).split('@', limit = 2).let { parts ->
+                parts[0].takeIf { it.isNotEmpty() }?.let { AssistantChat(parts.getOrNull(1), it) }
+            }
             value == "clone" -> Clone
             value == "sync" -> Sync
             value == "runtime" -> Runtime
@@ -62,7 +74,7 @@ sealed interface BackgroundPlace {
 
 /** One piece of background work, as its notification says it. */
 data class BackgroundItem(
-    /** Stable while the work lasts: `task:12`, `git`, `runtime`, `runtime-tools`. */
+    /** Stable while the work lasts: `task:12`, `git`, `runtime`, `runtime-tools`, `assistant:<session>`. */
     val key: String,
     /** "Deleting…", "Cloning…", "Installing the Linux runtime". */
     val title: String,
@@ -102,7 +114,7 @@ object BackgroundWorkRules {
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
         snapshot.runtimeTools.work?.takeIf { it.failure == null }?.let { add(runtimeTools(it)) }
-        snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant, snapshot.mcp.question)) }
+        snapshot.assistant.turns.forEach { add(assistant(it, snapshot.assistant, snapshot.mcp.question)) }
         processes(snapshot.processes.filter { it.running })?.let(::add)
         snapshot.gpgPrompts.firstOrNull()?.let { add(gpg(it)) }
     }
@@ -141,19 +153,20 @@ object BackgroundWorkRules {
     }
 
     /**
-     * Its progress shows on the Assistant page. A failure is said on the page, where the chat is,
-     * so it is not carried here; a question is, as it stops the turn until it is answered. The one
-     * notification of a turn, phone control's included: Stop, the assistant's word everywhere.
+     * Each working chat's: its progress shows in its chat, which a tap opens. A failure is said on the
+     * page, where the chat is, so it is not carried here; a question is, as it stops the turn until it
+     * is answered — an MCP server's with the turn the bubble follows, as servers serve every chat. The
+     * one notification of a turn, phone control's included: Stop, the assistant's word everywhere.
      */
     private fun assistant(turn: AssistantTurn, state: AssistantState, asked: McpQuestion?) = BackgroundItem(
-        key = "assistant",
+        key = "assistant:${turn.session}",
         title = "Assistant is working…",
         detail = "${turn.workspaceName} · ${turn.step}",
-        cancel = ICodeIntent.StopAssistant,
-        place = BackgroundPlace.Assistant,
-        question = state.approval?.let { "${it.call.summary}?" } ?: state.pause?.kind?.question
-            ?: state.clarification?.let { "${AssistantQuestionRules.TITLE}: ${AssistantQuestionRules.asked(it)}" }
-            ?: asked?.let { "${it.server} asks: ${it.message.lineSequence().firstOrNull().orEmpty()}" },
+        cancel = ICodeIntent.StopAssistant(turn.workspace, turn.session),
+        place = BackgroundPlace.AssistantChat(turn.workspace, turn.session),
+        question = turn.approval?.let { "${it.call.summary}?" } ?: turn.pause?.kind?.question
+            ?: turn.clarification?.let { "${AssistantQuestionRules.TITLE}: ${AssistantQuestionRules.asked(it)}" }
+            ?: asked?.takeIf { turn === state.focus }?.let { "${it.server} asks: ${it.message.lineSequence().firstOrNull().orEmpty()}" },
         cancelLabel = "Stop",
     )
 

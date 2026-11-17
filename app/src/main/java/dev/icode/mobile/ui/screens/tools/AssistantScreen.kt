@@ -182,8 +182,7 @@ fun AssistantScreen(actions: NavigationActions) {
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
                     AssistantSheet.Terminal -> AssistantTerminalSheet(state.tab, modifier, close)
                     AssistantSheet.Entry -> entry?.let {
-                        val approval = state.approval?.takeIf { state.runningHere }
-                        AssistantEntrySheet(it, stepKey, approval, state.workspace?.let(AssistantPlace::name), modifier, close, onDiff)
+                        AssistantEntrySheet(it, stepKey, state.approval, state.workspace?.let(AssistantPlace::name), modifier, close, onDiff)
                     }
                     AssistantSheet.Actions -> entry?.let {
                         AssistantActionsSheet(it, modifier, close, onDiff) { said ->

@@ -21,7 +21,8 @@ import org.json.JSONObject
 
 /**
  * The tools that see and operate the phone (docs/voice-and-phone-control.md), offered while phone control
- * is on. Reading never asks; an act asks about the app it is in ([AssistantPlaceActor]). The last act of
+ * is on; one chat's turn at a time has the screen ([AssistantStep.takePhone]). Reading never asks; an act
+ * asks about the app it is in ([AssistantPlaceActor]). The last act of
  * a reply reads the settled screen into its own result, so the model sees what it did in the same
  * step; a picture goes with it where the text cannot tell.
  */
@@ -133,6 +134,7 @@ internal class PhoneTools(private val phone: PhoneControl, private val step: Ass
 
     private suspend fun guarded(block: suspend () -> String): String = try {
         if (!phone.on) throw AssistantToolException(OFF)
+        step.takePhone()
         block()
     } catch (refused: PhoneException) {
         throw AssistantToolException(refused.message ?: "The phone refused")

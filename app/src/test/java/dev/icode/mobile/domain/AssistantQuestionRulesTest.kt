@@ -82,13 +82,13 @@ class AssistantQuestionRulesTest {
     @Test fun `while it asks, its call waits for an answer, the turn asks, and a message sent there is the reply`() {
         val turn = AssistantTurn("/w/app", "app", "s1", "Waiting for your answer")
         val reply = AssistantMessage.Reply("", listOf(call))
-        val waiting = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(AssistantMessage.User("build it"), reply), turn = turn, clarification = asked)
+        val waiting = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(AssistantMessage.User("build it"), reply), turns = listOf(turn.copy(clarification = asked)))
         val step = AssistantRules.entries(waiting).filterIsInstance<AssistantEntry.Step>().single()
         assertEquals(AssistantStepStatus.Asking, step.status)
         assertTrue(waiting.asking)
         assertTrue(waiting.replying)
         assertFalse(waiting.copy(session = "s2").replying)
-        assertFalse(waiting.copy(clarification = null).asking)
+        assertFalse(waiting.changeTurn("/w/app", "s1") { it.copy(clarification = null) }.asking)
         val bubble = PhoneOverlay.of(waiting, VoiceState(), PhoneAccess(service = true, bubble = true), iCodeOnScreen = false, muted = false)
         assertTrue(bubble.asking)
         assertTrue(bubble.replying)
@@ -96,13 +96,13 @@ class AssistantQuestionRulesTest {
 
     @Test fun `out of view it is the notification's question, and an aloud turn says it once`() {
         val turn = AssistantTurn("/w/app", "app", "s1", "Waiting for your answer", aloud = true)
-        val working = ICodeStateHolder.emptySnapshot().copy(assistant = AssistantState(turn = turn, clarification = asked))
+        val working = ICodeStateHolder.emptySnapshot().copy(assistant = AssistantState(turns = listOf(turn.copy(clarification = asked))))
         assertEquals("The assistant asks: Which database should the app use? (1 of 2)", BackgroundWorkRules.of(working).single().question)
 
         val reader = SpokenTurn()
-        val before = AssistantState(workspace = "/w/app", session = "s1", turn = turn)
+        val before = AssistantState(workspace = "/w/app", session = "s1", turns = listOf(turn))
         reader.next(AssistantState(workspace = "/w/app", session = "s1"), before, SpokenReplies.InBubble)
-        val after = before.copy(clarification = asked)
+        val after = before.changeTurn("/w/app", "s1") { it.copy(clarification = asked) }
         val said = reader.next(before, after, SpokenReplies.InBubble).filterIsInstance<VoiceCue.Say>().single()
         assertTrue(said.text.startsWith("Which database should the app use?"))
         assertEquals(emptyList<VoiceCue>(), reader.next(after, after, SpokenReplies.InBubble).filterIsInstance<VoiceCue.Say>())

@@ -26,10 +26,7 @@ object AssistantNotices {
 
     fun stopFirst(chat: NoticePlace?) = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Stop the assistant first", chat, detail = "It is working in this chat. Then delete it.")
 
-    fun busy(workspace: String) = Notice(
-        NoticeTone.HeadsUp, NoticeSource.Assistant, "Wait for the assistant to finish", NoticePlace(workspace),
-        detail = "It is working in $workspace. Or stop it there.",
-    )
+    fun busy(chat: NoticePlace) = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Wait for this chat to finish", chat, detail = "It is still working. Or stop it.")
 
     fun terminalNotOpened(words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't open the chat's terminal", output = words)
 

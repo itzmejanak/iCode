@@ -55,10 +55,10 @@ object AssistantRules {
 
     /**
      * The key of [state]'s last message when it is the user's and nothing answered it — its turn
-     * failed — and no turn runs: it may be sent again, or taken back to edit. Null otherwise.
+     * failed — and the chat does not work: it may be sent again, or taken back to edit. Null otherwise.
      */
     fun unanswered(state: AssistantState): String? =
-        if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) "m${state.messages.lastIndex}" else null
+        if (!state.runningHere && state.messages.lastOrNull() is AssistantMessage.User) "m${state.messages.lastIndex}" else null
 
     /**
      * The turn has answered since the user's message — a reply, a call's result: a retry then goes on
@@ -103,8 +103,9 @@ object AssistantRules {
             }
         }
         // The reply being written, under the rest: replaced by the reply once it is recorded.
-        state.turn?.live?.takeIf { state.runningHere }?.let { live ->
-            name(LIVE_BY, state.turn.by)
+        val turn = state.turn
+        turn?.live?.let { live ->
+            name(LIVE_BY, turn.by)
             if (live.reasoning.isNotBlank()) add(AssistantEntry.Reasoning(LIVE_REASONING, live.reasoning, live = true))
             if (live.text.isNotBlank()) add(AssistantEntry.Answer(LIVE_ANSWER, live.text))
         }

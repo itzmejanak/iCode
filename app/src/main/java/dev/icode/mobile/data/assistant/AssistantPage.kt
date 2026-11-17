@@ -23,14 +23,15 @@ internal class AssistantPage(
     val current: AssistantState get() = stateHolder.current.assistant
 
     /**
-     * [workspace]'s chats — the chats in no workspace when null — the one open stays; else [running],
-     * the turn's chat there; else the newest.
+     * [workspace]'s chats — the chats in no workspace when null — the one open stays; else a chat at work
+     * there, one waiting for the user first, then the last to begin; else the newest.
      */
-    fun show(workspace: String?, running: Pair<String?, String>?) {
+    fun show(workspace: String?) {
         val sessions = chats.sessions(workspace)
+        val working = current.turns.filter { it.workspace == workspace }
         val session = when {
             current.opened && current.workspace == workspace -> current.session
-            else -> running?.takeIf { it.first == workspace }?.second ?: sessions.firstOrNull()?.id
+            else -> (working.firstOrNull { it.asking } ?: working.lastOrNull())?.session ?: sessions.firstOrNull()?.id
         }
         display(workspace, session, sessions)
     }
@@ -57,9 +58,9 @@ internal class AssistantPage(
         val chat = chats.of(workspace, session)
         val allowed = chats.allowedInWorkspace(workspace, session)
         state {
-            val turn = if (recorded) it.turn?.copy(live = null) else it.turn
-            if (!it.opened || it.workspace != workspace || it.session != session) it.copy(turn = turn)
-            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed, turn = turn)
+            val now = if (recorded) it.changeTurn(workspace, session) { turn -> turn.copy(live = null) } else it
+            if (!it.opened || it.workspace != workspace || it.session != session) now
+            else now.copy(messages = chat.messages, contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed)
         }
     }
 

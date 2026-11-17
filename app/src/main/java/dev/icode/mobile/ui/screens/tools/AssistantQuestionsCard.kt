@@ -41,17 +41,18 @@ import dev.icode.mobile.domain.AssistantClarification
 import dev.icode.mobile.domain.AssistantQuestion
 import dev.icode.mobile.domain.AssistantQuestionRules
 import dev.icode.mobile.domain.AssistantReply
+import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * The model's questions (docs/assistant-and-mcp.md), in a box as the approval's, above the
+ * The questions of [turn]'s model (docs/assistant-and-mcp.md), in a box as the approval's, above the
  * composer: the question, its options with what each means, and Other for the user's own words —
  * one question at a time, their names as steps when there are several. Submit sends every answer;
  * × closes them unanswered. A message sent from the composer meanwhile is the reply instead.
  */
 @Composable
-internal fun AssistantQuestionsCard(clarification: AssistantClarification, modifier: Modifier) {
+internal fun AssistantQuestionsCard(turn: AssistantTurn, clarification: AssistantClarification, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     val questions = clarification.questions
     val callId = clarification.call.id
@@ -60,7 +61,7 @@ internal fun AssistantQuestionsCard(clarification: AssistantClarification, modif
     var answers by remember(callId) { mutableStateOf(List(questions.size) { AssistantQuestion.Answer() }) }
     val question = questions[at.coerceIn(questions.indices)]
     val answer = answers[at.coerceIn(answers.indices)]
-    val reply = { it: AssistantReply -> gateway.dispatch(ICodeIntent.ReplyAssistant(callId, it)) }
+    val reply = { it: AssistantReply -> gateway.dispatch(ICodeIntent.ReplyAssistant(turn.workspace, turn.session, callId, it)) }
     val change = { next: AssistantQuestion.Answer -> answers = answers.toMutableList().also { it[at] = next } }
     IcodeCard(modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
         Column(Modifier.padding(horizontal = IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {

@@ -66,10 +66,15 @@ internal fun ArrivalEffect(
                 BackgroundPlace.Sync -> show(Route.PullFetchProgress)
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)
                 BackgroundPlace.RuntimeTools -> show(Route.RuntimeTools)
-                // The chat at work, else the one shown: one in no workspace is outside it (docs/design-and-navigation.md).
+                // That chat: one in no workspace is outside it (docs/design-and-navigation.md).
+                is BackgroundPlace.AssistantChat -> {
+                    gateway.dispatch(ICodeIntent.OpenAssistantSession(place.workspace, place.session))
+                    if (place.workspace == null) navigation.showOutside(Route.Assistant) else show(Route.Assistant)
+                }
+                // The chat the bubble follows, else the one shown.
                 BackgroundPlace.Assistant, BackgroundPlace.Processes -> {
                     val assistant = current.assistant
-                    val outside = assistant.turn?.let { it.workspace == null } ?: (assistant.opened && assistant.workspace == null)
+                    val outside = assistant.focus?.let { it.workspace == null } ?: (assistant.opened && assistant.workspace == null)
                     if (outside) navigation.showOutside(Route.Assistant) else show(Route.Assistant)
                 }
                 // The GnuPG sheet is drawn over whatever is open.

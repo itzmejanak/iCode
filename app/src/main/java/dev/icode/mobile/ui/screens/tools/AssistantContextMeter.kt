@@ -71,7 +71,7 @@ internal fun ContextMeter(state: AssistantState) {
             actions = listOf(
                 IcodeMenuAction(
                     "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(ICodeIntent.CompactAssistantChat) },
-                    enabled = state.messages.isNotEmpty() && !state.running,
+                    enabled = state.messages.isNotEmpty() && !state.runningHere,
                 ),
             ),
         )

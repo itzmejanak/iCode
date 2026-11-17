@@ -203,34 +203,6 @@ data class AssistantPause(val kind: Kind, /** What the card says under its quest
  */
 enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
-/** The turn in hand: one at a time, in the chat it started in. */
-data class AssistantTurn(
-    /** Its workspace's location; null for a chat in none, which works in `$HOME` (docs/design-and-navigation.md). */
-    val workspace: String?,
-    val workspaceName: String,
-    val session: String,
-    /** "Thinking…", "Read src/App.kt", "Waiting for your answer", "Compacting the chat…". */
-    val step: String,
-    /** The reply being written, as far as it has come; null between replies, and where replies come whole. */
-    val live: AssistantLive? = null,
-    /** It has acted on the phone: the screen's edges glow while it works (docs/voice-and-phone-control.md). */
-    val onPhone: Boolean = false,
-    /** Read aloud, as Spoken replies said when it was sent: its instructions ask for a short spoken answer. */
-    val aloud: Boolean = false,
-    /** The terminal tab the running call's command runs in: its step shows it live while it runs (docs/assistant-and-mcp.md). */
-    val terminal: AssistantTerminal? = null,
-    /** One of its tools has changed a file: said when it ends ([AssistantTurnEnd]). */
-    val changedFiles: Boolean = false,
-    /** Who answers it: named above its reply while that is written. */
-    val by: AssistantAnswerer? = null,
-)
-
-/** A streamed reply as far as it has come: what the model thought, and its answer so far. */
-data class AssistantLive(val reasoning: String, val text: String)
-
-/** A turn that ended (docs/design-and-navigation.md): its workspace, how many have ended so far, whether its tools changed a file. */
-data class AssistantTurnEnd(val workspace: String?, val number: Int, val changedFiles: Boolean)
-
 /** One chat of a workspace, as its history lists it. */
 data class AssistantSession(val id: String, val title: String, val updatedAt: Long)
 
@@ -256,14 +228,10 @@ data class AssistantState(
     val messages: List<AssistantMessage> = emptyList(),
     /** Tokens the last request of this chat used; with [AssistantModel.contextWindow], how full it is. */
     val contextTokens: Long? = null,
-    val turn: AssistantTurn? = null,
+    /** Every chat's turn in hand, in the order they began: chats work at once (docs/assistant-and-mcp.md). */
+    val turns: List<AssistantTurn> = emptyList(),
     /** The last turn to end, in any chat; null until one has. */
     val ended: AssistantTurnEnd? = null,
-    val approval: AssistantApproval? = null,
-    /** The turn waits between steps for the user to go on (docs/voice-and-phone-control.md). */
-    val pause: AssistantPause? = null,
-    /** The model's questions, waiting for the user's reply (docs/assistant-and-mcp.md). */
-    val clarification: AssistantClarification? = null,
     /** The chat shown answered "Allow in" its workspace: it runs as Auto in workspace until iCode closes. */
     val allowedInWorkspace: Boolean = false,
     /** The chat shown's own terminal tab, once the menu's Terminal opened it. */
@@ -273,27 +241,47 @@ data class AssistantState(
     /** A commit message being written, or written and not yet in the commit field. */
     val commitMessage: AssistantCommitMessage? = null,
 ) {
-    val running: Boolean get() = turn != null
+    /** The chat shown's turn, while it works; what it waits on is [approval], [pause] and [clarification]. */
+    val turn: AssistantTurn? get() = turnOf(workspace, session)
+    val approval: AssistantApproval? get() = turn?.approval
+    val pause: AssistantPause? get() = turn?.pause
+    val clarification: AssistantClarification? get() = turn?.clarification
+
+    /** Some chat works. */
+    val running: Boolean get() = turns.isNotEmpty()
+
+    /**
+     * The turn the bubble follows, and stops: one waiting for the user first, then the one on the
+     * phone, then the chat shown's, then the last to begin.
+     */
+    val focus: AssistantTurn? get() = turns.firstOrNull { it.asking } ?: turns.firstOrNull { it.onPhone } ?: turn ?: turns.lastOrNull()
 
     /** The model the chat shown answers with: its own while its provider still offers it, else what a new chat starts with. */
     val choice: AssistantChoice? get() = (answerer as? AssistantChoice)?.takeIf { settings.modelOf(it) != null } ?: settings.choice
     val model: AssistantModel? get() = settings.modelOf(choice)
 
-    /** The turn in hand has ended: what it waited on goes with it, and its end is said in [ended]. */
-    fun turnEnded(): AssistantState = copy(
-        turn = null, approval = null, pause = null, clarification = null,
-        ended = turn?.let { AssistantTurnEnd(it.workspace, (ended?.number ?: 0) + 1, it.changedFiles) } ?: ended,
-    )
+    /** [session]'s turn in [workspace]; null while that chat does not work. */
+    fun turnOf(workspace: String?, session: String?): AssistantTurn? = turns.firstOrNull { it.of(workspace, session) }
 
-    /** The turn waits for the user: an approval, a pause, or the model's questions. */
-    val asking: Boolean get() = turn != null && (approval != null || pause != null || clarification != null)
+    /** [session]'s turn in [workspace], changed; the state as it is when that chat does not work. */
+    fun changeTurn(workspace: String?, session: String, change: (AssistantTurn) -> AssistantTurn): AssistantState =
+        copy(turns = turns.map { if (it.of(workspace, session)) change(it) else it })
+
+    /** [session]'s turn in [workspace] ended: what it waited on goes with it, and its end is said in [ended]. */
+    fun turnEnded(workspace: String?, session: String): AssistantState {
+        val gone = turnOf(workspace, session) ?: return this
+        return copy(turns = turns.filterNot { it === gone }, ended = AssistantTurnEnd(gone.workspace, (ended?.number ?: 0) + 1, gone.changedFiles))
+    }
+
+    /** Some chat's turn waits for the user: an approval, a pause, or the model's questions. */
+    val asking: Boolean get() = turns.any { it.asking }
 
     /** The chat shown's mode: the setting, raised by its own answers. */
     val permission: AssistantPermission get() = AssistantPermissions.effective(settings.permission, allowedInWorkspace)
 
-    /** The turn in hand belongs to the chat shown, not to another one. */
-    val runningHere: Boolean get() = turn != null && turn.workspace == workspace && turn.session == session
+    /** The chat shown is working. */
+    val runningHere: Boolean get() = turn != null
 
     /** The turn of the chat shown waits on its questions: a message sent now is the reply (docs/assistant-and-mcp.md). */
-    val replying: Boolean get() = runningHere && clarification != null
+    val replying: Boolean get() = clarification != null
 }

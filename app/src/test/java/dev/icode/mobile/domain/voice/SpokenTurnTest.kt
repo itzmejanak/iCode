@@ -25,7 +25,7 @@ class SpokenTurnTest {
         reader.next(now, next, spoken).also { now = next }
 
     private fun writing(vararg messages: AssistantMessage, live: String? = null) =
-        idle.copy(turn = turn.copy(live = live?.let { AssistantLive("", it) }), messages = earlier + messages)
+        idle.copy(turns = listOf(turn.copy(live = live?.let { AssistantLive("", it) })), messages = earlier + messages)
 
     private fun say(vararg texts: String) = texts.map { VoiceCue.Say(it) }
 
@@ -45,8 +45,8 @@ class SpokenTurnTest {
 
     @Test fun `a turn not to be read hushes the voice, and is then left alone`() {
         val quiet = turn.copy(aloud = false)
-        assertEquals(listOf(VoiceCue.Hush), to(writing().copy(turn = quiet)))
-        assertEquals(emptyList<VoiceCue>(), to(writing(AssistantMessage.User("hi"), live = "Hello there. More").copy(turn = quiet)))
+        assertEquals(listOf(VoiceCue.Hush), to(writing().copy(turns = listOf(quiet))))
+        assertEquals(emptyList<VoiceCue>(), to(writing(AssistantMessage.User("hi"), live = "Hello there. More").copy(turns = listOf(quiet))))
         assertEquals(emptyList<VoiceCue>(), to(idle))
         // Sent aloud while Spoken replies is Off: not read either.
         assertEquals(listOf(VoiceCue.Hush), to(writing(), spoken = SpokenReplies.Off))
@@ -66,13 +66,23 @@ class SpokenTurnTest {
 
     @Test fun `questions are said in turn, and another chat shown is not read`() {
         to(writing())
-        val asking = writing(AssistantMessage.User("send it")).copy(approval = AssistantApproval(call, "Tap [2]"))
+        val asking = writing(AssistantMessage.User("send it")).changeTurn("/w/app", "s1") { it.copy(approval = AssistantApproval(call, "Tap [2]")) }
         val question = to(asking).single() as VoiceCue.Say
         assertEquals(true, question.text.endsWith("Tap Send."))
         assertEquals(emptyList<VoiceCue>(), to(asking))
-        val paused = writing(AssistantMessage.User("send it")).copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type your password"))
+        val paused = writing(AssistantMessage.User("send it")).changeTurn("/w/app", "s1") { it.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type your password")) }
         assertEquals(say("Your turn. Type your password."), to(paused))
         val elsewhere = writing(AssistantMessage.User("x"), live = "Other chat. Here").copy(session = "s2")
         assertEquals(emptyList<VoiceCue>(), to(elsewhere))
+    }
+
+    @Test fun `another chat that begins meanwhile, not to be read, leaves the turn read alone`() {
+        to(writing())
+        val asked = AssistantMessage.User("turn on wifi")
+        val other = AssistantTurn(null, "Home", "s9", "Thinking…")
+        val both = writing(asked, live = "Opening Settings. Then").let { it.copy(turns = it.turns + other) }
+        assertEquals(say("Opening Settings."), to(both))
+        val done = AssistantMessage.Reply("Opening Settings. Then Wi-Fi is on.")
+        assertEquals(say("Then Wi-Fi is on.") + VoiceCue.End, to(idle.copy(messages = earlier + listOf(asked, done), turns = listOf(other))))
     }
 }

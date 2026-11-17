@@ -126,7 +126,7 @@ data class ICodeSnapshot(
     val gitIdentityLoaded: Boolean = false,
     /** Managed processes, of every workspace, running and ended, oldest first. */
     val processes: List<ManagedProcess> = emptyList(),
-    /** iCode's assistant: its settings, the shown workspace's chat and the turn in hand. */
+    /** iCode's assistant: its settings, the shown workspace's chat and every chat's turn in hand. */
     val assistant: AssistantState = AssistantState(),
     /** The assistant's MCP servers (docs/assistant-and-mcp.md): their settings, connections and questions. */
     val mcp: McpState = McpState(),

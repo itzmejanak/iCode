@@ -6,11 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AssistantRulesTest {
-    @Test fun `only the last message, the user's, unanswered and with nothing running, can be retried or taken back`() {
+    @Test fun `only the last message, the user's, unanswered and with its chat not working, can be retried or taken back`() {
         val asked = AssistantMessage.User("turn on wifi")
         assertEquals("m1", AssistantRules.unanswered(AssistantState(messages = listOf(AssistantMessage.User("hi"), asked))))
         assertNull(AssistantRules.unanswered(AssistantState(messages = listOf(asked, AssistantMessage.Reply("Done.")))))
-        assertNull(AssistantRules.unanswered(AssistantState(messages = listOf(asked), turn = AssistantTurn("/w/app", "app", "s1", "Thinking…"))))
+        val shown = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked))
+        assertNull(AssistantRules.unanswered(shown.copy(turns = listOf(AssistantTurn("/w/app", "app", "s1", "Thinking…")))))
+        // Another chat at work does not hold this one.
+        assertEquals("m0", AssistantRules.unanswered(shown.copy(turns = listOf(AssistantTurn("/w/app", "app", "s2", "Thinking…")))))
         assertNull(AssistantRules.unanswered(AssistantState()))
     }
 
@@ -58,24 +61,24 @@ class AssistantRulesTest {
 
     @Test fun `steps show what is asked, running and waiting, then what came of them`() {
         val turn = AssistantTurn("/w/app", "app", "s1", "Read a.kt")
-        val running = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked, reply), turn = turn)
+        val running = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked, reply), turns = listOf(turn))
         val steps = AssistantRules.entries(running)
         assertEquals(listOf("Said", "Answer", "Step", "Step"), steps.map { it.javaClass.simpleName })
         assertEquals(AssistantStepStatus.Running, (steps[2] as AssistantEntry.Step).status)
         assertEquals(AssistantStepStatus.Queued, (steps[3] as AssistantEntry.Step).status)
 
-        val asking = running.copy(approval = AssistantApproval(call("1"), "Read a.kt"))
+        val asking = running.changeTurn("/w/app", "s1") { it.copy(approval = AssistantApproval(call("1"), "Read a.kt")) }
         assertEquals(AssistantStepStatus.Asking, (AssistantRules.entries(asking)[2] as AssistantEntry.Step).status)
 
-        val done = AssistantRules.entries(running.copy(messages = AssistantRules.closed(listOf(asked, reply)), turn = null))
+        val done = AssistantRules.entries(running.copy(messages = AssistantRules.closed(listOf(asked, reply)), turns = emptyList()))
         assertEquals(AssistantStepStatus.Failed, (done[2] as AssistantEntry.Step).status)
         assertEquals(AssistantRules.STOPPED, (done[2] as AssistantEntry.Step).output)
     }
 
     @Test fun `another chat's turn does not run this chat's steps`() {
-        val otherChat = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked, reply), turn = AssistantTurn("/w/app", "app", "s2", "…"))
+        val otherChat = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked, reply), turns = listOf(AssistantTurn("/w/app", "app", "s2", "…")))
         assertEquals(AssistantStepStatus.Failed, (AssistantRules.entries(otherChat)[2] as AssistantEntry.Step).status)
-        val otherWorkspace = otherChat.copy(turn = AssistantTurn("/w/other", "other", "s1", "…"))
+        val otherWorkspace = otherChat.copy(turns = listOf(AssistantTurn("/w/other", "other", "s1", "…")))
         assertEquals(AssistantStepStatus.Failed, (AssistantRules.entries(otherWorkspace)[2] as AssistantEntry.Step).status)
     }
 
@@ -139,13 +142,13 @@ class AssistantRulesTest {
 
     @Test fun `a reply being written shows under the chat, its reasoning held open, and only in its own chat`() {
         val live = AssistantLive(reasoning = "Check a.kt.", text = "It starts")
-        val writing = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked), turn = AssistantTurn("/w/app", "app", "s1", "Thinking…", live))
+        val writing = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked), turns = listOf(AssistantTurn("/w/app", "app", "s1", "Thinking…", live)))
         assertEquals(
             listOf(AssistantEntry.Said("m0", asked.text), AssistantEntry.Reasoning("live-reasoning", "Check a.kt.", live = true), AssistantEntry.Answer("live-answer", "It starts")),
             AssistantRules.entries(writing),
         )
         // Before any answer, the reasoning alone; in another chat, nothing of it.
-        assertEquals(1, AssistantRules.entries(writing.copy(turn = writing.turn!!.copy(live = live.copy(text = "")))).count { it.key.startsWith("live") })
+        assertEquals(1, AssistantRules.entries(writing.changeTurn("/w/app", "s1") { it.copy(live = live.copy(text = "")) }).count { it.key.startsWith("live") })
         assertTrue(AssistantRules.entries(writing.copy(session = "s2")).none { it.key.startsWith("live") })
     }
 

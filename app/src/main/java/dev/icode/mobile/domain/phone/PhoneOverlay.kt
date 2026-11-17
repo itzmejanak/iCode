@@ -8,23 +8,26 @@ import dev.icode.mobile.domain.voice.VoiceState
 /**
  * What iCode shows over other apps (docs/voice-and-phone-control.md): one bubble while phone control
  * is on and the user has not put it away — never over iCode itself — and the glow while a turn acts on
- * the phone, dimmed while it waits on the user. Put away, the bubble takes the glow with it.
+ * the phone, dimmed while one waits on the user. Put away, the bubble takes the glow with it. Of the
+ * chats at work, the bubble follows one ([dev.icode.mobile.domain.AssistantState.focus]).
  */
 data class PhoneOverlay(
     val bubble: Boolean,
     val glow: Glow,
     /** What the bubble shows ([Look]). */
     val look: Look,
-    /** A turn runs: Stop is offered, and dragging the bubble away stops it. */
+    /** The turn it follows runs: Stop is offered, and dragging the bubble away stops it. */
     val working: Boolean,
     /** A question waits for the user: a dot on the bubble, and the question under its bar. */
     val asking: Boolean,
-    /** What the turn is doing now, in its own words. */
+    /** What that turn is doing now, in its own words. */
     val step: String?,
     /** An MCP server asks the user mid-call: answered in iCode, where its form is. */
     val question: McpQuestion? = null,
     /** The model's questions wait in the chat the bubble sends to: what the bar sends is the reply. */
     val replying: Boolean = false,
+    /** The chat the bubble sends to works, and asks nothing to reply to: Send waits for it. */
+    val busy: Boolean = false,
 ) {
     enum class Glow { Off, On, Dim }
 
@@ -56,10 +59,10 @@ data class PhoneOverlay(
     companion object {
         /** [muted]: the bubble's voice session was muted, and its text bar shows. [question]: an MCP server asks the user. */
         fun of(assistant: AssistantState, voice: VoiceState, access: PhoneAccess, iCodeOnScreen: Boolean, muted: Boolean, question: McpQuestion? = null): PhoneOverlay {
-            val turn = assistant.turn
+            val turn = assistant.focus
             val asking = assistant.asking || turn != null && question != null
             val glow = when {
-                !access.bubble || turn?.onPhone != true -> Glow.Off
+                !access.bubble || assistant.turns.none { it.onPhone } -> Glow.Off
                 asking -> Glow.Dim
                 else -> Glow.On
             }
@@ -73,7 +76,7 @@ data class PhoneOverlay(
             }
             return PhoneOverlay(
                 bubble = access.bubble && !iCodeOnScreen, glow = glow, look = look, working = turn != null, asking = asking, step = turn?.step,
-                question = question, replying = assistant.replying,
+                question = question, replying = assistant.replying, busy = assistant.runningHere && !assistant.replying,
             )
         }
     }

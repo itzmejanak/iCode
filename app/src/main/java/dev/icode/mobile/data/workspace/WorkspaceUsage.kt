@@ -31,7 +31,7 @@ internal class WorkspaceUsage(
         if (whole && state.gitOperation is GitOperationState.Running && activeRoot() == location) {
             return "Git is working in $name — wait for it to finish"
         }
-        if (whole && state.assistant.turn?.workspace == location) return "The assistant is working in $name. Stop it first"
+        if (whole && state.assistant.turns.any { it.workspace == location }) return "The assistant is working in $name. Stop it first"
         return edited(location)
     }
 

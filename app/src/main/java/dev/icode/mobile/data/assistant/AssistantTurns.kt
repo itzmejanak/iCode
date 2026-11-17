@@ -21,19 +21,19 @@ import dev.icode.mobile.domain.AssistantTerminal
 import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.notices.AssistantNotices
+import dev.icode.mobile.domain.notices.NoticePlace
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The assistant's work: one turn at a time, its own job, never behind the
- * mutation lock — a message answered, or a chat compacted — and the questions it asks before a
- * change or a command. What it does goes to its chat, and onto the [page] when that chat is open.
+ * The assistant's work in each chat: a turn — a message answered, or a chat compacted — in its own
+ * job, never behind the mutation lock, in as many chats at once as the user starts ([AssistantWork]);
+ * and the questions each asks before a change or a command. What a turn does goes to its chat, and
+ * onto the [page] when that chat is open.
  */
 internal class AssistantTurns(
     private val page: AssistantPage,
@@ -53,18 +53,10 @@ internal class AssistantTurns(
     /** What the turn asks the user; its answers come to it from the coordinator. */
     private val questions: AssistantQuestions,
 ) {
-    private val lock = Any()
-    private var job: Job? = null
-    /** The workspace — null for none — and chat [job] works in. */
-    private var place: Pair<String?, String>? = null
-    /** The call running now: what an approval is about. */
-    private var calling: AssistantCall? = null
+    /** The servers serve every chat: the last chat to end idles them. */
+    private val working = AssistantWork(scope) { tools.done() }
 
-    /** The lines each change to a file added and removed, by call, until its result is recorded. */
-    private val counted = mutableMapOf<String, LineChanges>()
-
-    /** The workspace — null for none — and chat of the turn in hand; null when none runs. */
-    val running: Pair<String?, String>? get() = synchronized(lock) { place }
+    fun runs(workspace: String?, session: String): Boolean = working.runs(workspace to session)
 
     fun send(workspace: String?, session: String, input: String, attachments: List<String>, aloud: Boolean = false) =
         launch(workspace, session, aloud) { converse(input, attachments) }
@@ -84,23 +76,15 @@ internal class AssistantTurns(
         compact(setup(), AssistantRules.forModel(chats.of(workspace, session).messages))
     }
 
-    fun stop() {
-        synchronized(lock) { job }?.cancel()
-    }
+    fun stop(workspace: String?, session: String) = working.stop(workspace to session)
 
-    /** Stops the turn in [workspace], if one runs there, and waits until its chat is saved. */
-    suspend fun stopIn(workspace: String) {
-        synchronized(lock) { job.takeIf { place?.first == workspace } }?.cancelAndJoin()
-    }
+    /** Stops every turn in [workspace], and waits until their chats are saved. */
+    suspend fun stopIn(workspace: String) = working.stopIn(workspace)
 
-    /** One turn at a time: the job, not the page, decides — a second Send in the same instant finds the first. */
-    private fun launch(workspace: String?, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) = synchronized(lock) {
-        if (job?.isActive == true) {
-            val name = page.current.turn?.workspaceName ?: AssistantPlace.name(workspace)
-            return@synchronized page.tell(AssistantNotices.busy(name))
-        }
-        place = workspace to session
-        job = scope.launch { Turn(workspace, session, aloud).run(work) }
+    /** One turn in a chat at a time; another chat's never waits on it. */
+    private fun launch(workspace: String?, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) {
+        val turn = Turn(workspace, session, aloud)
+        if (!working.start(turn.chat) { turn.run(work) }) page.tell(AssistantNotices.busy(NoticePlace(AssistantPlace.name(workspace), workspace)))
     }
 
     /** What a turn works with, as set when it starts: a change made while it runs is for the next one. */
@@ -108,13 +92,19 @@ internal class AssistantTurns(
 
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
-        /** The step its tools are on, and the hand-over its phone tools wait on. */
+        val chat = workspace to session
+
+        /** The step its tools are on, the hand-over its phone tools wait on, and the screen they take. */
         val step = AssistantStep(
-            clarify = questions::clarify,
-            handOver = { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
+            clarify = { call, asked -> questions.clarify(workspace, session, call, asked) },
+            handOver = { why -> questions.pause(workspace, session, AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
             progress = { text -> step(text) },
-            terminal = { callId, session -> page.state { it.copy(turn = it.turn?.copy(terminal = AssistantTerminal(callId, session))) } },
+            terminal = { callId, tab -> update { it.copy(terminal = AssistantTerminal(callId, tab)) } },
+            takePhone = { if (working.takePhone(chat)) update { it.copy(onPhone = true) } },
         )
+
+        /** The lines each change to a file added and removed, by call, until its result is recorded. */
+        val counted = ConcurrentHashMap<String, LineChanges>()
 
         /** Who answers this turn: its replies are kept as theirs (docs/assistant-and-mcp.md). */ var chosen: AssistantChoice? = null
         /** This chat's mode now: the setting, raised by its own answers. */
@@ -126,9 +116,7 @@ internal class AssistantTurns(
             try {
                 val name = workspace?.let { runCatching { describe(it).name }.getOrNull() } ?: AssistantPlace.name(workspace)
                 page.state {
-                    // A new chat on the page is this one from now: it is listed with its first message.
-                    val shown = if (it.opened && it.workspace == workspace && it.session == null) session else it.session
-                    it.copy(turn = AssistantTurn(workspace, name, session, THINKING, aloud = aloud), session = shown, failure = if (shows(it.opened, it.workspace, shown)) null else it.failure)
+                    it.copy(turns = it.turns + AssistantTurn(workspace, name, session, THINKING, aloud = aloud), failure = if (shows(it.opened, it.workspace, it.session)) null else it.failure)
                 }
                 work()
             } catch (cancelled: CancellationException) {
@@ -142,17 +130,10 @@ internal class AssistantTurns(
             } finally {
                 withContext(NonCancellable) {
                     chats.close(workspace, session)
-                    synchronized(lock) {
-                        job = null
-                        place = null
-                        calling = null
-                        counted.clear()
-                    }
-                    questions.clear()
-                    tools.done()
+                    questions.clear(workspace, session)
                     page.listed(workspace)
                     page.refresh(workspace, session)
-                    page.state { it.turnEnded().copy(failure = if (shows(it.opened, it.workspace, it.session)) failure else it.failure) }
+                    page.state { it.turnEnded(workspace, session).copy(failure = if (shows(it.opened, it.workspace, it.session)) failure else it.failure) }
                     page.ended(workspace, session, failure, stopped, began, shown = page.current.let { shows(it.opened, it.workspace, it.session) })
                 }
             }
@@ -167,7 +148,7 @@ internal class AssistantTurns(
         /** [message] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
         suspend fun talk(setup: Setup, message: AssistantMessage.User) {
             chosen = setup.choice.also { chats.choose(workspace, session, it) }
-            page.state { it.copy(turn = it.turn?.copy(by = setup.choice)) }
+            update { it.copy(by = setup.choice) }
             val before = chats.of(workspace, session)
             chats.append(workspace, session, message)
             page.listed(workspace)
@@ -187,8 +168,8 @@ internal class AssistantTurns(
                 history = history.messages,
                 input = message,
                 tools = offered.map { tool ->
-                    AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { synchronized(lock) { calling } }) { call, changes ->
-                        synchronized(lock) { counted[call.id] = changes }
+                    AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { step.current }) { call, changes ->
+                        counted[call.id] = changes
                     }
                 },
                 maxSteps = MAX_STEPS,
@@ -205,7 +186,7 @@ internal class AssistantTurns(
                     }
                 } catch (limit: AssistantStepLimitException) {
                     // The user says whether it goes on; it goes on from the chat as it is.
-                    questions.pause(AssistantPause(AssistantPause.Kind.StepLimit, "It has taken $MAX_STEPS steps on this message."), THINKING)
+                    questions.pause(workspace, session, AssistantPause(AssistantPause.Kind.StepLimit, "It has taken $MAX_STEPS steps on this message."), THINKING)
                     next = goOn(next)
                 }
             }
@@ -236,7 +217,7 @@ internal class AssistantTurns(
         }
 
         override fun writing(reasoning: String, text: String) {
-            page.state { it.copy(turn = it.turn?.copy(live = AssistantLive(reasoning, text))) }
+            update { it.copy(live = AssistantLive(reasoning, text)) }
         }
 
         override fun replied(reply: AssistantMessage.Reply) {
@@ -246,22 +227,17 @@ internal class AssistantTurns(
         }
 
         override fun calling(call: AssistantCall) {
-            synchronized(lock) { calling = call }
             step.current = call
-            val acting = call.tool.startsWith(PHONE_TOOLS)
-            page.state { it.copy(turn = it.turn?.copy(step = call.summary, onPhone = it.turn.onPhone || acting)) }
+            step(call.summary)
         }
 
         override fun answered(result: AssistantResult) {
             // A change to a file says by how many lines, as its tool counted them while it ran.
-            val changes = synchronized(lock) {
-                calling = null
-                counted.remove(result.callId)
-            }
+            val changes = counted.remove(result.callId)
             chats.answer(workspace, session, result.copy(changes = changes, printed = step.takePrinted(result.callId)))
             page.refresh(workspace, session)
             val changed = changes != null && !result.failed
-            page.state { it.copy(turn = it.turn?.copy(step = THINKING, terminal = null, changedFiles = it.turn.changedFiles || changed)) }
+            update { it.copy(step = THINKING, terminal = null, changedFiles = it.changedFiles || changed) }
         }
 
         override fun used(tokens: Long) {
@@ -284,7 +260,10 @@ internal class AssistantTurns(
 
         private fun shows(opened: Boolean, shownWorkspace: String?, shownSession: String?) = opened && shownWorkspace == workspace && shownSession == session
 
-        private fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }
+        private fun step(text: String) = update { it.copy(step = text) }
+
+        /** Its own turn on the page changed: another chat's is never touched. */
+        private fun update(change: (AssistantTurn) -> AssistantTurn) = page.state { it.changeTurn(workspace, session, change) }
     }
 
     private companion object {
@@ -293,7 +272,7 @@ internal class AssistantTurns(
         const val THINKING = "Thinking…"
         const val COMPACTING = "Compacting the chat…"
 
-        /** The phone tools' names start so: a turn that calls one acts on the phone. */
+        /** The phone tools' names start so: a turn offered one is told how to act on the phone. */
         const val PHONE_TOOLS = "phone_"
         const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }

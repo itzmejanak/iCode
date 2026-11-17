@@ -73,14 +73,14 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
         if (state.sessions.size > SEARCH_FROM) Search(query, "Search chats") { query = it }
         if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in ${AssistantPlace.name(state.workspace)} yet" else "No chat matches")
         shown.forEach { session ->
-            val working = state.turn?.let { it.workspace == state.workspace && it.session == session.id } == true
+            val working = state.turnOf(state.workspace, session.id) != null
             IcodeListRow(
                 title = session.title,
                 subtitle = if (working) "Working…" else RelativeTime.since(session.updatedAt),
                 subtitleStyle = IcodeType.Caption,
                 selected = session.id == state.session,
                 onClick = {
-                    gateway.dispatch(ICodeIntent.OpenAssistantSession(session.id))
+                    gateway.dispatch(ICodeIntent.OpenAssistantSession(state.workspace, session.id))
                     onClose()
                 },
                 trailing = {

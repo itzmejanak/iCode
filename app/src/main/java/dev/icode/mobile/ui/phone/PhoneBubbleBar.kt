@@ -135,7 +135,7 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
                     .takeIf { editor || lines > BAR_LINES },
             ),
             menu = listOf(
-                IcodeMenuAction("New chat", Icons.Outlined.Add, { actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working),
+                IcodeMenuAction("New chat", Icons.Outlined.Add, { actions.dispatch(ICodeIntent.NewAssistantChat) }),
                 IcodeMenuAction("Open in iCode", Icons.AutoMirrored.Outlined.OpenInNew, actions.open),
             ),
         ) {
@@ -159,11 +159,13 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
             )
             BarMic(view, actions, bottom)
             when {
-                overlay.working && draft.isBlank() -> OverlayButton(Icons.Outlined.Stop, "Stop", IcodeColors.Error, bottom) { actions.dispatch(ICodeIntent.StopAssistant) }
+                overlay.working && draft.isBlank() -> OverlayButton(Icons.Outlined.Stop, "Stop", IcodeColors.Error, bottom) {
+                    view.assistant.focus?.let { actions.dispatch(ICodeIntent.StopAssistant(it.workspace, it.session)) }
+                }
                 view.voice.speaking && draft.isBlank() -> OverlayButton(Icons.Outlined.StopCircle, "Stop reading aloud", IcodeColors.Accent, bottom) { actions.dispatch(VoiceIntent.Silence) }
                 else -> OverlayButton(
                     Icons.AutoMirrored.Outlined.Send, "Send", IcodeColors.Accent, bottom,
-                    enabled = draft.isNotBlank() && (!overlay.working || overlay.replying), onClick = actions.send,
+                    enabled = draft.isNotBlank() && !overlay.busy, onClick = actions.send,
                 )
             }
         }
@@ -238,20 +240,20 @@ private fun Notes(view: PhoneBubbleView, actions: PhoneBubbleActions) {
 }
 
 /**
- * The question the turn waits on, with its answers: an approval, or a pause. Shared words with the chat's
- * cards. An MCP server's question shows its first line, and the model's questions their first: a form
- * is answered in iCode, and the model's questions also by what the bar sends.
+ * The question the turn it follows waits on, with its answers: an approval, or a pause. Shared words with
+ * the chat's cards. An MCP server's question shows its first line, and the model's questions their first:
+ * a form is answered in iCode, and the model's questions also by what the bar sends.
  */
 @Composable
 private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val dispatch = actions.dispatch
-    val assistant = view.assistant
-    val approval = assistant.approval
-    val pause = assistant.pause
-    val clarification = assistant.clarification?.takeIf { approval == null && pause == null }
+    val turn = view.assistant.focus
+    val approval = turn?.approval
+    val pause = turn?.pause
+    val clarification = turn?.clarification?.takeIf { approval == null && pause == null }
     val asked = view.overlay.question?.takeIf { approval == null && pause == null && clarification == null }
     // The chat at work, else the one shown: its workspace, or none.
-    val workspace = if (assistant.turn != null) assistant.turn.workspace else assistant.workspace
+    val workspace = if (turn != null) turn.workspace else view.assistant.workspace
     val title = approval?.let { AssistantPermissions.question(it, AssistantPlace.name(workspace)) } ?: pause?.kind?.question
         ?: clarification?.let { AssistantQuestionRules.TITLE } ?: asked?.let { "${it.server} asks" }
     Text(title.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
@@ -260,14 +262,14 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
         style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 2, overflow = TextOverflow.Ellipsis,
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
-        if (approval != null) {
-            val answer = { it: AssistantAnswer -> dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
+        if (turn != null && approval != null) {
+            val answer = { it: AssistantAnswer -> dispatch(ICodeIntent.AnswerAssistant(turn.workspace, turn.session, approval.call.id, it)) }
             SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
             AssistantPermissions.allowIn(approval, workspace?.let(AssistantPlace::name))?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }
             PrimaryButton(AssistantPermissions.allowOnce(approval), { answer(AssistantAnswer.Allow) }, compact = true)
-        } else if (pause != null) {
-            SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant) }, compact = true)
-            PrimaryButton(pause.kind.proceed, { dispatch(ICodeIntent.ContinueAssistant) }, compact = true)
+        } else if (turn != null && pause != null) {
+            SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }, compact = true)
+            PrimaryButton(pause.kind.proceed, { dispatch(ICodeIntent.ContinueAssistant(turn.workspace, turn.session)) }, compact = true)
         } else if (asked != null || clarification != null) {
             PrimaryButton("Open in iCode", actions.open, compact = true)
         }

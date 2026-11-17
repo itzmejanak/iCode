@@ -180,11 +180,18 @@ class AssistantCoordinatorTest {
         }
     }
 
+    /** The shown chat's approval answered, its turn stopped, or let go on: as its card's buttons do. */
+    private fun answer(answer: AssistantAnswer) = state().turn!!.let { coordinator.handle(ICodeIntent.AnswerAssistant(it.workspace, it.session, "c1", answer)) }
+
+    private fun halt() = state().turn!!.let { coordinator.handle(ICodeIntent.StopAssistant(it.workspace, it.session)) }
+
+    private fun goOn() = state().turn!!.let { coordinator.handle(ICodeIntent.ContinueAssistant(it.workspace, it.session)) }
+
     private fun said(text: String) {
         val before = requests.size
         script = { _, events -> events.replied(AssistantMessage.Reply("Re: $text")) }
         coordinator.handle(ICodeIntent.SendAssistantMessage(text))
-        until { requests.size == before + 1 && state().turn == null }
+        until { requests.size == before + 1 && !state().running }
     }
 
     private val edit = AssistantCall("c1", "edit_file", """{"path":"a.kt"}""", "Edit a.kt", AssistantToolKind.Change)
@@ -255,8 +262,8 @@ class AssistantCoordinatorTest {
         assertNull(state().approval!!.reach)
         assertNull(AssistantPermissions.allowIn(state().approval!!, null))
         assertTrue(ran.isEmpty())
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
-        until { state().turn == null }
+        answer(AssistantAnswer.Allow)
+        until { !state().running }
         assertEquals(listOf("edit_file"), ran)
     }
 
@@ -267,7 +274,7 @@ class AssistantCoordinatorTest {
         until { state().opened && state().workspace == null }
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
-        until { requests.size == 1 && state().turn == null }
+        until { requests.size == 1 && !state().running }
         assertEquals(listOf("edit_file"), ran)
     }
 
@@ -293,8 +300,8 @@ class AssistantCoordinatorTest {
         until { state().pause != null }
         assertEquals(AssistantPause.Kind.StepLimit, state().pause!!.kind)
         assertEquals("Waiting for your answer", state().turn!!.step)
-        coordinator.handle(ICodeIntent.ContinueAssistant)
-        until { state().turn == null }
+        goOn()
+        until { !state().running }
         assertEquals(2, requests.size)
         assertNull(requests[1].input)
         assertEquals(listOf(AssistantMessage.User("Do the long thing"), AssistantMessage.Reply("Working…", by = gpt5)), requests[1].history)
@@ -311,13 +318,13 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("Turn on Wi-Fi", aloud = true))
         until { state().pause != null }
         assertTrue(state().turn!!.aloud)
-        coordinator.handle(ICodeIntent.ContinueAssistant)
-        until { state().turn == null }
+        goOn()
+        until { !state().running }
         coordinator.handle(ICodeIntent.SendAssistantMessage("And Bluetooth"))
         until { state().pause != null }
         assertFalse(state().turn!!.aloud)
-        coordinator.handle(ICodeIntent.StopAssistant)
-        until { state().turn == null }
+        halt()
+        until { !state().running }
     }
 
     @Test fun `Stop at the step limit ends the turn, and what was done stays`() {
@@ -327,8 +334,8 @@ class AssistantCoordinatorTest {
         }
         coordinator.handle(ICodeIntent.SendAssistantMessage("Do the long thing"))
         until { state().pause != null }
-        coordinator.handle(ICodeIntent.StopAssistant)
-        until { state().turn == null }
+        halt()
+        until { !state().running }
         assertNull(state().pause)
         assertEquals(1, requests.size)
         assertEquals(AssistantMessage.Reply("Working…", by = gpt5), state().messages.last())
@@ -341,8 +348,8 @@ class AssistantCoordinatorTest {
         assertEquals("Edit a.kt", state().approval!!.call.summary)
         assertEquals("Waiting for your answer", state().turn!!.step)
         assertTrue(ran.isEmpty())
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
-        until { state().turn == null }
+        answer(AssistantAnswer.Allow)
+        until { !state().running }
         assertEquals(listOf("edit_file"), ran)
         assertEquals(AssistantMessage.User("Rename x"), requests.single().input)
         assertEquals(4, state().messages.size)
@@ -362,8 +369,8 @@ class AssistantCoordinatorTest {
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Deny))
-        until { state().turn == null }
+        answer(AssistantAnswer.Deny)
+        until { !state().running }
         assertTrue(ran.isEmpty())
         val result = (state().messages[2] as AssistantMessage.Results).results.single()
         assertTrue(result.failed)
@@ -376,12 +383,12 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("one"))
         until { state().approval != null }
         assertNull(state().approval!!.reach)
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowInChat))
-        until { state().turn == null }
+        answer(AssistantAnswer.AllowInChat)
+        until { !state().running }
         assertTrue(state().allowedInWorkspace)
         assertEquals(AssistantPermission.AutoInWorkspace, state().permission)
         coordinator.handle(ICodeIntent.SendAssistantMessage("two"))
-        until { requests.size == 2 && state().turn == null }
+        until { requests.size == 2 && !state().running }
         assertEquals(listOf("edit_file", "edit_file"), ran)
 
         coordinator.handle(ICodeIntent.NewAssistantChat)
@@ -390,7 +397,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.AutoInWorkspace))
         until { state().settings.permission == AssistantPermission.AutoInWorkspace }
         coordinator.handle(ICodeIntent.SendAssistantMessage("three"))
-        until { requests.size == 3 && state().turn == null }
+        until { requests.size == 3 && !state().running }
         assertEquals(3, ran.size)
         assertEquals(2, state().sessions.size)
     }
@@ -399,8 +406,8 @@ class AssistantCoordinatorTest {
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("one"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowInChat))
-        until { state().turn == null && state().allowedInWorkspace }
+        answer(AssistantAnswer.AllowInChat)
+        until { !state().running && state().allowedInWorkspace }
         coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.AskFirst))
         until { !state().allowedInWorkspace }
         coordinator.handle(ICodeIntent.SendAssistantMessage("two"))
@@ -414,8 +421,8 @@ class AssistantCoordinatorTest {
         until { state().approval != null }
         assertEquals(AssistantReach(listOf("/etc/hosts"), listOf("/etc")), state().approval!!.reach)
         assertTrue(ran.isEmpty())
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Deny))
-        until { state().turn == null }
+        answer(AssistantAnswer.Deny)
+        until { !state().running }
         val result = (state().messages[2] as AssistantMessage.Results).results.single()
         assertEquals("The user did not allow reaching /etc/hosts", result.output)
         assertTrue(ran.isEmpty())
@@ -425,11 +432,11 @@ class AssistantCoordinatorTest {
         readTurn("/etc/hosts")
         coordinator.handle(ICodeIntent.SendAssistantMessage("hosts?"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowInChat))
-        until { state().turn == null }
+        answer(AssistantAnswer.AllowInChat)
+        until { !state().running }
         readTurn("/etc/passwd")
         coordinator.handle(ICodeIntent.SendAssistantMessage("passwd?"))
-        until { requests.size == 2 && state().turn == null }
+        until { requests.size == 2 && !state().running }
         assertEquals(listOf("read_file", "read_file"), ran)
         readTurn("~/notes.txt")
         coordinator.handle(ICodeIntent.SendAssistantMessage("notes?"))
@@ -443,15 +450,15 @@ class AssistantCoordinatorTest {
         readTurn("/etc/hosts")
         coordinator.handle(ICodeIntent.SendAssistantMessage("hosts?"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
-        until { state().turn == null }
+        answer(AssistantAnswer.Allow)
+        until { !state().running }
         coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.FullAccess))
         until { state().settings.permission == AssistantPermission.FullAccess }
         coordinator.handle(ICodeIntent.SendAssistantMessage("again"))
-        until { requests.size == 2 && state().turn == null }
+        until { requests.size == 2 && !state().running }
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("edit"))
-        until { requests.size == 3 && state().turn == null }
+        until { requests.size == 3 && !state().running }
         assertEquals(listOf("read_file", "read_file", "edit_file"), ran)
     }
 
@@ -459,8 +466,8 @@ class AssistantCoordinatorTest {
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.StopAssistant)
-        until { state().turn == null }
+        halt()
+        until { !state().running }
         assertNull(state().approval)
         assertNull("a stop is not a failure", state().failure)
         val results = (state().messages[2] as AssistantMessage.Results).results.single()
@@ -496,20 +503,33 @@ class AssistantCoordinatorTest {
         val after = runBlocking { withTimeout(5_000) { recorded.await() } }
         assertNull(after.turn?.live)
         assertEquals(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt.", by = gpt5), after.messages.last())
-        until { state().turn == null }
+        until { !state().running }
     }
 
-    @Test fun `one turn at a time, and none without a provider`() {
+    @Test fun `chats work at once, one message at a time in each, and none without a provider`() {
         editTurn()
-        // Two in the same instant: the second finds the first one's turn before its page does.
+        // Two in the same instant in one chat: the second finds the first one's turn before its page does.
         coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
         coordinator.handle(ICodeIntent.SendAssistantMessage("at once"))
         until { state().approval != null }
+        val first = state().session!!
         coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
-        until { effects.any { it.said() == Said(NoticeTone.HeadsUp, "Wait for the assistant to finish", "It is working in app. Or stop it there.") } }
+        until { effects.any { it.said() == Said(NoticeTone.HeadsUp, "Wait for this chat to finish", "It is still working. Or stop it.") } }
         assertEquals(1, requests.size)
-        coordinator.handle(ICodeIntent.StopAssistant)
-        until { state().turn == null }
+        // Another chat works meanwhile, and asks its own question about a call with the same ID.
+        coordinator.handle(ICodeIntent.NewAssistantChat)
+        until { state().session == null }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("elsewhere"))
+        until { state().turns.size == 2 && state().approval != null }
+        val second = state().session!!
+        assertEquals(2, requests.size)
+        answer(AssistantAnswer.Deny)
+        until { state().turnOf(app, second) == null }
+        // The first chat still waits on its own question.
+        assertEquals(listOf(first), state().turns.map { it.session })
+        assertEquals("Edit a.kt", state().turnOf(app, first)?.approval?.call?.summary)
+        coordinator.handle(ICodeIntent.StopAssistant(app, first))
+        until { !state().running }
 
         coordinator.handle(ICodeIntent.RemoveAssistantProvider(openAI))
         until { !state().settings.ready }
@@ -517,8 +537,8 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("third"))
         until { state().failure != null }
         assertTrue(state().failure!!.startsWith("Set up the assistant first"))
-        assertEquals(1, requests.size)
-        assertEquals("nothing was said in a chat that never started", 1, state().sessions.size)
+        assertEquals(2, requests.size)
+        assertEquals("nothing was said in a chat that never started", 2, state().sessions.size)
     }
 
     @Test fun `each chat is its own, opened from the history and deleted from it, and the page reopens on the one shown`() {
@@ -532,7 +552,7 @@ class AssistantCoordinatorTest {
         // The second turn sent nothing of the first chat.
         assertEquals(emptyList<AssistantMessage>(), requests.last().history)
 
-        coordinator.handle(ICodeIntent.OpenAssistantSession(first))
+        coordinator.handle(ICodeIntent.OpenAssistantSession(state().workspace, first))
         until { state().session == first }
         assertEquals("Re: first chat", (state().messages.last() as AssistantMessage.Reply).text)
         coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = true))
@@ -551,8 +571,8 @@ class AssistantCoordinatorTest {
         until { state().approval != null }
         coordinator.handle(ICodeIntent.DeleteAssistantSession(state().session!!))
         until { effects.any { it.said()?.title == "Stop the assistant first" } }
-        coordinator.handle(ICodeIntent.StopAssistant)
-        until { state().turn == null }
+        halt()
+        until { !state().running }
         assertEquals(1, state().sessions.size)
     }
 
@@ -564,7 +584,7 @@ class AssistantCoordinatorTest {
         said("Compare")
         script = { _, events -> events.replied(AssistantMessage.Reply("ok")) }
         coordinator.handle(ICodeIntent.SendAssistantMessage("Compare", listOf(File(app, "a.kt").path, b)))
-        until { requests.size == 2 && state().turn == null }
+        until { requests.size == 2 && !state().running }
         assertEquals(
             listOf(AssistantAttachment("a.kt", text = "val a = 1", inWorkspace = true), AssistantAttachment("b.kt", text = "val b = 2 // unsaved", inWorkspace = true)),
             requests.last().input!!.attachments,
@@ -628,8 +648,8 @@ class AssistantCoordinatorTest {
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("Add a helper"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
-        until { state().turn == null && state().messages.lastOrNull() is AssistantMessage.Reply }
+        answer(AssistantAnswer.Allow)
+        until { !state().running && state().messages.lastOrNull() is AssistantMessage.Reply }
         coordinator.handle(ICodeIntent.ExportAssistantSession(state().session!!))
         until { effects.any { it is ICodeEffect.ShareChat } }
         val text = File(effects.filterIsInstance<ICodeEffect.ShareChat>().last().location).readText()
@@ -679,7 +699,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-5"))
         until { state().settings.choice == gpt }
         assertEquals("gpt-5", state().model?.id)
-        coordinator.handle(ICodeIntent.OpenAssistantSession(first))
+        coordinator.handle(ICodeIntent.OpenAssistantSession(state().workspace, first))
         until { state().session == first }
         assertEquals("o3", state().model?.id)
         said("three")
@@ -690,7 +710,7 @@ class AssistantCoordinatorTest {
         said("one")
         said("two")
         coordinator.handle(ICodeIntent.CompactAssistantChat)
-        until { state().messages.lastOrNull() is AssistantMessage.Compacted && state().turn == null }
+        until { state().messages.lastOrNull() is AssistantMessage.Compacted && !state().running }
         assertEquals(4, compactions.single().size)
         assertNull("the meter starts again", state().contextTokens)
         said("three")
@@ -706,7 +726,7 @@ class AssistantCoordinatorTest {
             events.replied(AssistantMessage.Reply("long"))
         }
         coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
-        until { requests.size == 1 && state().turn == null }
+        until { requests.size == 1 && !state().running }
         assertEquals(850L, state().contextTokens)
         said("second")
         assertEquals(listOf(AssistantMessage.User("first"), AssistantMessage.Reply("long", by = gpt5)), compactions.single())
@@ -794,7 +814,7 @@ class AssistantCoordinatorTest {
         said("ok")
         script = { _, events -> events.replied(AssistantMessage.Reply("A cat.")) }
         coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
-        until { requests.size == 2 && state().turn == null }
+        until { requests.size == 2 && !state().running }
         val photo = requests.last().input!!.attachments.single()
         assertEquals("IMG_1.jpg", photo.name)
         assertEquals(AssistantAttachmentKind.Image, photo.kind)
@@ -815,7 +835,7 @@ class AssistantCoordinatorTest {
         until { state().settings.model?.id == "gpt-5-vision" }
         script = { _, events -> events.replied(AssistantMessage.Reply("A receipt.")) }
         coordinator.handle(ICodeIntent.SendAssistantMessage("", listOf("content://photos/2")))
-        until { requests.size == 1 && state().turn == null }
+        until { requests.size == 1 && !state().running }
         assertEquals("", requests.single().input!!.text)
         assertEquals("IMG_2.jpg", requests.single().input!!.attachments.single().name)
         assertEquals("IMG_2.jpg", state().sessions.single().title)
@@ -827,7 +847,7 @@ class AssistantCoordinatorTest {
         until { state().failure != null }
         script = { _, events -> events.replied(AssistantMessage.Reply("Hi.")) }
         coordinator.handle(ICodeIntent.RetryAssistantMessage)
-        until { requests.size == 2 && state().turn == null }
+        until { requests.size == 2 && !state().running }
         assertNull(state().failure)
         assertEquals(listOf(AssistantMessage.User("Hello"), AssistantMessage.Reply("Hi.", by = gpt5)), state().messages)
         assertEquals(AssistantMessage.User("Hello"), requests.last().input)

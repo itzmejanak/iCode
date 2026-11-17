@@ -94,13 +94,13 @@ class PhoneRulesTest {
         val idle = AssistantState()
         assertEquals(PhoneOverlay(bubble = true, glow = PhoneOverlay.Glow.Off, look = PhoneOverlay.Look.Idle, working = false, asking = false, step = null), of(idle, on))
         assertFalse(of(idle, on, front = true).bubble)
-        val acting = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true))
+        val acting = AssistantState(turns = listOf(AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true)))
         assertEquals(PhoneOverlay.Glow.On, of(acting, on).glow)
-        val waiting = acting.copy(approval = AssistantApproval(call, "Tap [3]"))
+        val waiting = acting.changeTurn("/w/app", "s1") { it.copy(approval = AssistantApproval(call, "Tap [3]")) }
         assertEquals(PhoneOverlay.Glow.Dim, of(waiting, on).glow)
         assertTrue(of(waiting, on).asking)
-        assertTrue(of(acting.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type the password")), on).asking)
-        val workspaceTurn = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Thinking…"))
+        assertTrue(of(acting.changeTurn("/w/app", "s1") { it.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type the password")) }, on).asking)
+        val workspaceTurn = AssistantState(turns = listOf(AssistantTurn("/w/app", "app", "s1", "Thinking…")))
         assertEquals(PhoneOverlay.Glow.Off, of(workspaceTurn, on).glow)
         // Put away: the glow goes with the bubble.
         val away = on.copy(bubble = false)
@@ -108,11 +108,30 @@ class PhoneRulesTest {
         assertEquals(PhoneOverlay.Glow.Off, of(acting, away).glow)
     }
 
+    @Test fun `with chats at work at once, the bubble follows one asking, then the one on the phone, and sends unless its chat works`() {
+        val on = PhoneAccess(service = true, bubble = true)
+        val phone = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true)
+        val home = AssistantTurn(null, "Home", "s2", "Thinking…")
+        val shownHome = AssistantState(opened = true, session = "s2", turns = listOf(home, phone))
+        assertEquals(phone, shownHome.focus)
+        assertEquals(PhoneOverlay.Look.Acting, of(shownHome, on).look)
+        assertEquals("Tap [3]", of(shownHome, on).step)
+        assertTrue(of(shownHome, on).busy)
+        val asked = shownHome.changeTurn(null, "s2") { it.copy(pause = AssistantPause(AssistantPause.Kind.StepLimit, "")) }
+        assertEquals("s2", asked.focus?.session)
+        assertEquals(PhoneOverlay.Glow.Dim, of(asked, on).glow)
+        // Another chat shown: the bubble still follows the one at work, and sends to the shown one.
+        val elsewhere = shownHome.copy(session = "s3")
+        assertEquals(phone, elsewhere.focus)
+        assertTrue(of(elsewhere, on).working)
+        assertFalse(of(elsewhere, on).busy)
+    }
+
     @Test fun `the bubble shows the agent's activity before the microphone's, and listening only while it listens`() {
         val on = PhoneAccess(service = true, bubble = true)
         val idle = AssistantState()
-        val thinking = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Thinking…"))
-        val acting = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true))
+        val thinking = AssistantState(turns = listOf(AssistantTurn("/w/app", "app", "s1", "Thinking…")))
+        val acting = AssistantState(turns = listOf(AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true)))
         val listening = VoiceState(heard = Heard(1, VoiceFrom.Bubble, "turn on", final = false))
         assertEquals(PhoneOverlay.Look.Idle, of(idle, on).look)
         assertEquals(PhoneOverlay.Look.Muted, of(idle, on, muted = true).look)

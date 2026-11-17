@@ -16,6 +16,11 @@ internal class AssistantStep(
     val terminal: (callId: String, session: String) -> Unit = { _, _ -> },
     /** The call asks the user its questions and waits for the reply (docs/assistant-and-mcp.md). */
     val clarify: suspend (call: AssistantCall, questions: List<AssistantQuestion>) -> AssistantReply = { _, _ -> AssistantReply.Skipped },
+    /**
+     * A phone tool takes the phone's screen for the turn: refused, with [AssistantToolException], while
+     * another chat's turn has it (docs/voice-and-phone-control.md).
+     */
+    val takePhone: () -> Unit = {},
     /** The user takes a step themselves — a password, a payment — and the turn waits for Done. Last: a trailing lambda is this. */
     val handOver: suspend (why: String) -> Unit = {},
 ) {

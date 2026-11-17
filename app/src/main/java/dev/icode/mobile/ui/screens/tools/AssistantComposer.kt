@@ -85,17 +85,17 @@ internal fun AssistantComposer(
         gateway.dispatch(VoiceIntent.Refresh)
         if (granted) gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Chat))
     }
-    // Once the user stops talking, what was heard is sent with what was typed; while a turn runs, it waits in the
-    // field — unless the turn waits on its questions, which it answers.
+    // Once the user stops talking, what was heard is sent with what was typed; while this chat works, it waits in the
+    // field — unless the chat's turn waits on its questions, which it answers.
     OnHeard(voice, VoiceFrom.Chat) { words ->
         onDraft(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
-        if (!state.running || state.replying && attached.isEmpty()) onSend()
+        if (!state.runningHere || state.replying && attached.isEmpty()) onSend()
     }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
     val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, state.model)
     // Words, files or both: a photo alone is a question too. While the turn asks its questions, words alone reply.
     val canSend = if (state.replying) draft.isNotBlank() && attached.isEmpty()
-    else (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
+    else (draft.isNotBlank() || attached.isNotEmpty()) && !state.runningHere && unreadable == null
     Column(
         Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
@@ -165,8 +165,9 @@ internal fun AssistantComposer(
                     }
                 }
                 MicButton(voice, VoiceFrom.Chat, gateway::dispatch) { askMicrophone.launch(Manifest.permission.RECORD_AUDIO) }
+                val turn = state.turn
                 when {
-                    state.runningHere && !(state.replying && draft.isNotBlank()) -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
+                    turn != null && !(state.replying && draft.isNotBlank()) -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
                     }
                     // An answer read aloud: Stop silences it; typing brings Send back.

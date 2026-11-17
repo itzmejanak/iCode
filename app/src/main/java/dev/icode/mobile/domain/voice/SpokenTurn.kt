@@ -27,6 +27,7 @@ sealed interface VoiceCue {
  * soon as it is whole — while the model still writes the next — and each question it asks, in order.
  * Ended, what waits is said; stopped or failed, the voice hushes. A turn is read when its message was
  * sent to be answered aloud ([dev.icode.mobile.domain.AssistantTurn.aloud]) and Spoken replies is not Off.
+ * Other chats work meanwhile: a turn that begins elsewhere takes the voice only when it is to be read.
  */
 class SpokenTurn {
     /** The workspace and chat of the turn read now; null when none is. */
@@ -40,20 +41,21 @@ class SpokenTurn {
     private var taken = 0
 
     fun next(before: AssistantState, after: AssistantState, spoken: SpokenReplies): List<VoiceCue> {
-        val turn = after.turn
-        if (before.turn == null && turn != null) {
-            reading = (turn.workspace to turn.session).takeIf { turn.aloud && spoken != SpokenReplies.Off }
+        val begun = after.turns.firstOrNull { before.turnOf(it.workspace, it.session) == null }
+        if (begun != null && (begun.aloud || reading == null)) {
+            reading = (begun.workspace to begun.session).takeIf { begun.aloud && spoken != SpokenReplies.Off }
             base = after.messages.size
             replies = 0
             taken = 0
-            return if (reading == null) listOf(VoiceCue.Hush) else listOf(VoiceCue.Begin) + said(after)
+            if (reading == null) return listOf(VoiceCue.Hush)
+            return listOf(VoiceCue.Begin) + if (begun.of(after.workspace, after.session)) said(after) else emptyList()
         }
         val place = reading ?: return emptyList()
         if (spoken == SpokenReplies.Off) return listOf(VoiceCue.Hush).also { reading = null }
         // Read only while its chat is shown: the messages on the page are then this turn's.
         val shown = after.workspace == place.first && after.session == place.second
         val cues = if (shown) said(after) + asked(before, after) else emptyList()
-        if (before.turn == null || turn != null) return cues
+        if (after.turnOf(place.first, place.second) != null) return cues
         reading = null
         val last = after.messages.lastOrNull()
         val finished = after.failure == null && last is AssistantMessage.Reply && last.calls.isEmpty()
@@ -85,8 +87,7 @@ class SpokenTurn {
     private fun asked(before: AssistantState, after: AssistantState): List<VoiceCue> {
         val approval = after.approval
         if (approval != null && approval.call.id != before.approval?.call?.id) {
-            val workspace = if (after.turn != null) after.turn.workspace else after.workspace
-            return listOf(VoiceCue.Say("${SpokenText.of(AssistantPermissions.question(approval, AssistantPlace.name(workspace)))} ${SpokenText.of(approval.call.summary)}"))
+            return listOf(VoiceCue.Say("${SpokenText.of(AssistantPermissions.question(approval, AssistantPlace.name(after.workspace)))} ${SpokenText.of(approval.call.summary)}"))
         }
         val clarification = after.clarification
         if (clarification != null && clarification.call.id != before.clarification?.call?.id) {

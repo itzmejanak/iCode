@@ -161,7 +161,9 @@ The floating bubble and edge glow use `TYPE_ACCESSIBILITY_OVERLAY` windows owned
 
 The bubble can show idle, listening, muted, thinking, acting, and speaking states. It can open a text bar, start or stop listening, send a message, silence speech, stop active assistant work, open the assistant, and be dragged to an edge or dismissal target. Putting it away removes the glow; the foreground-service notification can show it again while phone control remains enabled.
 
-The phone-control notification offers Show bubble when needed and Turn off. Active assistant work has its own notification with work status, stop controls, and questions. These are separate notifications.
+The bubble sends to the chat iCode shows. With several chats at work, it follows one: a chat waiting for the user first, then the one acting on the phone, then the chat shown, then the last to begin. Its step, question, Stop, and Open in iCode are that chat's, and dragging the bubble away stops it. One chat at a time acts on the phone: its turn has the screen from its first phone tool until it ends, and a phone tool another chat calls meanwhile is refused, telling the model to try again later. A reply read aloud keeps being read while another chat starts; only a message sent aloud takes the voice.
+
+The phone-control notification offers Show bubble when needed and Turn off. Each chat at work has its own notification with its step, its Stop, and its question; tapping it opens that chat. These are separate notifications.
 
 Trusted-window behavior, touch pass-through, keyboard focus, rotation and insets, drag placement, process reconnection, and OEM overlay policy are **Needs Verification**.
 

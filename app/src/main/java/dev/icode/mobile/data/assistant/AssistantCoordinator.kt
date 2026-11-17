@@ -99,18 +99,18 @@ internal class AssistantCoordinator(
             is ICodeIntent.OpenAssistant -> {
                 // Inside the workspace its chats — with none open, those shown, so the page and the bubble stay
                 // in the chat the user was in; outside it, the chats in no workspace (docs/design-and-navigation.md).
-                page.show(if (intent.inWorkspace) activeRoot() ?: page.current.workspace else null, turns.running)
+                page.show(if (intent.inWorkspace) activeRoot() ?: page.current.workspace else null)
                 mcp?.handle(McpIntent.Connect)
             }
-            is ICodeIntent.OpenAssistantSession -> if (page.current.opened) page.display(page.current.workspace, intent.id)
+            is ICodeIntent.OpenAssistantSession -> page.display(intent.workspace, intent.id)
             is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
             is ICodeIntent.ExportAssistantSession -> export(intent.id)
             ICodeIntent.NewAssistantChat -> page.display(here(), null)
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments, intent.aloud)
-            ICodeIntent.StopAssistant -> turns.stop()
-            is ICodeIntent.AnswerAssistant -> questions.answer(intent.callId, intent.answer)
-            is ICodeIntent.ReplyAssistant -> questions.reply(intent.callId, intent.reply)
-            ICodeIntent.ContinueAssistant -> questions.resume()
+            is ICodeIntent.StopAssistant -> turns.stop(intent.workspace, intent.session)
+            is ICodeIntent.AnswerAssistant -> questions.answer(intent.workspace, intent.session, intent.callId, intent.answer)
+            is ICodeIntent.ReplyAssistant -> questions.reply(intent.workspace, intent.session, intent.callId, intent.reply)
+            is ICodeIntent.ContinueAssistant -> questions.resume(intent.workspace, intent.session)
             ICodeIntent.CompactAssistantChat -> compact()
             ICodeIntent.OpenAssistantTerminal -> openTerminal()
             ICodeIntent.RetryAssistantMessage -> retry()
@@ -154,7 +154,11 @@ internal class AssistantCoordinator(
         if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
         val workspace = here()
-        val session = shown.session?.takeIf { shown.opened && shown.workspace == workspace } ?: chats.newSession()
+        val onPage = shown.opened && shown.workspace == workspace
+        val session = shown.session?.takeIf { onPage } ?: chats.newSession().also { created ->
+            // A new chat on the page is this one from now, so a second Send finds it at work; it is listed with its first message.
+            if (onPage) page.state { it.copy(session = created) }
+        }
         // Sent while the turn there asks its questions: the reply, not a new turn refused as working.
         if (attachments.isEmpty() && questions.replyWith(workspace, session, input)) return
         // Read aloud as Spoken replies says: decided once, so the turn's instructions and its voice agree.
@@ -216,7 +220,7 @@ internal class AssistantCoordinator(
         if (!page.current.opened) return
         val workspace = page.current.workspace
         val session = page.current.session ?: return
-        if (turns.running != null) return
+        if (turns.runs(workspace, session)) return
         chats.takeBack(workspace, session) ?: return
         page.state { it.copy(failure = null) }
         if (chats.of(workspace, session).messages.isEmpty()) page.display(workspace, null) else page.refresh(workspace, session)
@@ -234,7 +238,7 @@ internal class AssistantCoordinator(
     private fun delete(session: String) {
         if (!page.current.opened) return
         val workspace = page.current.workspace
-        if (turns.running == (workspace to session)) return page.tell(AssistantNotices.stopFirst(NoticePlace(AssistantPlace.name(workspace), workspace)))
+        if (turns.runs(workspace, session)) return page.tell(AssistantNotices.stopFirst(NoticePlace(AssistantPlace.name(workspace), workspace)))
         chats.delete(workspace, session)
         scope.launch { forget(workspace, session) }
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)

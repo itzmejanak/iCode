@@ -146,7 +146,7 @@ internal fun AssistantChatView(
                                 val icon = Icons.Outlined.ErrorOutline
                                 NoticeCard(tone, Modifier.fillMaxWidth(), title = title, icon = icon) {
                                     Text(failure, style = IcodeType.Caption.scaledBy(LocalCodeTextScale.current))
-                                    if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) {
+                                    if (!state.runningHere && state.messages.lastOrNull() is AssistantMessage.User) {
                                         SecondaryButton("Try Again", { gateway.dispatch(ICodeIntent.RetryAssistantMessage) })
                                     }
                                 }
@@ -172,40 +172,39 @@ internal fun AssistantChatView(
                 )
             }
         }
+        // The chat's turn while it works: its step, then what it waits on.
         state.turn?.let { turn ->
             Column(
                 Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space1),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
             ) {
-                if (state.runningHere) IndeterminateProgressTrack(Modifier.fillMaxWidth())
-                Text(
-                    if (state.runningHere) turn.step else "Working in another chat of ${turn.workspaceName}: ${turn.step}",
-                    style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-                    maxLines = 1,
+                IndeterminateProgressTrack(Modifier.fillMaxWidth())
+                Text(turn.step, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1)
+            }
+            turn.approval?.let { approval ->
+                // Its details are its step's page, in the sheet of the run it is in.
+                val asked = rows.firstNotNullOfOrNull { row ->
+                    (row as? AssistantEntry.Steps)?.steps?.firstOrNull { it.call.id == approval.call.id }?.let { row.key to it.key }
+                }
+                // Its gap to the composer is the composer's own top padding: one, not two.
+                AssistantApprovalCard(
+                    turn,
+                    approval,
+                    state.workspace?.let(AssistantPlace::name),
+                    Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2),
+                    onDetails = asked?.let { (row, step) -> { onOpen(row, step) } },
                 )
             }
-        }
-        state.approval?.takeIf { state.runningHere }?.let { approval ->
-            // Its details are its step's page, in the sheet of the run it is in.
-            val asked = rows.firstNotNullOfOrNull { row ->
-                (row as? AssistantEntry.Steps)?.steps?.firstOrNull { it.call.id == approval.call.id }?.let { row.key to it.key }
+            turn.pause?.let { pause ->
+                AssistantPauseCard(turn, pause, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
             }
-            // Its gap to the composer is the composer's own top padding: one, not two.
-            AssistantApprovalCard(
-                approval,
-                state.workspace?.let(AssistantPlace::name),
-                Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2),
-                onDetails = asked?.let { (row, step) -> { onOpen(row, step) } },
-            )
-        }
-        state.pause?.takeIf { state.runningHere }?.let { pause ->
-            AssistantPauseCard(pause, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
-        }
-        state.clarification?.takeIf { state.runningHere }?.let { clarification ->
-            AssistantQuestionsCard(clarification, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
-        }
-        LocalICodeSnapshot.current.mcp.question?.takeIf { state.runningHere }?.let { question ->
-            McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
+            turn.clarification?.let { clarification ->
+                AssistantQuestionsCard(turn, clarification, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
+            }
+            // A server serves every chat: its question shows in each chat at work.
+            LocalICodeSnapshot.current.mcp.question?.let { question ->
+                McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
+            }
         }
     }
 }

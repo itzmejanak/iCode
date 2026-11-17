@@ -38,17 +38,18 @@ import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * A call waiting for the user (docs/assistant-and-mcp.md), in a box as the composer's,
+ * A call of [turn] waiting for the user (docs/assistant-and-mcp.md), in a box as the composer's,
  * above it and aligned with it — its text where the composer's is: what it asks, the command (or the
  * file) on one line, what it reaches outside [workspace] when it does, and its answers. A tap on what
  * it asks [onDetails]: its step's sheet, with all it will do (docs/assistant-and-mcp.md).
  */
 @Composable
-internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: String?, modifier: Modifier, onDetails: (() -> Unit)?) {
+internal fun AssistantApprovalCard(turn: AssistantTurn, approval: AssistantApproval, workspace: String?, modifier: Modifier, onDetails: (() -> Unit)?) {
     val command = approval.call.kind == AssistantToolKind.Command
     val reach = approval.reach
     IcodeCard(modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
@@ -93,35 +94,35 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            ApprovalAnswers(approval, workspace, Modifier.fillMaxWidth())
+            ApprovalAnswers(turn, approval, workspace, Modifier.fillMaxWidth())
         }
     }
 }
 
 /**
- * A turn waiting between its steps (docs/voice-and-phone-control.md): its question, why, and Stop or go on —
+ * [turn] waiting between its steps (docs/voice-and-phone-control.md): its question, why, and Stop or go on —
  * Continue past the step limit, Done after a step the user took.
  */
 @Composable
-internal fun AssistantPauseCard(pause: AssistantPause, modifier: Modifier) {
+internal fun AssistantPauseCard(turn: AssistantTurn, pause: AssistantPause, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     IcodeCard(modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
         Column(Modifier.padding(horizontal = IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
             Text(pause.kind.question, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
             Text(pause.detail, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
-                SecondaryButton("Stop", { gateway.dispatch(ICodeIntent.StopAssistant) }, compact = true)
-                PrimaryButton(pause.kind.proceed, { gateway.dispatch(ICodeIntent.ContinueAssistant) }, compact = true)
+                SecondaryButton("Stop", { gateway.dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }, compact = true)
+                PrimaryButton(pause.kind.proceed, { gateway.dispatch(ICodeIntent.ContinueAssistant(turn.workspace, turn.session)) }, compact = true)
             }
         }
     }
 }
 
-/** Deny, Allow in, Allow, at the end of [modifier]'s width: the card's answers, and its step's sheet's. */
+/** Deny, Allow in, Allow, at the end of [modifier]'s width: the card's answers to [turn], and its step's sheet's. */
 @Composable
-internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String?, modifier: Modifier) {
+internal fun ApprovalAnswers(turn: AssistantTurn, approval: AssistantApproval, workspace: String?, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
-    val answer = { it: AssistantAnswer -> gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
+    val answer = { it: AssistantAnswer -> gateway.dispatch(ICodeIntent.AnswerAssistant(turn.workspace, turn.session, approval.call.id, it)) }
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
         SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
         AssistantPermissions.allowIn(approval, workspace)?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }

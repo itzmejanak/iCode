@@ -55,7 +55,7 @@ A chat belongs either to:
 - a workspace, where relative paths start at that workspace; or
 - no workspace, where the assistant starts from the Linux runtime user's home directory.
 
-Chats are listed separately for each place. One assistant turn can run at a time across the app. A running turn remains tied to the place and chat where it began, even if the user views another workspace or chat.
+Chats are listed separately for each place. Several chats can work at once, in one place or in several; each chat answers one message at a time. A running turn remains tied to the place and chat where it began, even if the user views another workspace or chat. Each working chat shows its own step, questions, and Stop, the chats list marks it as working, and a workspace with a chat at work cannot be renamed, moved, or deleted until that chat stops. MCP servers serve every chat: a server's question shows in each chat at work, and local servers idle once the last chat ends.
 
 ### Local persistence
 

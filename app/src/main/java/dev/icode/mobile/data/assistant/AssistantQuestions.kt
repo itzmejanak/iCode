@@ -9,37 +9,51 @@ import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantQuestion
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantReply
-import dev.icode.mobile.domain.AssistantState
+import dev.icode.mobile.domain.AssistantTurn
 import kotlinx.coroutines.CompletableDeferred
 
 /**
- * What the turn in hand asks the user, one question at a time: an approval before a call
- * (docs/assistant-and-mcp.md), a pause between steps (docs/voice-and-phone-control.md), or
- * the model's own questions (docs/assistant-and-mcp.md). Each waits until it is answered
- * or the turn is stopped, shown on the [page] meanwhile.
+ * What each working chat asks the user, one question at a time in a chat: an approval before a call
+ * (docs/assistant-and-mcp.md), a pause between steps (docs/voice-and-phone-control.md), or the model's
+ * own questions (docs/assistant-and-mcp.md). Each waits until it is answered or its turn is stopped,
+ * shown on its turn meanwhile. A chat is its workspace — null for none — and its session.
  */
 internal class AssistantQuestions(private val page: AssistantPage) {
     private val lock = Any()
-    private var approval: CompletableDeferred<AssistantAnswer>? = null
-    private var pause: CompletableDeferred<Unit>? = null
-    private var clarification: CompletableDeferred<AssistantReply>? = null
+    private val waiting = mutableMapOf<Pair<String?, String>, Waiting>()
+
+    /** The answer a chat's question waits for, of the kind asked. */
+    private class Waiting {
+        var approval: CompletableDeferred<AssistantAnswer>? = null
+        var pause: CompletableDeferred<Unit>? = null
+        var clarification: CompletableDeferred<AssistantReply>? = null
+    }
 
     /** [call] waits for the user's answer; [detail], [code] and [reach] are what its card and page show. */
-    suspend fun approve(call: AssistantCall, detail: String, code: List<AssistantCode>, reach: AssistantReach?, always: Boolean = false): AssistantAnswer =
-        wait(
-            hold = { approval = it },
-            show = { it.copy(approval = AssistantApproval(call, detail, code, reach, always)) },
-            hide = { it.copy(approval = null) },
-            then = call.summary,
-        )
+    suspend fun approve(
+        workspace: String?,
+        session: String,
+        call: AssistantCall,
+        detail: String,
+        code: List<AssistantCode>,
+        reach: AssistantReach?,
+        always: Boolean = false,
+    ): AssistantAnswer = wait(
+        workspace, session,
+        hold = { approval = it },
+        show = { it.copy(approval = AssistantApproval(call, detail, code, reach, always)) },
+        hide = { it.copy(approval = null) },
+        then = call.summary,
+    )
 
     /** The turn waits between steps until the user goes on; then its step reads [then]. */
-    suspend fun pause(question: AssistantPause, then: String): Unit =
-        wait(hold = { pause = it }, show = { it.copy(pause = question) }, hide = { it.copy(pause = null) }, then = then)
+    suspend fun pause(workspace: String?, session: String, question: AssistantPause, then: String): Unit =
+        wait(workspace, session, hold = { pause = it }, show = { it.copy(pause = question) }, hide = { it.copy(pause = null) }, then = then)
 
     /** [call] asks the user [questions] and waits for the reply. */
-    suspend fun clarify(call: AssistantCall, questions: List<AssistantQuestion>): AssistantReply =
+    suspend fun clarify(workspace: String?, session: String, call: AssistantCall, questions: List<AssistantQuestion>): AssistantReply =
         wait(
+            workspace, session,
             hold = { clarification = it },
             show = { it.copy(clarification = AssistantClarification(call, questions)) },
             hide = { it.copy(clarification = null) },
@@ -47,60 +61,60 @@ internal class AssistantQuestions(private val page: AssistantPage) {
         )
 
     /**
-     * The one way the turn waits for the user: [hold] keeps the answer to come (null once it came, or
-     * the turn stopped), [show] puts the question on the page and [hide] takes it off; then the step
-     * reads [then].
+     * The one way a turn waits for the user: [hold] keeps the answer to come (null once it came, or the
+     * turn stopped), [show] puts the question on the turn and [hide] takes it off; then the step reads
+     * [then].
      */
     private suspend fun <T> wait(
-        hold: (CompletableDeferred<T>?) -> Unit,
-        show: (AssistantState) -> AssistantState,
-        hide: (AssistantState) -> AssistantState,
+        workspace: String?,
+        session: String,
+        hold: Waiting.(CompletableDeferred<T>?) -> Unit,
+        show: (AssistantTurn) -> AssistantTurn,
+        hide: (AssistantTurn) -> AssistantTurn,
         then: String,
     ): T {
+        val chat = workspace to session
         val answer = CompletableDeferred<T>()
-        synchronized(lock) { hold(answer) }
-        page.state { show(it).copy(turn = it.turn?.copy(step = WAITING)) }
+        synchronized(lock) { waiting.getOrPut(chat, ::Waiting).hold(answer) }
+        page.state { state -> state.changeTurn(workspace, session) { show(it).copy(step = WAITING) } }
         try {
             return answer.await()
         } finally {
-            synchronized(lock) { hold(null) }
-            page.state { hide(it).copy(turn = it.turn?.copy(step = then)) }
+            synchronized(lock) { waiting[chat]?.hold(null) }
+            page.state { state -> state.changeTurn(workspace, session) { hide(it).copy(step = then) } }
         }
     }
 
-    /** The user's [answer] to the approval of [callId], if it is the one asked. */
-    fun answer(callId: String, answer: AssistantAnswer) {
-        if (page.current.approval?.call?.id != callId) return
-        synchronized(lock) { approval }?.complete(answer)
+    /** The user's [answer] to the approval of [callId] in [session] of [workspace], if it is the one asked. */
+    fun answer(workspace: String?, session: String, callId: String, answer: AssistantAnswer) {
+        if (page.current.turnOf(workspace, session)?.approval?.call?.id != callId) return
+        synchronized(lock) { waiting[workspace to session]?.approval }?.complete(answer)
     }
 
-    /** The pause answered Continue (or Done): the turn goes on. */
-    fun resume() {
-        synchronized(lock) { pause }?.complete(Unit)
+    /** The pause in [session] of [workspace] answered Continue (or Done): its turn goes on. */
+    fun resume(workspace: String?, session: String) {
+        synchronized(lock) { waiting[workspace to session]?.pause }?.complete(Unit)
     }
 
-    /** The user's [reply] to the questions of [callId], if they are the ones asked. */
-    fun reply(callId: String, reply: AssistantReply) {
-        if (page.current.clarification?.call?.id != callId) return
-        synchronized(lock) { clarification }?.complete(reply)
+    /** The user's [reply] to the questions of [callId] in [session] of [workspace], if they are the ones asked. */
+    fun reply(workspace: String?, session: String, callId: String, reply: AssistantReply) {
+        if (page.current.turnOf(workspace, session)?.clarification?.call?.id != callId) return
+        synchronized(lock) { waiting[workspace to session]?.clarification }?.complete(reply)
     }
 
     /**
-     * A message sent in the chat of [workspace] and [session] while the turn there asks its questions:
-     * it is the reply. False when no question waits there — the message is a message.
+     * A message sent in [session] of [workspace] while its turn asks its questions: it is the reply.
+     * False when no question waits there — the message is a message.
      */
     fun replyWith(workspace: String?, session: String, text: String): Boolean {
-        val shown = page.current
-        val asked = shown.clarification?.takeIf { shown.turn?.let { it.workspace == workspace && it.session == session } == true } ?: return false
-        reply(asked.call.id, AssistantReply.Said(text))
+        val asked = page.current.turnOf(workspace, session)?.clarification ?: return false
+        reply(workspace, session, asked.call.id, AssistantReply.Said(text))
         return true
     }
 
-    /** The turn ended: nothing is asked any more. */
-    fun clear() = synchronized(lock) {
-        approval = null
-        pause = null
-        clarification = null
+    /** [session]'s turn in [workspace] ended: nothing is asked there any more. */
+    fun clear(workspace: String?, session: String) {
+        synchronized(lock) { waiting -= workspace to session }
     }
 
     private companion object {

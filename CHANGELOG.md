@@ -13,6 +13,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   conversation to the new one. A new chat starts with the model chosen last.
 - Each reply is named by the model that wrote it, with its provider's mark, and the model sheet
   lists every provider under its own mark.
+- Several chats can work at once, each with its own step, questions, Stop, and notification;
+  tapping a chat's notification opens that chat. One chat at a time acts on the phone.
 
 ### Changed
 - Chats keep every message and every command's output in full, however long they grow. A long

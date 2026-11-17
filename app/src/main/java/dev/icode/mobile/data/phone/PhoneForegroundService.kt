@@ -33,8 +33,8 @@ import kotlinx.coroutines.launch
  * while phone control is on, and holds the microphone for the bubble while iCode is away. Android
  * gives that only to a service started while iCode is on screen; one started again without it runs
  * without the microphone ([microphone] false), and the bubble says so. Its notification says phone
- * control is on, with Show bubble while the bubble is put away, and Turn off. A turn in hand is not
- * repeated here: it is the work's own notification, with its step, Stop and its question.
+ * control is on, with Show bubble while the bubble is put away, and Turn off. A chat at work is not
+ * repeated here: each has its own notification, with its step, Stop and its question.
  */
 class PhoneForegroundService : Service() {
     private val scope = MainScope()

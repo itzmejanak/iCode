@@ -206,7 +206,8 @@ private fun StepPage(
     val live = snapshot.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
         ?.session?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
     // Its questions, while they wait: answered here as on the chat's card.
-    val asked = snapshot.assistant.clarification?.takeIf { it.call.id == step.call.id && snapshot.assistant.runningHere }
+    val turn = snapshot.assistant.turn
+    val asked = turn?.clarification?.takeIf { it.call.id == step.call.id }
     val (typing, onFocus) = rememberTyping(step.key, live != null)
     var showCommand by remember(step.key) { mutableStateOf(false) }
     LaunchedEffect(typing) { if (!typing) showCommand = false }
@@ -223,7 +224,7 @@ private fun StepPage(
         // Typed into, the sheet is the terminal: ⓘ shows the command it runs, in place of ×.
         action = if (typing) ({ CommandToggle(showCommand) { showCommand = !showCommand } }) else null,
         edgeToEdge = typing,
-        footer = approval?.let { asked -> { ApprovalAnswers(asked, workspace, Modifier.fillMaxWidth()) } },
+        footer = turn?.let { working -> approval?.let { asked -> { ApprovalAnswers(working, asked, workspace, Modifier.fillMaxWidth()) } } },
     ) {
         if (!typing) {
             Text(step.call.summary, style = IcodeType.Body)
@@ -253,7 +254,7 @@ private fun StepPage(
                 }
                 allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
-            asked != null -> AssistantQuestionsCard(asked, Modifier)
+            turn != null && asked != null -> AssistantQuestionsCard(turn, asked, Modifier)
             live != null -> ChatTerminal(
                 live, typing, onFocus, onClose, Modifier.weight(if (typing) 1f else 3f, fill = typing),
                 command = command ?: step.call.summary, showCommand = showCommand,

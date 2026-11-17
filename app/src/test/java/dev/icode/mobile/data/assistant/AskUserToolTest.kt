@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -36,7 +37,7 @@ class AskUserToolTest {
     private val page by lazy { AssistantPage(stateHolder, scope, chats) }
     private val questions by lazy { AssistantQuestions(page) }
     private val call = AssistantCall("c1", "ask_user", "{}", "Asked: Which database?", AssistantToolKind.Read)
-    private val step by lazy { AssistantStep(clarify = questions::clarify).also { it.current = call } }
+    private val step by lazy { AssistantStep(clarify = { call, asked -> questions.clarify("/w/app", "s1", call, asked) }).also { it.current = call } }
     private val tool by lazy { AskUserTool(step) }
 
     private val arguments = JSONObject(
@@ -49,6 +50,9 @@ class AskUserToolTest {
         ]}
         """.trimIndent(),
     )
+
+    /** The chat the questions are asked in is at work, and shown. */
+    @Before fun working() = page.state { it.copy(opened = true, workspace = "/w/app", session = "s1", turns = listOf(AssistantTurn("/w/app", "app", "s1", "Thinking…"))) }
 
     @After fun stop() = scope.cancel()
 
@@ -69,15 +73,14 @@ class AskUserToolTest {
         assertEquals(listOf(false, true), asked.questions.map { it.multiple })
         assertEquals("A file", asked.questions[0].options[1].description)
         // Another call's reply is not this one's.
-        questions.reply("c0", AssistantReply.Skipped)
+        questions.reply("/w/app", "s1", "c0", AssistantReply.Skipped)
         assertFalse(result.isCompleted)
-        questions.reply("c1", AssistantReply.Answered(listOf(AssistantQuestion.Answer(listOf("SQLite")), AssistantQuestion.Answer(listOf("Auth")))))
+        questions.reply("/w/app", "s1", "c1", AssistantReply.Answered(listOf(AssistantQuestion.Answer(listOf("SQLite")), AssistantQuestion.Answer(listOf("Auth")))))
         assertEquals("The user answered:\n- Which database? → SQLite\n- Which features? → Auth", withTimeout(5_000) { result.await() })
         assertNull(stateHolder.current.assistant.clarification)
     }
 
     @Test fun `a message sent in the chat the questions wait in is the reply, and one sent elsewhere is not`() = runBlocking {
-        page.state { it.copy(turn = AssistantTurn("/w/app", "app", "s1", "Thinking…")) }
         assertFalse("nothing asks yet", questions.replyWith("/w/app", "s1", "hello"))
         val result = scope.async { tool.run(arguments) }
         until { stateHolder.current.assistant.clarification != null }

@@ -53,7 +53,7 @@ internal class AssistantGate(
                 elsewhere != null -> AssistantReach(listOf(elsewhere.name), listOf(elsewhere.root), place = elsewhere)
                 else -> AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct())
             }
-            when (questions.approve(call, tool.detail(arguments), tool.code(arguments), reach, tool.asksAlways)) {
+            when (questions.approve(workspace, session, call, tool.detail(arguments), tool.code(arguments), reach, tool.asksAlways)) {
                 AssistantAnswer.Allow -> Unit
                 AssistantAnswer.AllowInChat -> {
                     if (reach != null) chats.open(workspace, session, reach.roots) else chats.allowInWorkspace(workspace, session)

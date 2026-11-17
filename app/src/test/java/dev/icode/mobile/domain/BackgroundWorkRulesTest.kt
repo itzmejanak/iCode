@@ -107,29 +107,35 @@ class BackgroundWorkRulesTest {
     @Test fun `a place survives the notification that carries it`() {
         listOf(
             BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.RuntimeTools,
-            BackgroundPlace.Assistant, BackgroundPlace.Processes, BackgroundPlace.Gpg,
+            BackgroundPlace.Assistant, BackgroundPlace.AssistantChat("/w/app@2", "s1"), BackgroundPlace.AssistantChat(null, "s2"),
+            BackgroundPlace.Processes, BackgroundPlace.Gpg,
         ).forEach {
             assertEquals(it, BackgroundPlace.decode(it.encoded()))
         }
         assertNull(BackgroundPlace.decode("task:x"))
+        assertNull(BackgroundPlace.decode("chat:"))
         assertNull(BackgroundPlace.decode(null))
     }
 
-    @Test fun `the assistant's turn says its step, stops on Stop, and carries the question it waits on`() {
+    @Test fun `each chat at work says its step, stops on its own Stop, opens its chat, and carries its own question`() {
         val turn = AssistantTurn("/w/app", "app", "s1", "Run `npm test`")
-        val working = empty.copy(assistant = AssistantState(turn = turn))
+        val working = empty.copy(assistant = AssistantState(turns = listOf(turn)))
         val item = BackgroundWorkRules.of(working).single()
-        assertEquals("assistant", item.key)
+        assertEquals("assistant:s1", item.key)
         assertEquals("Assistant is working…", item.heading)
         assertEquals("app · Run `npm test`", item.detail)
-        assertEquals(ICodeIntent.StopAssistant, item.cancel)
+        assertEquals(ICodeIntent.StopAssistant("/w/app", "s1"), item.cancel)
         assertEquals("Stop", item.cancelLabel)
-        assertEquals(BackgroundPlace.Assistant, item.place)
+        assertEquals(BackgroundPlace.AssistantChat("/w/app", "s1"), item.place)
         assertNull(item.question)
 
         val call = AssistantCall("c1", "run_command", """{"command":"npm test"}""", "Run `npm test`", AssistantToolKind.Command)
-        val asking = working.copy(assistant = working.assistant.copy(approval = AssistantApproval(call, "npm test")))
-        assertEquals("Run `npm test`?", BackgroundWorkRules.of(asking).single().question)
+        val home = AssistantTurn(null, "Home", "s2", "Thinking…")
+        val asking = empty.copy(assistant = AssistantState(turns = listOf(turn.copy(approval = AssistantApproval(call, "npm test")), home)))
+        val items = BackgroundWorkRules.of(asking)
+        assertEquals(listOf("assistant:s1", "assistant:s2"), items.map { it.key })
+        assertEquals(listOf("Run `npm test`?", null), items.map { it.question })
+        assertEquals(ICodeIntent.StopAssistant(null, "s2"), items[1].cancel)
         assertTrue(BackgroundWorkRules.of(empty.copy(assistant = AssistantState())).isEmpty())
     }
 

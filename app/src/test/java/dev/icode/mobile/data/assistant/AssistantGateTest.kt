@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.AssistantElsewhere
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantTurn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,8 +53,19 @@ class AssistantGateTest {
         override suspend fun run(arguments: JSONObject): String = "Tapped".also { ran += it }
     }
 
-    private fun gate(session: String = "s1") =
-        AssistantGate(actor, runtime.workspace, chats, page, questions, runtime.root.path, session, { permission }, { tap }) { _, _ -> }
+    /** The gate of [session]'s calls; [alone], that chat is the one at work, and shown. */
+    private fun gate(session: String = "s1", alone: Boolean = true): AssistantGate {
+        if (alone) working(session)
+        return AssistantGate(actor, runtime.workspace, chats, page, questions, runtime.root.path, session, { permission }, { tap }) { _, _ -> }
+    }
+
+    /** [sessions] of the workspace at work, the first shown: its questions are the page's. */
+    private fun working(vararg sessions: String) = page.state {
+        it.copy(opened = true, workspace = runtime.root.path, session = sessions.first(), turns = sessions.map { session -> AssistantTurn(runtime.root.path, "w", session, "Thinking…") })
+    }
+
+    /** The shown chat's approval answered. */
+    private fun answer(answer: AssistantAnswer) = stateHolder.current.assistant.let { questions.answer(it.workspace, it.session!!, "c1", answer) }
 
     @After fun stop() = scope.cancel()
 
@@ -74,7 +86,7 @@ class AssistantGateTest {
         assertEquals("Act in WhatsApp?", AssistantPermissions.question(approval, "Home"))
         assertEquals("Allow in WhatsApp", AssistantPermissions.allowIn(approval, "Home"))
         assertEquals("Allow Once", AssistantPermissions.allowOnce(approval))
-        questions.answer("c1", AssistantAnswer.AllowInChat)
+        answer(AssistantAnswer.AllowInChat)
         assertEquals("Tapped", first.await())
         assertEquals("Tapped", gate().run(JSONObject()))
         assertEquals(2, ran.size)
@@ -84,7 +96,7 @@ class AssistantGateTest {
         permission = AssistantPermission.AutoInWorkspace
         val denied = scope.async { runCatching { gate("s2").run(JSONObject()) } }
         until { stateHolder.current.assistant.approval != null }
-        questions.answer("c1", AssistantAnswer.Deny)
+        answer(AssistantAnswer.Deny)
         val refusal = denied.await().exceptionOrNull()
         assertTrue(refusal is AssistantToolException && refusal.message == "The user did not allow acting in WhatsApp")
         assertTrue(ran.isEmpty())
@@ -100,7 +112,7 @@ class AssistantGateTest {
         assertEquals(listOf("mcp:m-1"), approval.reach!!.roots)
         assertEquals("Use GitHub?", AssistantPermissions.question(approval, "Home"))
         assertEquals("Allow in GitHub", AssistantPermissions.allowIn(approval, "Home"))
-        questions.answer("c1", AssistantAnswer.Deny)
+        answer(AssistantAnswer.Deny)
         val refusal = asked.await().exceptionOrNull()
         assertTrue(refusal is AssistantToolException && refusal.message == "The user did not allow using GitHub")
         // The user's Runs: no place to ask about, in any mode.
@@ -116,14 +128,31 @@ class AssistantGateTest {
         assertEquals(listOf("terminal:session-4"), approval.reach!!.roots)
         assertEquals("Use your terminal bash 2?", AssistantPermissions.question(approval, "Home"))
         assertEquals("Allow in bash 2", AssistantPermissions.allowIn(approval, "Home"))
-        questions.answer("c1", AssistantAnswer.Deny)
+        answer(AssistantAnswer.Deny)
         val refusal = asked.await().exceptionOrNull()
         assertTrue(refusal is AssistantToolException && refusal.message == "The user did not allow using their terminal bash 2")
     }
 
+    @Test fun `two chats ask at once, and each answer goes to its own chat`() = runBlocking {
+        val place = runtime.root.path
+        working("a", "b")
+        val a = scope.async { runCatching { gate("a", alone = false).run(JSONObject()) } }
+        val b = scope.async { runCatching { gate("b", alone = false).run(JSONObject()) } }
+        until { stateHolder.current.assistant.turns.all { it.approval != null } }
+        // Their calls share an ID: the chat says whose answer it is.
+        questions.answer(place, "b", "c1", AssistantAnswer.Deny)
+        assertTrue(b.await().exceptionOrNull() is AssistantToolException)
+        assertTrue(a.isActive)
+        assertEquals("c1", stateHolder.current.assistant.approval?.call?.id)
+        questions.answer(place, "a", "c1", AssistantAnswer.Allow)
+        assertEquals("Tapped", a.await().getOrThrow())
+        assertEquals(1, ran.size)
+    }
+
     /** A tool of [kind] that runs in a place it may not name, gated as [placeless] without one, or asked [always]. */
-    private fun gated(kind: AssistantToolKind, placeless: AssistantToolKind = AssistantToolKind.Read, always: Boolean = false, session: String) =
-        AssistantGate(
+    private fun gated(kind: AssistantToolKind, placeless: AssistantToolKind = AssistantToolKind.Read, always: Boolean = false, session: String): AssistantGate {
+        working(session)
+        return AssistantGate(
             object : AssistantTool, AssistantPlaceActor {
                 override val name = "run_command"
                 override val description = "Runs"
@@ -137,6 +166,7 @@ class AssistantGateTest {
             },
             runtime.workspace, chats, page, questions, runtime.root.path, session, { permission }, { tap.copy(kind = kind) },
         ) { _, _ -> }
+    }
 
     @Test fun `a command in the chat's own tab asks as a command, and Auto in workspace runs it`() = runBlocking {
         val asked = scope.async { gated(AssistantToolKind.Command, placeless = AssistantToolKind.Command, session = "s7").run(JSONObject()) }
@@ -144,7 +174,7 @@ class AssistantGateTest {
         val approval = stateHolder.current.assistant.approval!!
         assertEquals(null, approval.reach)
         assertEquals("Run this command?", AssistantPermissions.question(approval, "Home"))
-        questions.answer("c1", AssistantAnswer.Allow)
+        answer(AssistantAnswer.Allow)
         assertEquals("Ran", asked.await())
         permission = AssistantPermission.AutoInWorkspace
         assertEquals("Ran", gated(AssistantToolKind.Command, placeless = AssistantToolKind.Command, session = "s8").run(JSONObject()))
@@ -160,7 +190,7 @@ class AssistantGateTest {
             assertEquals("Make this change?", AssistantPermissions.question(approval, "Home"))
             assertEquals(null, AssistantPermissions.allowIn(approval, "Home"))
             assertEquals("Allow", AssistantPermissions.allowOnce(approval))
-            questions.answer("c1", AssistantAnswer.Allow)
+            answer(AssistantAnswer.Allow)
             assertEquals("Ran", asked.await())
             until { stateHolder.current.assistant.approval == null }
         }
