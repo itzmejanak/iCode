@@ -3,14 +3,11 @@ package dev.icode.mobile.ui.screens.tools
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,12 +26,9 @@ import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
-import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.behindSheet
-import dev.icode.mobile.domain.AgentIntent
-import dev.icode.mobile.domain.AgentRules
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
@@ -54,7 +48,7 @@ import dev.icode.mobile.domain.notices.AssistantNotices
  * started, what a row of it holds (docs/assistant-and-mcp.md), or what a row offers, from a
  * long press (docs/workspaces-and-files.md).
  */
-internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry, Actions, Terminal, Plan }
+internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry, Actions, Terminal }
 
 /**
  * The assistant (docs/assistant-and-mcp.md): a chat of the open workspace — VS Code's
@@ -100,11 +94,7 @@ fun AssistantScreen(actions: NavigationActions) {
         attached = all.take(AssistantRules.MAX_ATTACHMENTS)
     }
     val pickers = rememberAssistantPickers(onPicked = attach)
-    // A coding agent answering the chat, or the one a new chat goes to (docs/assistant-and-mcp.md): its controls, not the built-in assistant's.
-    val agents = snapshot.agents
-    val agentChat = agents.chatOf(state.workspace, state.session)
-    val agent = agents.agent(agentChat?.agent)
-    val ready = (state.settings.ready || agentChat != null) && state.opened
+    val ready = state.settings.ready && state.opened
     val title = state.sessions.firstOrNull { it.id == state.session }?.title ?: "New chat"
 
     Box(Modifier.fillMaxSize()) {
@@ -136,28 +126,12 @@ fun AssistantScreen(actions: NavigationActions) {
                                 sheet = AssistantSheet.Terminal
                             }),
                             IcodeMenuAction("Assistant Settings", Icons.Outlined.Settings, { actions.navigate(Route.AssistantSettings) }),
-                        ) + listOfNotNull(
-                            // What ACP does not carry: the agent's own CLI, in the chat's tab, resuming the chat where it can.
-                            agent?.let {
-                                IcodeMenuAction("Open in ${it.name} CLI", Icons.Outlined.Code, {
-                                    gateway.dispatch(AgentIntent.OpenInTerminal())
-                                    sheet = AssistantSheet.Terminal
-                                })
-                            },
-                            agent?.let {
-                                IcodeMenuAction("${it.name} Settings", Icons.Outlined.SmartToy, {
-                                    gateway.dispatch(AgentIntent.Edit(it.id))
-                                    actions.navigate(Route.CodingAgent)
-                                })
-                            },
                         ),
                     )
                 },
             )
             when {
-                !state.settings.ready && agentChat == null -> AssistantSetUp(
-                    Modifier.weight(1f), onSetUp = { actions.navigate(Route.AssistantProviders) }, onAgents = { actions.navigate(Route.CodingAgents) },
-                )
+                !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantProviders) }
                 // Its chats are shown once the page has opened.
                 !state.opened -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
                 else -> AssistantChatView(
@@ -178,20 +152,6 @@ fun AssistantScreen(actions: NavigationActions) {
             }
             // Above the composer on every state of the page: a process outlives the chat that started it.
             if (snapshot.processes.isNotEmpty()) AssistantProcessesRow(snapshot.processes) { sheet = AssistantSheet.Processes }
-            if (ready && agentChat != null) {
-                val name = agent?.name ?: agentChat.agent
-                val edge = Modifier.padding(start = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter, top = IcodeSpacing.Space2)
-                AgentChatLine(agentChat, name, edge)
-                agents.link?.let { AgentLinkCard(it, agents.agent(it.agent)?.name ?: it.agent, edge) }
-                if (agentChat.signIn.isNotEmpty()) {
-                    AgentSignInCard(agentChat, name, edge, onTerminal = { sheet = AssistantSheet.Terminal }) {
-                        gateway.dispatch(AgentIntent.Edit(agentChat.agent))
-                        actions.navigate(Route.CodingAgent)
-                    }
-                }
-                if (agentChat.plan.isNotEmpty()) AgentPlanRow(agentChat.plan) { sheet = AssistantSheet.Plan }
-                AgentRules.slashQuery(draft)?.let { query -> AgentSlashMenu(agentChat, query, edge) { draft = it } }
-            }
             if (ready) {
                 AssistantComposer(
                     state = state,
@@ -208,8 +168,6 @@ fun AssistantScreen(actions: NavigationActions) {
                     },
                     // The open workspace's tree, a step forward: Back is the chat again.
                     onWorkspace = { actions.navigate(Route.WorkspaceExplorer) },
-                    agent = agentChat,
-                    agentInfo = agent,
                 )
             }
         }
@@ -219,12 +177,7 @@ fun AssistantScreen(actions: NavigationActions) {
                 val modifier = Modifier.align(Alignment.BottomCenter)
                 when (open) {
                     AssistantSheet.Chats -> AssistantChatsSheet(state, modifier, close)
-                    AssistantSheet.Models -> AssistantModelsSheet(
-                        state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) },
-                        chosen = { agentChat == null && it == state.settings.choice }, showEffort = agentChat == null,
-                        agents = { AgentModelRows(agents, snapshot.runtimeTools, agentChat?.agent, close) { actions.navigate(Route.CodingAgents) } },
-                    )
-                    AssistantSheet.Plan -> AgentPlanSheet(agentChat?.plan.orEmpty(), modifier, close)
+                    AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
                     AssistantSheet.Terminal -> AssistantTerminalSheet(state.tab, modifier, close)

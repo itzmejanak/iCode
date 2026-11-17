@@ -1,7 +1,6 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantResult
@@ -91,33 +90,9 @@ internal class AssistantChats(
     fun compacted(workspace: String?, session: String, summary: String) = change(workspace, session) { chat ->
         val marker = AssistantMessage.Compacted(summary)
         val waiting = chat.messages.lastOrNull() as? AssistantMessage.User
-        chat.copy(
+        AssistantChat(
             messages = if (waiting != null) chat.messages.dropLast(1) + marker + waiting else chat.messages + marker,
             contextTokens = null,
-        )
-    }
-
-    /** [session] answered by the coding agent [binding] names (docs/assistant-and-mcp.md); saved with its next message. */
-    fun bind(workspace: String?, session: String, binding: AgentBinding) = change(workspace, session) { it.copy(agent = binding) }
-
-    /** What [session]'s agent read back of it ([messages]): the chat as shown, in place of what was. */
-    fun replaced(workspace: String?, session: String, messages: List<AssistantMessage>) =
-        change(workspace, session) { it.copy(messages = AssistantRules.closed(messages)) }
-
-    /**
-     * [call] joins the last reply's calls — an agent starts another before the first's result, or with
-     * nothing said between — so each result stays right after its reply; a new reply when there is none.
-     */
-    fun extend(workspace: String?, session: String, call: AssistantCall) = change(workspace, session) { chat ->
-        val at = chat.messages.indexOfLast { it is AssistantMessage.Reply }
-        val reply = chat.messages.getOrNull(at) as? AssistantMessage.Reply
-        val after = chat.messages.drop(at + 1)
-        chat.copy(
-            messages = if (reply != null && (after.isEmpty() || after.singleOrNull() is AssistantMessage.Results)) {
-                chat.messages.take(at) + reply.copy(calls = reply.calls + call) + after
-            } else {
-                chat.messages + AssistantMessage.Reply("", listOf(call))
-            },
         )
     }
 

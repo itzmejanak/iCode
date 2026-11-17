@@ -44,13 +44,6 @@ enum class AssistantToolName(val id: String, val title: String, private val one:
     RenameSymbol("rename_symbol", "Rename symbol", "renamed a symbol", "renamed %d symbols"),
     FormatFile("format_file", "Format file", "formatted a file", "formatted %d files"),
     AskUser("ask_user", "Question", "asked you", "asked you %d times"),
-    // A coding agent's own tools, by the kind it gives each (ACP `tool_call`; docs/assistant-and-mcp.md).
-    DeleteFile("agent_delete", "Delete", "deleted a file", "deleted %d files"),
-    MoveFile("agent_move", "Move", "moved a file", "moved %d files"),
-    Fetch("agent_fetch", "Fetch", "fetched a page", "fetched %d pages"),
-    Think("agent_think", "Think", "thought it through", "thought it through %d times"),
-    SwitchMode("agent_mode", "Mode", "changed its mode", "changed its mode %d times"),
-    AgentTool("agent_tool", "Tool", "used a tool", "used %d tools"),
     ;
 
     /** What [count] calls of it did: "read a file", "read 3 files". */

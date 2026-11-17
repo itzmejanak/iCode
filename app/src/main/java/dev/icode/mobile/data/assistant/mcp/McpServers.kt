@@ -18,7 +18,6 @@ import dev.icode.mobile.domain.McpState
 import dev.icode.mobile.domain.McpStatus
 import dev.icode.mobile.domain.McpToolChoice
 import dev.icode.mobile.domain.McpTransport
-import dev.icode.mobile.domain.McpValue
 import dev.icode.mobile.domain.notices.McpNotices
 import dev.icode.mobile.domain.notices.Notice
 import kotlin.coroutines.cancellation.CancellationException
@@ -70,12 +69,6 @@ internal class McpServers(
 
     /** The servers a chat in [workspace] has, and how each is now. */
     fun listed(workspace: String?): List<Pair<McpServer, McpServerState>> = servers(workspace).map { it to connections.state(it.id) }
-
-    /**
-     * The user's own servers that are on, each with its values as saved — secrets among them — for a
-     * coding agent's session (docs/assistant-and-mcp.md): configured once, for every assistant.
-     */
-    fun forAgents(): List<Pair<McpServer, List<McpValue>>> = store.servers().filter { it.enabled }.map { it to store.reveal(it) }
 
     /** The servers a chat in [workspace] has: the user's, then that workspace's `.mcp.json`'s. */
     private fun servers(workspace: String?): List<McpServer> {

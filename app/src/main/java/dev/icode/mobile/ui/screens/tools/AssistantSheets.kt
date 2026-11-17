@@ -43,7 +43,6 @@ import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
-import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * The workspace's chats, newest first: open one, delete one, or start another.
@@ -75,9 +74,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
             val working = state.turn?.let { it.workspace == state.workspace && it.session == session.id } == true
             IcodeListRow(
                 title = session.title,
-                // A coding agent's chat says whose it is (docs/assistant-and-mcp.md).
-                subtitle = (if (working) "Working…" else RelativeTime.since(session.updatedAt)) +
-                    (session.agent?.let { id -> LocalICodeSnapshot.current.agents.agent(id)?.name ?: id }?.let { " · $it" } ?: ""),
+                subtitle = if (working) "Working…" else RelativeTime.since(session.updatedAt),
                 subtitleStyle = IcodeType.Caption,
                 selected = session.id == state.session,
                 onClick = {
@@ -141,8 +138,6 @@ internal fun AssistantModelsSheet(
     reset: String? = null,
     resetChosen: Boolean = false,
     onReset: (() -> Unit)? = null,
-    /** The coding agents beside the providers (docs/assistant-and-mcp.md): the chat's sheet lists them, Source Control's does not. */
-    agents: (@Composable () -> Unit)? = null,
 ) {
     val gateway = LocalICodeGateway.current
     val settings = state.settings
@@ -198,12 +193,11 @@ internal fun AssistantModelsSheet(
                 },
             )
         }
-        agents?.invoke()
         if (count > SEARCH_FROM) Search(query, "Search models", literal = true) { query = it }
         groups.forEachIndexed { index, (provider, models) ->
             SectionLabel(
                 provider.name,
-                if (index > 0 || agents != null || settings.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.SectionBreak) else Modifier,
+                if (index > 0 || settings.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.SectionBreak) else Modifier,
             )
             models.forEach { model ->
                 ModelRow(model, chosen(AssistantChoice(provider.id, model.id))) {

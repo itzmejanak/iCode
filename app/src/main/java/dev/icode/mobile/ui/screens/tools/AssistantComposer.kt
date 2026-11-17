@@ -43,10 +43,7 @@ import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.domain.AgentChat
-import dev.icode.mobile.domain.AgentRules
 import dev.icode.mobile.domain.AssistantMode
-import dev.icode.mobile.domain.CodingAgent
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
@@ -78,9 +75,6 @@ internal fun AssistantComposer(
     onSend: () -> Unit,
     /** The workspace's files: where the assistant works, a tap away. */
     onWorkspace: () -> Unit,
-    /** The coding agent answering the chat (docs/assistant-and-mcp.md): its own controls replace the built-in assistant's. */
-    agent: AgentChat? = null,
-    agentInfo: CodingAgent? = null,
 ) {
     val gateway = LocalICodeGateway.current
     val voice = LocalICodeSnapshot.current.voice
@@ -97,7 +91,7 @@ internal fun AssistantComposer(
         if (!state.running || state.replying && attached.isEmpty()) onSend()
     }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
-    val unreadable = if (agent != null) null else AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
+    val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
     // Words, files or both: a photo alone is a question too. While the turn asks its questions, words alone reply.
     val canSend = if (state.replying) draft.isNotBlank() && attached.isEmpty()
     else (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
@@ -118,7 +112,6 @@ internal fun AssistantComposer(
                         when {
                             // The questions above it wait: what is sent now answers them.
                             state.replying -> "Or answer in your own words"
-                            agent != null -> AgentRules.placeholder(agentInfo)
                             settings.mode == AssistantMode.Ask -> state.workspace?.let { "Ask about ${AssistantPlace.name(it)}" } ?: "Ask anything"
                             settings.mode == AssistantMode.Plan -> "Plan what to build"
                             settings.mode == AssistantMode.Code -> "Describe what to build"
@@ -143,7 +136,7 @@ internal fun AssistantComposer(
                     IconButton(onClick = onAttach, enabled = attached.size < AssistantRules.MAX_ATTACHMENTS) {
                         Icon(Icons.Outlined.Add, contentDescription = "Attach files", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
-                    if (agent == null) IcodeSelect(
+                    IcodeSelect(
                         options = AssistantMode.entries,
                         selected = settings.mode,
                         optionLabel = { it.label },
@@ -163,10 +156,9 @@ internal fun AssistantComposer(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro),
                     ) {
-                        Text((if (agent != null) AgentRules.label(agentInfo, agent.options) else modelLabel(state)).ifEmpty { "Choose model" }, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(modelLabel(state).ifEmpty { "Choose model" }, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     }
-                    if (agent != null) Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) { AgentChips(agent) }
                 }
                 MicButton(voice, VoiceFrom.Chat, gateway::dispatch) { askMicrophone.launch(Manifest.permission.RECORD_AUDIO) }
                 when {
@@ -203,14 +195,14 @@ internal fun AssistantComposer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-and-mcp.md); an agent's are its own.
-                if (agent == null) Choice(
+                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-and-mcp.md).
+                Choice(
                     state.permission.label, "Permissions", AssistantPermission.entries, state.permission, AssistantPermission::label,
                     { permissionLine(it, state.workspace?.let(AssistantPlace::name)) },
                     icon = true,
                 ) { gateway.dispatch(ICodeIntent.SetAssistantPermission(it)) }
             }
-            ContextMeter(state, if (agent != null) agent.window else state.settings.model?.contextWindow)
+            ContextMeter(state)
         }
     }
 }

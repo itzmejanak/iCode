@@ -2,7 +2,6 @@ package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
-import dev.icode.mobile.domain.AssistantApprovalChoice
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantClarification
 import dev.icode.mobile.domain.AssistantCode
@@ -24,27 +23,12 @@ internal class AssistantQuestions(private val page: AssistantPage) {
     private var approval: CompletableDeferred<AssistantAnswer>? = null
     private var pause: CompletableDeferred<Unit>? = null
     private var clarification: CompletableDeferred<AssistantReply>? = null
-    /** A coding agent's approval: the ID of its option chosen; null when the turn stopped first. */
-    private var choice: CompletableDeferred<String?>? = null
 
     /** [call] waits for the user's answer; [detail], [code] and [reach] are what its card and page show. */
     suspend fun approve(call: AssistantCall, detail: String, code: List<AssistantCode>, reach: AssistantReach?, always: Boolean = false): AssistantAnswer =
         wait(
             hold = { approval = it },
             show = { it.copy(approval = AssistantApproval(call, detail, code, reach, always)) },
-            hide = { it.copy(approval = null) },
-            then = call.summary,
-        )
-
-    /**
-     * [call] waits for the user to choose one of a coding agent's own [choices] (docs/assistant-and-mcp.md):
-     * the chosen one's ID, or null when the turn stopped before — the agent is told it was cancelled. The
-     * agent asks from its own process, not the turn's job: stopping the turn answers it ([clear]).
-     */
-    suspend fun choose(call: AssistantCall, detail: String, choices: List<AssistantApprovalChoice>): String? =
-        wait(
-            hold = { choice = it },
-            show = { it.copy(approval = AssistantApproval(call, detail, choices = choices)) },
             hide = { it.copy(approval = null) },
             then = call.summary,
         )
@@ -90,13 +74,6 @@ internal class AssistantQuestions(private val page: AssistantPage) {
         synchronized(lock) { approval }?.complete(answer)
     }
 
-    /** The user's [choice] — one of the agent's options — for the approval of [callId], if it is the one asked. */
-    fun chose(callId: String, choice: String) {
-        val asked = page.current.approval?.takeIf { it.call.id == callId } ?: return
-        if (asked.choices.none { it.id == choice }) return
-        synchronized(lock) { this.choice }?.complete(choice)
-    }
-
     /** The pause answered Continue (or Done): the turn goes on. */
     fun resume() {
         synchronized(lock) { pause }?.complete(Unit)
@@ -121,8 +98,6 @@ internal class AssistantQuestions(private val page: AssistantPage) {
 
     /** The turn ended: nothing is asked any more. */
     fun clear() = synchronized(lock) {
-        choice?.complete(null)
-        choice = null
         approval = null
         pause = null
         clarification = null

@@ -41,17 +41,12 @@ import dev.icode.mobile.ui.LocalICodeGateway
  * The call's own time stands still while it waits.
  */
 @Composable
-internal fun McpQuestionCard(
-    question: McpQuestion,
-    modifier: Modifier,
-    /** Where the answer goes: the MCP server's, or a coding agent's (docs/assistant-and-mcp.md). */
-    onAnswer: ((McpAnswer) -> Unit)? = null,
-) {
+internal fun McpQuestionCard(question: McpQuestion, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     // Never saveable: an answer may be a secret.
     var values by remember(question.id) { mutableStateOf(question.fields.mapNotNull { field -> field.default?.let { field.name to it } }.toMap()) }
     fun answer(action: McpAnswer.Action) =
-        McpAnswer(question.id, action, if (action == McpAnswer.Action.Accept) values else emptyMap()).let { onAnswer?.invoke(it) ?: gateway.dispatch(McpIntent.Answer(it)) }
+        gateway.dispatch(McpIntent.Answer(McpAnswer(question.id, action, if (action == McpAnswer.Action.Accept) values else emptyMap())))
     val missing = question.fields.any { it.required && values[it.name].isNullOrBlank() }
     IcodeCard(modifier.fillMaxWidth(), borderColor = IcodeColors.Accent) {
         Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {

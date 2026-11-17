@@ -27,10 +27,6 @@
 #                      itself (TextMateLanguage, TextMateColorScheme) are not covered: the editor
 #                      holds the language ui/syntax/ gives it. Comment lines are skipped. Only
 #                      app/src/main is checked, so tests may use tm4e.
-#   acp-owner          the Agent Client Protocol SDK (com.agentclientprotocol.*) used outside
-#                      data/assistant/acp/, the one owner of the external coding agents
-#                      (docs/assistant-and-mcp.md), as data/assistant/koog/ is Koog's. Comment
-#                      lines are skipped; only app/src/main is checked.
 
 set -euo pipefail
 
@@ -125,12 +121,6 @@ count_matches '"SHA-?256"|MessageDigest' "$src_root" | { grep -v '/data/io/Sha25
     | { grep -vE '^[^:]+:[0-9]+:[[:space:]]*(\*|//|/\*)' || true; } \
     | { grep -v "^$src_root/ui/syntax/" || true; } \
     | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "tm4e-owner"
-
-# 11. One owner of the coding agents' protocol: the ACP SDK only in data/assistant/acp/.
-{ grep -rEn 'com\.agentclientprotocol\.' "$src_root" --include='*.kt' 2>/dev/null || true; } \
-    | { grep -vE '^[^:]+:[0-9]+:[[:space:]]*(\*|//|/\*)' || true; } \
-    | { grep -v "^$src_root/data/assistant/acp/" || true; } \
-    | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "acp-owner"
 
 if [[ "${1:-}" == "--update" ]]; then
     {

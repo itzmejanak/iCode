@@ -28,11 +28,11 @@ internal class AssistantToolbox(
     /** An open tab holds unsaved edits at this location. */
     private val unsavedEdits: (String) -> Boolean,
     /** Files changed outside the editor: the tree, Git and the index refresh. */
-    val changed: () -> Unit,
+    private val changed: () -> Unit,
     /** The phone, for every chat while phone control is on (docs/voice-and-phone-control.md). */
     private val phone: PhoneControl,
     /** The Terminal panel's own sessions, where the assistant's commands run (docs/assistant-and-mcp.md). */
-    private val terminals: TerminalSessions,
+    terminals: TerminalSessions,
     /** What hears the microphone, which the assistant sets up as the user does (docs/voice-and-phone-control.md). */
     private val speech: SpeechProviders,
     /** The language servers, which the assistant sets up and asks as the user does (docs/editor-and-language-services.md). */
@@ -47,17 +47,6 @@ internal class AssistantToolbox(
 
     /** [chat]'s own tab in the workspace at [location], or in none, opened if it has none. Throws [TerminalRuns.Refused]. */
     suspend fun openTab(location: String?, chat: String): String = terminal.tabOf(location, chatOf(location, chat), fresh = false)
-
-    /**
-     * [command] typed at a terminal's prompt, as the user would type it: in [chat]'s own tab of the workspace at
-     * [location], or a new tab there when [chat] is null — a coding agent's CLI or its login (docs/assistant-and-mcp.md).
-     * Returns the tab; throws [TerminalRuns.Refused].
-     */
-    suspend fun typeIn(location: String?, chat: String?, command: String): String {
-        val id = if (chat != null) openTab(location, chat) else terminals.open(location, reuseExisting = false) ?: throw TerminalRuns.Refused("No terminal tab could be opened")
-        terminal.send(id, command, listOf("enter"))
-        return id
-    }
 
     private fun chatOf(location: String?, chat: String) = AssistantShell.chatOf(AssistantWorkspace(location?.let(::File), execution.layout.paths), chat)
 

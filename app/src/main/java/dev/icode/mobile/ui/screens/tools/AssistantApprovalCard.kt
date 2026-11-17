@@ -31,7 +31,6 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.domain.AgentRules
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantElsewhere
@@ -74,9 +73,7 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                         tint = IcodeColors.Amber,
                         modifier = Modifier.size(IcodeSizes.IconSm),
                     )
-                    // A coding agent's: its own words for the step; the built-in assistant's, what it reaches.
-                    val asked = if (approval.choices.isNotEmpty()) AgentRules.approvalQuestion(approval.call) else AssistantPermissions.question(approval, AssistantPlace.name(workspace))
-                    Text(asked, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    Text(AssistantPermissions.question(approval, AssistantPlace.name(workspace)), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
                     if (onDetails != null) {
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
@@ -125,7 +122,6 @@ internal fun AssistantPauseCard(pause: AssistantPause, modifier: Modifier) {
 internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String?, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     val answer = { it: AssistantAnswer -> gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
-    if (approval.choices.isNotEmpty()) return AgentApprovalAnswers(approval, modifier)
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
         SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
         AssistantPermissions.allowIn(approval, workspace)?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }

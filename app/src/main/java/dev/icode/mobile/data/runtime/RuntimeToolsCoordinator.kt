@@ -4,7 +4,6 @@ import android.content.Context
 import dev.icode.mobile.data.android.AndroidNdkSetup
 import dev.icode.mobile.data.android.AndroidSdkSetup
 import dev.icode.mobile.data.android.CmakeSetup
-import dev.icode.mobile.data.assistant.acp.agentSetups
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.RuntimeToolMeasuring
 import dev.icode.mobile.domain.RuntimeToolRules
@@ -44,7 +43,7 @@ internal class RuntimeToolsCoordinator(
             layout,
             scope,
             listOf(AndroidSdkSetup(layout, context), CmakeSetup(layout, context)) + RuntimeTools.ndks.keys.map { AndroidNdkSetup(layout, context, it) } +
-                listOf(PinnedToolSetup.node(layout, context), PinnedToolSetup.uv(layout, context)) + agentSetups(layout, context),
+                listOf(PinnedToolSetup.node(layout, context), PinnedToolSetup.uv(layout, context)),
         ),
         layout.toolsOffer,
         licenceText = { RuntimeLicences.text(context, it) },

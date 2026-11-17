@@ -28,7 +28,7 @@ When a model request is made, the provider can receive the active retained conte
 
 ### Secrets
 
-Provider API keys, speech-provider keys, coding-agent keys entered in iCode, Git HTTPS tokens, MCP secret values, and MCP OAuth tokens are encrypted with AES-GCM using keys held by Android Keystore. The Keystore key material does not leave the Keystore.
+Provider API keys, speech-provider keys, Git HTTPS tokens, MCP secret values, and MCP OAuth tokens are encrypted with AES-GCM using keys held by Android Keystore. The Keystore key material does not leave the Keystore.
 
 That protection does not cover workspace files, chat history, report drafts, ordinary settings, or all files inside the Linux runtime. SSH and GPG private keys are files in the app-private runtime. A compromised or unlocked device, a privileged attacker, or a tool running with iCode's app access may still reach app data.
 
@@ -45,12 +45,6 @@ You select the provider or custom endpoint and supply its credentials. The provi
 A local MCP server runs as a process in the Linux runtime. A remote MCP server receives protocol and OAuth traffic at the address you configure. Tool arguments, prompts, and resource requests go to that server; returned text, resources, and images can be stored in the chat and sent onward to the configured AI provider as model context.
 
 A local MCP process can make its own network requests. iCode cannot describe or control the destinations or retention behavior of software you install or configure.
-
-### Coding agents
-
-A coding agent you install and choose (Settings › Assistant › Coding Agents) is another vendor's program running in the Linux runtime. It receives what you send in its chats, the attachments you add, the enabled MCP servers you configured with their saved values, and whatever it reads with its own tools, which can be any file in the runtime, every workspace, and shared storage once All Files Access is granted. It sends that to its own vendor under its vendor's terms; iCode does not see or proxy that traffic.
-
-The agent keeps the conversation: iCode saves an agent's chat title, the agent's name and its session ID, and reads the chat back from the agent when it is opened. The agent keeps its own sessions and credentials in its configuration in the runtime's home, which is app-private but not encrypted by iCode. Deleting a chat in iCode removes iCode's record; the agent's own copy stays in its storage until you remove it with the agent or remove the runtime. Keys you enter in iCode for an agent are encrypted as described above and given only to that agent's process. iCode never logs the protocol traffic between itself and an agent.
 
 ### Phone control
 

@@ -103,9 +103,6 @@ enum class Route(
     // Owner's request (2026-11-05): MCP servers' tools in the assistant's chats (docs/assistant-and-mcp.md).
     McpServers(null, "MCP servers", RouteGroup.SETTINGS),
     McpServer(null, "MCP server", RouteGroup.SETTINGS),
-    // Owner's request (2026-11-17): external coding agents through ACP in the Assistant (docs/assistant-and-mcp.md).
-    CodingAgents(null, "Coding agents", RouteGroup.SETTINGS),
-    CodingAgent(null, "Coding agent", RouteGroup.SETTINGS),
     // Owner's request (2026-10-08): Git's credentials and the commit messages' model (docs/assistant-and-mcp.md).
     SourceControlSettings(null, "Source control settings", RouteGroup.SETTINGS),
 }

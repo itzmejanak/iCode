@@ -21,8 +21,6 @@ val releaseStage = mapOf("preview" to 1, "beta" to 2, "stable" to 9)[releaseChan
 val soraEditorVersion = "0.24.6"
 // One version for the assistant's Koog modules; an upgrade repeats docs/assistant-and-mcp.md.
 val koogVersion = "1.3.0"
-// The Agent Client Protocol's Kotlin SDK: ACP v1, schema 1.18.0; an upgrade repeats docs/assistant-and-mcp.md.
-val acpVersion = "0.34.0"
 
 android {
     namespace = "dev.icode.mobile"
@@ -221,9 +219,6 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.5.2")
     // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client only.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
-    // External coding agents through the Agent Client Protocol (docs/assistant-and-mcp.md): the official
-    // SDK's client over stdio. MIT; only data/assistant/acp/ imports it.
-    implementation("com.agentclientprotocol:acp:$acpVersion")
     // JSON for the language servers' protocol (docs/editor-and-language-services.md): the version Koog and the MCP SDK
     // already resolve, declared because the language client uses it directly.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")

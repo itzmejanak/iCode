@@ -2,7 +2,6 @@ package dev.icode.mobile.data.assistant
 
 import android.content.Context
 import android.os.Environment
-import dev.icode.mobile.data.assistant.acp.codingAgents
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.mcp.McpServers
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
@@ -12,7 +11,6 @@ import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
-import dev.icode.mobile.domain.AgentIntent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantExports
 import dev.icode.mobile.domain.AssistantMessage
@@ -22,7 +20,6 @@ import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
-import dev.icode.mobile.domain.notices.AgentNotices
 import dev.icode.mobile.domain.notices.AssistantNotices
 import dev.icode.mobile.domain.notices.NoticePlace
 import java.io.File
@@ -61,18 +58,17 @@ internal class AssistantCoordinator(
     private val forget: suspend (workspace: String?, chat: String) -> Unit = { _, _ -> },
     /** A chat's own terminal tab, opened if it has none ([AssistantToolbox.openTab]); throws with why it cannot be. */
     private val openTab: suspend (workspace: String?, chat: String) -> String = { _, _ -> error("No terminal") },
-    /** The coding agents chats can be answered by (docs/assistant-and-mcp.md); none in tests that need none. */
-    agentsOf: (AssistantAgentsContext) -> AssistantAgents = { AssistantAgents.None },
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val questions = AssistantQuestions(page)
-    private val files = attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text }
-    private val agents = agentsOf(
-        AssistantAgentsContext(stateHolder, scope, page, chats, questions, { workspace -> AssistantWorkspace(workspace?.let { File(describe(it).location) }, paths, storageAccess) }, files),
+    private val turns = AssistantTurns(
+        page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
+        attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
+        storageAccess,
+        questions,
     )
-    private val turns = AssistantTurns(page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths, files, storageAccess, questions, agents)
 
     /**
      * The intents in the order they were made: "New chat" then Send is never sent in the chat before.
@@ -87,12 +83,7 @@ internal class AssistantCoordinator(
             settings.shown()
             page.state { it.copy(catalogue = catalogue) }
             mcp?.start()
-            agents.start()
-            for (intent in intents) {
-                apply(intent)
-                // What the shown chat's agent offers follows the page, whichever intent moved it.
-                if (page.current.opened) agents.shown(page.current.workspace, page.current.session)
-            }
+            for (intent in intents) apply(intent)
         }
     }
 
@@ -121,7 +112,7 @@ internal class AssistantCoordinator(
             ICodeIntent.OpenAssistantTerminal -> openTerminal()
             ICodeIntent.RetryAssistantMessage -> retry()
             ICodeIntent.TakeBackAssistantMessage -> takeBack()
-            is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model)).also { agents.chooseBuiltIn() }
+            is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
             is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
             is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
             is ICodeIntent.SetAssistantPermission -> setPermission(intent)
@@ -133,7 +124,6 @@ internal class AssistantCoordinator(
             ICodeIntent.CommitMessageTaken -> commitMessages.taken()
             is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
             is McpIntent -> mcp?.handle(intent)
-            is AgentIntent -> agents.handle(intent)
         }
     }
 
@@ -145,7 +135,6 @@ internal class AssistantCoordinator(
     suspend fun workspaceMoved(from: String, to: String) {
         turns.stopIn(from)
         chats.moved(from, to)
-        agents.moved(from, to)
         if (page.current.workspace == from) page.display(to, page.current.session)
     }
 
@@ -153,7 +142,6 @@ internal class AssistantCoordinator(
     suspend fun workspaceForgotten(location: String) {
         turns.stopIn(location)
         chats.forgotten(location)
-        agents.forgotten(location)
         page.forgotten(location)
     }
 
@@ -163,7 +151,7 @@ internal class AssistantCoordinator(
         if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
         val workspace = here()
-        val session = shown.session?.takeIf { shown.opened && shown.workspace == workspace } ?: chats.newSession().also { agents.takes(workspace, it) }
+        val session = shown.session?.takeIf { shown.opened && shown.workspace == workspace } ?: chats.newSession()
         // Sent while the turn there asks its questions: the reply, not a new turn refused as working.
         if (attachments.isEmpty() && questions.replyWith(workspace, session, input)) return
         // Read aloud as Spoken replies says: decided once, so the turn's instructions and its voice agree.
@@ -212,7 +200,6 @@ internal class AssistantCoordinator(
         val workspace = page.current.workspace
         val session = page.current.session ?: return
         if (turns.running != null) return
-        if (agents.answers(workspace, session)) return page.tell(AgentNotices.keepsItsHistory(agentName(workspace, session)))
         chats.takeBack(workspace, session) ?: return
         page.state { it.copy(failure = null) }
         if (chats.of(workspace, session).messages.isEmpty()) page.display(workspace, null) else page.refresh(workspace, session)
@@ -223,13 +210,9 @@ internal class AssistantCoordinator(
         if (!page.current.opened) return
         val workspace = page.current.workspace
         val session = page.current.session ?: return
-        if (agents.answers(workspace, session)) return page.tell(AgentNotices.compactsItself(agentName(workspace, session)))
         if (AssistantRules.forModel(chats.of(workspace, session).messages).messages.isEmpty()) return page.tell(AssistantNotices.nothingToCompact())
         turns.compact(workspace, session)
     }
-
-    private fun agentName(workspace: String?, session: String): String =
-        chats.of(workspace, session).agent?.agent.let { id -> stateHolder.current.agents.agent(id)?.name ?: "The agent" }
 
     private fun delete(session: String) {
         if (!page.current.opened) return
@@ -267,27 +250,23 @@ internal class AssistantCoordinator(
             source: WorkspaceFileSource,
             paths: GuestPaths,
             git: CliGitService,
-        ): AssistantCoordinator {
-            val mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot)
-            return AssistantCoordinator(
-                icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
-                AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
-                toolbox::forWorkspace, activeRoot, source::describeRoot, paths,
-                attachments = { openText ->
-                    AssistantAttachments(
-                        ContentResolverPhoneFiles(context.applicationContext.contentResolver),
-                        AssistantImages::prepare,
-                        openText,
-                        readText = { location -> source.readDocument(location).text },
-                    )
-                },
-                git = { workspace, arguments -> git.run(workspace, arguments) },
-                storageAccess = Environment::isExternalStorageManager,
-                mcp = mcp,
-                forget = toolbox::forget,
-                openTab = toolbox::openTab,
-                agentsOf = { agents -> codingAgents(context.applicationContext, agents, toolbox.execution, mcp, toolbox::typeIn, toolbox.changed) },
-            )
-        }
+        ) = AssistantCoordinator(
+            icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
+            AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
+            toolbox::forWorkspace, activeRoot, source::describeRoot, paths,
+            attachments = { openText ->
+                AssistantAttachments(
+                    ContentResolverPhoneFiles(context.applicationContext.contentResolver),
+                    AssistantImages::prepare,
+                    openText,
+                    readText = { location -> source.readDocument(location).text },
+                )
+            },
+            git = { workspace, arguments -> git.run(workspace, arguments) },
+            storageAccess = Environment::isExternalStorageManager,
+            mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot),
+            forget = toolbox::forget,
+            openTab = toolbox::openTab,
+        )
     }
 }

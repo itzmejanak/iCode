@@ -36,8 +36,9 @@ import dev.icode.mobile.ui.LocalICodeGateway
  * every step of a turn; always shown, its ring amber where compaction begins. Compact is a tap away.
  */
 @Composable
-internal fun ContextMeter(state: AssistantState, window: Long? = state.settings.model?.contextWindow) {
+internal fun ContextMeter(state: AssistantState) {
     val gateway = LocalICodeGateway.current
+    val window = state.settings.model?.contextWindow
     val label = AssistantRules.contextLabel(state.contextTokens, window)
     val share = AssistantRules.contextShare(state.contextTokens, window) ?: 0f
     var open by remember { mutableStateOf(false) }

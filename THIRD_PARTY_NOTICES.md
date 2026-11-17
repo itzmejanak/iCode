@@ -31,7 +31,6 @@ This table names the principal direct dependencies. `app/build.gradle.kts` is th
 | Koog | 1.3.0 | Apache-2.0 |
 | Ktor and OkHttp | Gradle-managed | Apache-2.0 |
 | MCP Kotlin SDK client | 0.16.0 | Apache-2.0, with earlier contributions identified under MIT by the upstream project |
-| Agent Client Protocol Kotlin SDK (`com.agentclientprotocol:acp`) | 0.34.0 | MIT; brings kotlin-logging and kotlinx-collections-immutable (Apache-2.0) and atomicfu (Apache-2.0) |
 | JetBrains Markdown | 0.7.17 | Apache-2.0 |
 | Apache Commons Compress | 1.27.1 | Apache-2.0 |
 | XZ for Java | 1.10 | 0BSD |
@@ -64,26 +63,10 @@ The Ubuntu base image and optional runtime tools are not bundled in the APK. Whe
 - ARM64 Android host tools;
 - CMake and Ninja;
 - optional Android NDK toolchains;
-- Node.js;
-- uv/uvx; and
-- the coding agents listed in `app/src/main/assets/agents/registry.json`, pinned as their ACP registry entries record them.
+- Node.js; and
+- uv/uvx.
 
 These components retain their own upstream terms. The Android SDK license shown before SDK installation is stored at `app/src/main/assets/runtime/licences/android-sdk-license.txt`. The runtime manifest is provenance and integrity metadata, not a substitute for each downloaded component's license.
-
-### Coding agents
-
-Each coding agent is installed only when the user asks, from the source its registry entry pins, and keeps its vendor's terms. The licences below are as the ACP registry records them; each agent's page in Settings › Assistant › Coding Agents links its licence or terms.
-
-| Agent | Version | Source | License as recorded |
-|---|---:|---|---|
-| Claude Agent (`claude-agent-acp`, with the Claude Code CLI) | 0.107.2 | GitHub release binary, `linux-arm64`, SHA-256 pinned | proprietary ([terms](https://github.com/agentclientprotocol/claude-agent-acp/blob/main/LICENSE)) |
-| Codex ACP adapter (`@agentclientprotocol/codex-acp`, with `@openai/codex`) | 2.7.0 | npm | Apache-2.0 |
-| Gemini CLI (`@google/gemini-cli`) | 0.68.0 | npm | Apache-2.0 |
-| OpenCode | 2.3.0 | GitHub release binary, `linux-arm64`, SHA-256 pinned | MIT |
-| Cline CLI (`cline`) | 3.0.74 | npm | Apache-2.0 |
-| Factory Droid (`droid`) | 1.12.1 | npm | proprietary ([terms](https://factory.ai/legal/terms)) |
-
-npm packages bring their own dependencies, under their own terms.
 
 ## Bundled license resources
 
