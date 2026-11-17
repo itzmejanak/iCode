@@ -185,14 +185,13 @@ data class AssistantApproval(
 )
 
 /**
- * A question a turn asks between its steps, about no call (docs/voice-and-phone-control.md): whether
- * it goes on past its step limit, or, on the phone, a step only the user can take. Continue goes on;
- * Stop ends the turn.
+ * A step only the user can take, on the phone (docs/voice-and-phone-control.md) — a password, a
+ * payment: the turn waits between its steps until the user says [PROCEED]; Stop ends it.
  */
-data class AssistantPause(val kind: Kind, /** What the card says under its question. */ val detail: String) {
-    enum class Kind(val question: String, val proceed: String) {
-        StepLimit("Keep going?", "Continue"),
-        HandOver("Your turn", "Done"),
+data class AssistantPause(/** What the user is to do, under the card's [QUESTION]. */ val detail: String) {
+    companion object {
+        const val QUESTION = "Your turn"
+        const val PROCEED = "Done"
     }
 }
 

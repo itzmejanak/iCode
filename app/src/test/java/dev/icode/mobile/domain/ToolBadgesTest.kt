@@ -53,7 +53,7 @@ class ToolBadgesTest {
         val turn = AssistantTurn("/w", "w", "chat", "Thinking…")
         val working = empty.copy(assistant = AssistantState(turns = listOf(turn)))
         assertEquals(ToolBadge(tone = NoticeTone.Info, said = "working"), badge(WorkspaceTool.Assistant, working))
-        val asking = empty.copy(assistant = AssistantState(turns = listOf(turn.copy(pause = AssistantPause(AssistantPause.Kind.StepLimit, "")))))
+        val asking = empty.copy(assistant = AssistantState(turns = listOf(turn.copy(pause = AssistantPause("")))))
         assertEquals(ToolBadge(tone = NoticeTone.HeadsUp, said = "waiting for you"), badge(WorkspaceTool.Assistant, asking))
     }
 

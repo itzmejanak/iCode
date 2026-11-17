@@ -20,6 +20,7 @@ import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnException
+import dev.icode.mobile.data.assistant.AssistantRunEnd
 import dev.icode.mobile.data.assistant.AssistantTurnRequest
 import dev.icode.mobile.data.assistant.koog.KoogTurn.report
 import dev.icode.mobile.domain.AssistantEffort
@@ -80,8 +81,9 @@ internal class KoogAssistantEngine(
             (size > MAX_CLIENTS).also { if (it) eldest.value.close() }
     }
 
-    override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) = explained(turn.connection, turn.model.id) {
+    override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents): AssistantRunEnd = explained(turn.connection, turn.model.id) {
         val reporter = KoogTurn.Reporter(turn.tools.associateBy { it.name }, events)
+        var handedBack = false
         // Replies stream where Koog's streams are sound, so the page shows them as they are written.
         val kind = turn.connection.kind
         val wholeOnly = "$kind|${turn.connection.baseUrl}|${turn.model.id}"
@@ -94,15 +96,16 @@ internal class KoogAssistantEngine(
             instructions = turn.instructions,
             messages = turn.history + listOfNotNull(turn.input),
             tools = turn.tools,
-            // Koog counts each node it runs: the start, a request, then a run of the tools and a
-            // request per step, and the finish — so this allows exactly maxSteps requests.
-            maxIterations = 2 * turn.maxSteps + 1,
-            strategy = KoogTurn.strategy(stream, turn.picture, KoogTurn.picturePlace(kind, KoogModels.llModel(kind, turn.model.spec), turn.model.images), events::picturesRefused),
+            // A turn takes as many steps as it needs: Koog's count of the nodes it runs never ends it.
+            maxIterations = Int.MAX_VALUE,
+            strategy = KoogTurn.strategy(stream, turn.picture, KoogTurn.picturePlace(kind, KoogModels.llModel(kind, turn.model.spec), turn.model.images), events::picturesRefused) {
+                turn.handBack().also { if (it) handedBack = true }
+            },
         ) { report(reporter) }
         ran(stoppedShort = { reporter.cutShort || reporter.filtered }) { agent.use { it.run(START) } }
         if (reporter.cutShort) throw AssistantTurnException(KoogFailures.cutShort(turn.model))
         if (reporter.filtered) throw AssistantTurnException(KoogFailures.FILTERED)
-        Unit
+        if (handedBack) AssistantRunEnd.HandedBack else AssistantRunEnd.Answered
     }
 
     override suspend fun compact(

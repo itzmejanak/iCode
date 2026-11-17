@@ -17,6 +17,9 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   tapping a chat's notification opens that chat. One chat at a time acts on the phone.
 
 ### Changed
+- A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done
+  or you stop it, and when the chat nears its model's window mid-task, it compacts the chat and goes
+  on by itself.
 - Chats keep every message and every command's output in full, however long they grow. A long
   chat saves only what is new instead of writing the whole chat again, and a model request still
   sends at most the newest 400 messages after the last compaction.

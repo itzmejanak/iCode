@@ -97,7 +97,7 @@ internal class AssistantTurns(
         /** The step its tools are on, the hand-over its phone tools wait on, and the screen they take. */
         val step = AssistantStep(
             clarify = { call, asked -> questions.clarify(workspace, session, call, asked) },
-            handOver = { why -> questions.pause(workspace, session, AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
+            handOver = { why -> questions.pause(workspace, session, AssistantPause(why), THINKING) },
             progress = { text -> step(text) },
             terminal = { callId, tab -> update { it.copy(terminal = AssistantTerminal(callId, tab)) } },
             takePhone = { if (working.takePhone(chat)) update { it.copy(onPhone = true) } },
@@ -153,49 +153,58 @@ internal class AssistantTurns(
             chats.append(workspace, session, message)
             page.listed(workspace)
             page.refresh(workspace, session)
-            if ((AssistantRules.contextShare(before.contextTokens, setup.model.contextWindow) ?: 0f) >= AssistantRules.COMPACT_AT) {
-                compact(setup, AssistantRules.forModel(before.messages))
-            }
-            val history = AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1))
+            if (AssistantRules.nearFull(before.contextTokens, setup.model.contextWindow)) compact(setup, AssistantRules.forModel(before.messages))
             step.seesPictures = setup.model.images
             val offer = tools.of(setup.place, session, step, setup.settings.mode)
-            val offered = offer.tools
-            val request = AssistantTurnRequest(
+            val phone = offer.tools.any { it.name.startsWith(PHONE_TOOLS) }
+            val gated = offer.tools.map { tool ->
+                AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { step.current }) { call, changes ->
+                    counted[call.id] = changes
+                }
+            }
+            // The first request after a compaction made while it works says whether it helped: one still near full is not made again.
+            var compacted = false
+            var compacts = true
+            fun request(history: AssistantHistory, input: AssistantMessage.User?) = AssistantTurnRequest(
                 connection = setup.connection,
                 model = setup.model,
                 effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
-                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, offered.any { it.name.startsWith(PHONE_TOOLS) }, aloud) + offer.instructions,
+                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, phone, aloud) + offer.instructions,
                 history = history.messages,
-                input = message,
-                tools = offered.map { tool ->
-                    AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { step.current }) { call, changes ->
-                        counted[call.id] = changes
-                    }
-                },
-                maxSteps = MAX_STEPS,
+                input = input,
+                tools = gated,
                 picture = step::take,
-            )
-            var next = request
-            while (true) {
-                try {
-                    return runWithRetry { attempt ->
-                        step(if (attempt == 0) THINKING else "Preparing to retry…")
-                        // A retry after the model answered goes on from the chat: what it ran or asked is not done again.
-                        if (attempt > 0 && AssistantRules.replied(chats.of(workspace, session).messages)) next = goOn(next)
-                        engine.run(next, this)
+                handBack = {
+                    val full = AssistantRules.nearFull(chats.of(workspace, session).contextTokens, setup.model.contextWindow)
+                    if (compacted) {
+                        compacts = !full
+                        compacted = false
                     }
-                } catch (limit: AssistantStepLimitException) {
-                    // The user says whether it goes on; it goes on from the chat as it is.
-                    questions.pause(workspace, session, AssistantPause(AssistantPause.Kind.StepLimit, "It has taken $MAX_STEPS steps on this message."), THINKING)
-                    next = goOn(next)
+                    full && compacts
+                },
+            )
+
+            /** On from the chat as saved: its steps so far, after [message], and nothing new said. */
+            fun goOn() = request(AssistantRules.forModel(chats.of(workspace, session).messages, message), input = null)
+            var next = request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1)), message)
+            // As many steps as it takes: no limit, and no asking whether to go on.
+            while (true) {
+                val end = runWithRetry { attempt ->
+                    step(if (attempt == 0) THINKING else "Preparing to retry…")
+                    // A retry after the model answered goes on from the chat: what it ran or asked is not done again.
+                    if (attempt > 0 && AssistantRules.replied(chats.of(workspace, session).messages)) next = goOn()
+                    engine.run(next, this)
                 }
+                if (end == AssistantRunEnd.Answered) return
+                // Given back with the chat near full: compacted, it goes on by itself. The screen the step left is not sent a step later.
+                step.take()
+                compact(setup, AssistantRules.forModel(chats.of(workspace, session).messages, message))
+                compacted = true
+                next = goOn()
             }
         }
 
-        /** [request] going on from the chat as saved: its steps so far are the history, and nothing new is said. */
-        private fun goOn(request: AssistantTurnRequest) = request.copy(history = AssistantRules.forModel(chats.of(workspace, session).messages).messages, input = null)
-
-        private suspend fun runWithRetry(block: suspend (Int) -> Unit) = AssistantRetries.runWithRetry(step = ::step, block = block)
+        private suspend fun <T> runWithRetry(block: suspend (Int) -> T): T = AssistantRetries.runWithRetry(step = ::step, block = block)
 
         /** [history] summarized by the model and marked in the chat. */
         suspend fun compact(setup: Setup, history: AssistantHistory) =
@@ -268,7 +277,6 @@ internal class AssistantTurns(
 
     private companion object {
         const val TAG = "Assistant"
-        const val MAX_STEPS = 40
         const val THINKING = "Thinking…"
         const val COMPACTING = "Compacting the chat…"
 

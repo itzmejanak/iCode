@@ -164,7 +164,7 @@ object BackgroundWorkRules {
         detail = "${turn.workspaceName} · ${turn.step}",
         cancel = ICodeIntent.StopAssistant(turn.workspace, turn.session),
         place = BackgroundPlace.AssistantChat(turn.workspace, turn.session),
-        question = turn.approval?.let { "${it.call.summary}?" } ?: turn.pause?.kind?.question
+        question = turn.approval?.let { "${it.call.summary}?" } ?: turn.pause?.let { AssistantPause.QUESTION }
             ?: turn.clarification?.let { "${AssistantQuestionRules.TITLE}: ${AssistantQuestionRules.asked(it)}" }
             ?: asked?.takeIf { turn === state.focus }?.let { "${it.server} asks: ${it.message.lineSequence().firstOrNull().orEmpty()}" },
         cancelLabel = "Stop",

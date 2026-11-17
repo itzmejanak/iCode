@@ -26,7 +26,7 @@ data class AssistantTurn(
     val by: AssistantAnswerer? = null,
     /** A call waiting for the user's answer (docs/assistant-and-mcp.md). */
     val approval: AssistantApproval? = null,
-    /** It waits between steps for the user to go on (docs/voice-and-phone-control.md). */
+    /** It waits for a step the user takes on the phone (docs/voice-and-phone-control.md). */
     val pause: AssistantPause? = null,
     /** The model's questions, waiting for the user's reply (docs/assistant-and-mcp.md). */
     val clarification: AssistantClarification? = null,

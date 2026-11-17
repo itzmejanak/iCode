@@ -1,12 +1,10 @@
 package dev.icode.mobile.data.assistant.koog
 
-import ai.koog.agents.core.agent.exception.AIAgentMaxNumberOfIterationsReachedException
 import ai.koog.agents.core.agent.exception.AIAgentStuckInTheNodeException
 import ai.koog.http.client.KoogHttpClientException
 import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.streaming.IncompleteStreamException
 import dev.icode.mobile.data.assistant.AssistantConnection
-import dev.icode.mobile.data.assistant.AssistantStepLimitException
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.networkWords
 import dev.icode.mobile.data.log.BackendLog
@@ -38,8 +36,6 @@ internal object KoogFailures {
         val chain = generateSequence(failure) { it.cause }.take(MAX_DEPTH).toList()
         // iCode's own reason, however deep Koog's runner wrapped it.
         chain.firstNotNullOfOrNull { it as? AssistantTurnException }?.let { return it }
-        // The standard agent's own limit: the turn asks whether it goes on.
-        if (chain.any { it is AIAgentMaxNumberOfIterationsReachedException }) return AssistantStepLimitException()
         val host = host(connection)
         // Koog's clients wrap what failed on the way to and from the server; a file read is not that.
         val fromServer = chain.any { it is LLMClientException || it is KoogHttpClientException }

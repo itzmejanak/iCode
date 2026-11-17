@@ -7,13 +7,12 @@ import kotlinx.coroutines.delay
 
 /** Provider-agnostic retry — per-kind: Server 5-10s×10, others 30s×5, with countdown. */
 internal object AssistantRetries {
-    suspend fun runWithRetry(step: (String) -> Unit, block: suspend (Int) -> Unit) {
+    suspend fun <T> runWithRetry(step: (String) -> Unit, block: suspend (Int) -> T): T {
         var attempt = 0
         var lastKind: dev.icode.mobile.domain.AssistantRetryKind? = null
         while (true) {
             try {
-                block(attempt)
-                return
+                return block(attempt)
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 val kind = KoogFailures.retryKind((failure as? AssistantTurnException)?.cause ?: failure)

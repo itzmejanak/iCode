@@ -1,6 +1,7 @@
 package dev.icode.mobile.domain.voice
 
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantQuestionRules
@@ -95,6 +96,6 @@ class SpokenTurn {
         }
         val pause = after.pause ?: return emptyList()
         if (before.pause != null) return emptyList()
-        return listOf(VoiceCue.Say("${SpokenText.of(pause.kind.question)} ${SpokenText.of(pause.detail)}"))
+        return listOf(VoiceCue.Say("${SpokenText.of(AssistantPause.QUESTION)} ${SpokenText.of(pause.detail)}"))
     }
 }

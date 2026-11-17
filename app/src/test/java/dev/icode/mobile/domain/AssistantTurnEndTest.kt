@@ -11,7 +11,7 @@ class AssistantTurnEndTest {
 
     @Test
     fun `a turn's end clears what it waited on and is counted`() {
-        val asking = AssistantState(workspace = "/w", session = "chat", turns = listOf(turn.copy(pause = AssistantPause(AssistantPause.Kind.StepLimit, ""))))
+        val asking = AssistantState(workspace = "/w", session = "chat", turns = listOf(turn.copy(pause = AssistantPause(""))))
         val first = asking.turnEnded("/w", "chat")
         assertNull(first.turn)
         assertNull(first.pause)

@@ -70,7 +70,7 @@ class SpokenTurnTest {
         val question = to(asking).single() as VoiceCue.Say
         assertEquals(true, question.text.endsWith("Tap Send."))
         assertEquals(emptyList<VoiceCue>(), to(asking))
-        val paused = writing(AssistantMessage.User("send it")).changeTurn("/w/app", "s1") { it.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type your password")) }
+        val paused = writing(AssistantMessage.User("send it")).changeTurn("/w/app", "s1") { it.copy(pause = AssistantPause("Type your password")) }
         assertEquals(say("Your turn. Type your password."), to(paused))
         val elsewhere = writing(AssistantMessage.User("x"), live = "Other chat. Here").copy(session = "s2")
         assertEquals(emptyList<VoiceCue>(), to(elsewhere))

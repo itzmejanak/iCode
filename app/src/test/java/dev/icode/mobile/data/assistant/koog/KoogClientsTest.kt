@@ -72,7 +72,7 @@ class KoogClientsTest {
     private fun turn(tool: AssistantTool, model: String = "free/deepseek-v4-pro-0813") = AssistantTurnRequest(
         AssistantConnection(AssistantProviderKind.OpenAICompatible, server.address("/v1"), "sk-test"),
         KoogModels.model(AssistantProviderKind.OpenAICompatible, AssistantModelSpec(model)), null,
-        "You are iCode's assistant.", emptyList(), AssistantMessage.User("What does a.kt do?"), listOf(tool), 40,
+        "You are iCode's assistant.", emptyList(), AssistantMessage.User("What does a.kt do?"), listOf(tool),
     )
 
     private val reads = mutableListOf<String>()

@@ -14,7 +14,6 @@ import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantCommitMessage
 import dev.icode.mobile.domain.AssistantEffort
-import dev.icode.mobile.domain.AssistantExports
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
@@ -89,6 +88,10 @@ class AssistantCoordinatorTest {
     private val runtime by lazy { TestRuntime(temp.newFolder("runtime")) }
     private val app by lazy { runtime.root.path }
     private var script: suspend (AssistantTurnRequest, AssistantEvents) -> Unit = { _, _ -> }
+    /** How each run ends once its script has: answered, unless a test gives the turn back. */
+    private var ended: (AssistantTurnRequest) -> AssistantRunEnd = { AssistantRunEnd.Answered }
+    /** The step the last turn's tools were made for: a test hands a step to the user through it. */
+    @Volatile private var step: AssistantStep? = null
     private val requests = Collections.synchronizedList(mutableListOf<AssistantTurnRequest>())
     private val compactions = Collections.synchronizedList(mutableListOf<List<AssistantMessage>>())
     private val ran = Collections.synchronizedList(mutableListOf<String>())
@@ -109,9 +112,10 @@ class AssistantCoordinatorTest {
             if (connection.apiKey != "sk-test") throw AssistantTurnException("The provider refused the API key — check it in the provider's settings")
             return listed
         }
-        override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) {
+        override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents): AssistantRunEnd {
             requests += turn
             script(turn, events)
+            return ended(turn)
         }
         override suspend fun compact(connection: AssistantConnection, model: AssistantModel, instructions: String, history: List<AssistantMessage>): String {
             compactions += history
@@ -126,7 +130,8 @@ class AssistantCoordinatorTest {
     private val coordinator by lazy {
         AssistantCoordinator(
             stateHolder, scope, engine, providers, chats,
-            tools = { workspace, _, _ ->
+            tools = { workspace, _, made ->
+                step = made
                 places += workspace.name
                 listOf(FakeTool("read_file", AssistantToolKind.Read, workspace), FakeTool("edit_file", AssistantToolKind.Change, workspace))
             },
@@ -288,57 +293,84 @@ class AssistantCoordinatorTest {
         assertEquals(2, chats.sessions(app).size)
     }
 
-    @Test fun `at the step limit the turn asks to keep going, and Continue goes on from the chat with no new message`() {
+    @Test fun `a long turn never stops to ask, and near its window it is compacted and goes on by itself, its message first`() {
+        val read = AssistantCall("c1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
         script = { turn, events ->
             if (turn.input != null) {
-                events.replied(AssistantMessage.Reply("Working…"))
-                throw AssistantStepLimitException()
+                events.used(900)
+                events.replied(AssistantMessage.Reply("Reading.", listOf(read)))
+                events.answered(AssistantResult(read.id, read.tool, "val a = 1", false))
+            } else {
+                events.replied(AssistantMessage.Reply("Done."))
             }
-            events.replied(AssistantMessage.Reply("Done."))
         }
+        ended = { if (it.handBack()) AssistantRunEnd.HandedBack else AssistantRunEnd.Answered }
         coordinator.handle(ICodeIntent.SendAssistantMessage("Do the long thing"))
-        until { state().pause != null }
-        assertEquals(AssistantPause.Kind.StepLimit, state().pause!!.kind)
-        assertEquals("Waiting for your answer", state().turn!!.step)
-        goOn()
-        until { !state().running }
-        assertEquals(2, requests.size)
+        until { requests.size == 2 && !state().running }
+        assertEquals(1, compactions.size)
         assertNull(requests[1].input)
-        assertEquals(listOf(AssistantMessage.User("Do the long thing"), AssistantMessage.Reply("Working…", by = gpt5)), requests[1].history)
+        // The summary carries what was done; the message being answered comes first, so the model knows the task.
+        assertEquals(listOf(AssistantMessage.User("Do the long thing")), requests[1].history)
+        assertTrue("Summary of 3" in requests[1].instructions)
+        assertEquals(listOf("User", "Reply", "Results", "Compacted", "Reply"), state().messages.map { it.javaClass.simpleName })
         assertEquals(AssistantMessage.Reply("Done.", by = gpt5), state().messages.last())
-        assertNull(state().pause)
         assertNull(state().failure)
     }
 
-    @Test fun `a message sent by voice or from the bubble marks its turn to be answered aloud, through its pauses`() {
+    @Test fun `a compaction that leaves the chat near full is not made again in the same turn`() {
+        val read = AssistantCall("c1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
+        val asked = Collections.synchronizedList(mutableListOf<Boolean>())
         script = { turn, events ->
-            if (turn.input != null) throw AssistantStepLimitException()
-            events.replied(AssistantMessage.Reply("Done."))
+            events.used(900)
+            events.replied(AssistantMessage.Reply("Reading.", listOf(read)))
+            events.answered(AssistantResult(read.id, read.tool, "val a = 1", false))
+            // Still near full after it: the run goes on with this step's results, and then answers.
+            if (turn.input == null) {
+                asked += turn.handBack()
+                events.replied(AssistantMessage.Reply("Done."))
+            }
         }
+        ended = { if (it.input != null && it.handBack()) AssistantRunEnd.HandedBack else AssistantRunEnd.Answered }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Do the long thing"))
+        until { requests.size == 2 && !state().running }
+        assertEquals(1, compactions.size)
+        assertEquals(listOf(false), asked)
+    }
+
+    @Test fun `a message sent by voice or from the bubble marks its turn to be answered aloud`() {
+        script = { _, _ -> awaitCancellation() }
         coordinator.handle(ICodeIntent.SendAssistantMessage("Turn on Wi-Fi", aloud = true))
-        until { state().pause != null }
+        until { state().turn != null }
         assertTrue(state().turn!!.aloud)
-        goOn()
+        halt()
         until { !state().running }
         coordinator.handle(ICodeIntent.SendAssistantMessage("And Bluetooth"))
-        until { state().pause != null }
+        until { state().turn != null }
         assertFalse(state().turn!!.aloud)
         halt()
         until { !state().running }
     }
 
-    @Test fun `Stop at the step limit ends the turn, and what was done stays`() {
+    @Test fun `a step only the user can take waits for Done, and Stop there ends the turn with what was said kept`() {
         script = { _, events ->
-            events.replied(AssistantMessage.Reply("Working…"))
-            throw AssistantStepLimitException()
+            events.replied(AssistantMessage.Reply("Opening the bank."))
+            step!!.handOver("Type your password")
+            events.replied(AssistantMessage.Reply("Signed in."))
         }
-        coordinator.handle(ICodeIntent.SendAssistantMessage("Do the long thing"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Sign in"))
+        until { state().pause != null }
+        assertEquals(AssistantPause("Type your password"), state().pause)
+        assertEquals("Waiting for your answer", state().turn!!.step)
+        goOn()
+        until { !state().running }
+        assertEquals(AssistantMessage.Reply("Signed in.", by = gpt5), state().messages.last())
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Again"))
         until { state().pause != null }
         halt()
         until { !state().running }
         assertNull(state().pause)
-        assertEquals(1, requests.size)
-        assertEquals(AssistantMessage.Reply("Working…", by = gpt5), state().messages.last())
+        assertEquals(AssistantMessage.Reply("Opening the bank.", by = gpt5), state().messages.last())
+        assertNull("a stop is not a failure", state().failure)
     }
 
     @Test fun `a change waits for Allow, runs, and the chat is kept and listed`() {

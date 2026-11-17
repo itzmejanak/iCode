@@ -23,7 +23,7 @@ import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantParameter
 import dev.icode.mobile.data.assistant.AssistantPicture
-import dev.icode.mobile.data.assistant.AssistantStepLimitException
+import dev.icode.mobile.data.assistant.AssistantRunEnd
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.assistant.AssistantTurnException
@@ -173,8 +173,8 @@ class KoogAssistantEngineTest {
         tool: AssistantTool,
         history: List<AssistantMessage> = emptyList(),
         input: AssistantMessage.User = AssistantMessage.User("What does a.kt do?"),
-        maxSteps: Int = 40,
-    ) = AssistantTurnRequest(connection, model, null, "You are iCode's assistant.", history, input, listOf(tool), maxSteps)
+        handBack: () -> Boolean = { false },
+    ) = AssistantTurnRequest(connection, model, null, "You are iCode's assistant.", history, input, listOf(tool), handBack = handBack)
 
     @Test fun `a reply's tool call runs, its result goes back, and the next reply ends the turn`() = runBlocking {
         val client = ScriptedClient(listOf(callingRead, done))
@@ -289,15 +289,27 @@ class KoogAssistantEngineTest {
         assertEquals(cut, KoogArguments.unreadable(replayed.args))
     }
 
-    @Test fun `a model that never stops calling tools is stopped at the step limit`() = runBlocking {
-        val client = ScriptedClient(listOf(callingRead))
-        try {
-            KoogAssistantEngine { client }.run(turn(ReadTool(), maxSteps = 2), Recorder())
-            fail("expected the step limit")
-        } catch (stopped: AssistantStepLimitException) {
-            assertEquals("Stopped at the step limit — send a message to continue", stopped.message)
-        }
-        assertEquals(2, client.prompts.size)
+    @Test fun `a turn takes as many steps as it needs`() = runBlocking {
+        val client = ScriptedClient(List(60) { callingRead } + done)
+        val tool = ReadTool()
+        assertEquals(AssistantRunEnd.Answered, KoogAssistantEngine { client }.run(turn(tool), Recorder()))
+        assertEquals(61, client.prompts.size)
+        assertEquals(60, tool.seen.size)
+    }
+
+    @Test fun `asked for the turn back, the run ends after the step's calls, their results recorded and not sent`() = runBlocking {
+        val client = ScriptedClient(listOf(callingRead, done))
+        val recorder = Recorder()
+        var asked = 0
+        val end = KoogAssistantEngine { client }.run(turn(ReadTool(), handBack = { asked++; true }), recorder)
+        assertEquals(AssistantRunEnd.HandedBack, end)
+        assertEquals(1, asked)
+        assertEquals(1, client.prompts.size)
+        assertEquals("call_1", recorder.events.filterIsInstance<AssistantResult>().single().callId)
+        // Not asked back: the same step's results go to the model, and its reply ends the run.
+        val going = ScriptedClient(listOf(callingRead, done))
+        assertEquals(AssistantRunEnd.Answered, KoogAssistantEngine { going }.run(turn(ReadTool(), handBack = { false }), Recorder()))
+        assertEquals(2, going.prompts.size)
     }
 
     @Test fun `a turn goes on from the chat as it is, with no new message`() = runBlocking {
@@ -371,7 +383,7 @@ class KoogAssistantEngineTest {
 
         // Only the last reply counts: one cut short whose call ran, then a finished one, ends well.
         val cutCall = Message.Assistant(listOf(call("call_1")), ResponseMetaInfo.Empty, finishReason = "length")
-        KoogAssistantEngine { ScriptedClient(listOf(cutCall, done)) }.run(turn(ReadTool()), Recorder())
+        assertEquals(AssistantRunEnd.Answered, KoogAssistantEngine { ScriptedClient(listOf(cutCall, done)) }.run(turn(ReadTool()), Recorder()))
     }
 
     @Test fun `a reply's reasoning is kept apart from its answer, and never sent back to the model`() = runBlocking {

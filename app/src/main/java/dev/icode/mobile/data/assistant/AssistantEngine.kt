@@ -34,10 +34,11 @@ internal interface AssistantEngine {
 
     /**
      * Answers [turn]'s input: the model is asked, the tools it calls are run (one at a time, in
-     * order), and it is asked again with their results, until a reply calls none or the step limit is
-     * reached. Cancelling the caller stops it.
+     * order), and it is asked again with their results, as many steps as it takes, until a reply calls
+     * none or [AssistantTurnRequest.handBack] asks for the turn back after a step. Cancelling the
+     * caller stops it.
      */
-    suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents)
+    suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents): AssistantRunEnd
 
     /** A summary of [history] by the model, for the chat to go on from in fewer tokens. */
     suspend fun compact(connection: AssistantConnection, model: AssistantModel, instructions: String, history: List<AssistantMessage>): String
@@ -68,14 +69,26 @@ internal data class AssistantTurnRequest(
     /** The new message; null when the turn goes on from [history] as it is, past a pause (docs/voice-and-phone-control.md). */
     val input: AssistantMessage.User?,
     val tools: List<AssistantTool>,
-    /** Requests at most; then [AssistantStepLimitException]. */
-    val maxSteps: Int,
     /**
      * The picture a step's calls left for the model to see — the screen after them — taken once their
      * results are sent, and sent with them where the provider takes one (docs/voice-and-phone-control.md).
      */
     val picture: () -> AssistantPicture? = { null },
+    /**
+     * Asked once each step's calls have run and their results are in the chat: true ends the run there
+     * ([AssistantRunEnd.HandedBack]), for iCode to compact the chat and go on from it.
+     */
+    val handBack: () -> Boolean = { false },
 )
+
+/** How an engine's run of a turn ended. */
+internal enum class AssistantRunEnd {
+    /** The model replied, calling nothing more. */
+    Answered,
+
+    /** It gave the turn back after a step, as [AssistantTurnRequest.handBack] asked. */
+    HandedBack,
+}
 
 /** A picture a step sends the model, with its results: a JPEG of the phone's screen. Never kept in the chat. */
 internal class AssistantPicture(val bytes: ByteArray, val mimeType: String = "image/jpeg") {
@@ -108,9 +121,6 @@ internal class AssistantToolException(message: String) : Exception(message)
 
 /** A turn that could not go on, in the words the page shows. */
 internal open class AssistantTurnException(message: String, cause: Throwable? = null) : Exception(message, cause)
-
-/** The turn reached its step limit: the user says whether it goes on (docs/voice-and-phone-control.md). */
-internal class AssistantStepLimitException : AssistantTurnException("Stopped at the step limit — send a message to continue")
 
 /** One tool the model may call: iCode code over one of iCode's owners. */
 internal interface AssistantTool {

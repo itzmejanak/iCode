@@ -109,6 +109,25 @@ class AssistantRulesTest {
         assertEquals(long.takeLast(10), AssistantRules.forModel(long.takeLast(10)).messages)
     }
 
+    @Test fun `the message a turn is answering comes first, after a compaction made while it worked and in a long answer`() {
+        val task = AssistantMessage.User("Port the app")
+        val step = AssistantMessage.Reply("Reading.", listOf(call("1")))
+        val result = AssistantMessage.Results(listOf(AssistantResult("1", "read_file", "x", false)))
+        val compacted = listOf(asked, task, step, result, AssistantMessage.Compacted("Ported half."))
+        assertEquals(listOf(task), AssistantRules.forModel(compacted, task).messages)
+        assertEquals(listOf(task, step, result), AssistantRules.forModel(compacted + step + result, task).messages)
+        // Without one being answered, a compaction leaves nothing before the next message.
+        assertEquals(emptyList<AssistantMessage>(), AssistantRules.forModel(compacted).messages)
+        // One answer longer than a request holds: its newest steps, from a reply, after its message.
+        val long = listOf(task) + (1..300).flatMap { listOf(step, result) }
+        val sent = AssistantRules.forModel(long, task).messages
+        assertEquals(task, sent.first())
+        assertEquals(step, sent[1])
+        assertEquals(AssistantRules.MODEL_MESSAGES + 1, sent.size)
+        // A message of the user's already first stays as it is.
+        assertEquals(listOf(asked, task, step, result), AssistantRules.forModel(listOf(asked, task, step, result), task).messages)
+    }
+
     @Test fun `who answers is named above the first reply after each message, and where it changes`() {
         val gpt = AssistantChoice("p", "gpt-5")
         val o3 = AssistantChoice("p", "o3")

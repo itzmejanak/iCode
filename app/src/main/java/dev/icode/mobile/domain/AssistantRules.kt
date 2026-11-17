@@ -2,44 +2,6 @@ package dev.icode.mobile.domain
 
 import java.net.URI
 
-/** One row of the Assistant page, keyed for its list. */
-sealed interface AssistantEntry {
-    val key: String
-
-    /** What the user wrote, and the files sent with it. */
-    data class Said(override val key: String, val text: String, val attachments: List<AssistantAttachment> = emptyList()) : AssistantEntry
-
-    /** What the assistant answered, Markdown. */
-    data class Answer(override val key: String, val text: String) : AssistantEntry
-
-    /** Who answers from here on: named above the first reply after something the user said, and where it changes. */
-    data class Answerer(override val key: String, val by: AssistantAnswerer) : AssistantEntry
-
-    /** What the model thought before it answered, as its provider sent it; [live] while it is still being written. */
-    data class Reasoning(override val key: String, val text: String, val live: Boolean = false) : AssistantEntry
-
-    /** A tool the assistant used, and what came of it. */
-    data class Step(
-        override val key: String,
-        val call: AssistantCall,
-        val status: AssistantStepStatus,
-        /** What the tool answered; null while it has not. */
-        val output: String? = null,
-        /** For a change to a file, the lines it added and removed. */
-        val changes: LineChanges? = null,
-        /** For a command, what it printed, as printed: its replay (docs/assistant-and-mcp.md). */
-        val printed: String? = null,
-    ) : AssistantEntry
-
-    /** Where the chat was compacted: before it, the model reads only its summary. */
-    data class Compacted(override val key: String, val summary: String) : AssistantEntry
-
-    /** Steps one after another, one row of the chat ([AssistantStepRules.rows]); keyed by its first. */
-    data class Steps(override val key: String, val steps: List<Step>) : AssistantEntry
-}
-
-enum class AssistantStepStatus { Asking, Running, Queued, Done, Failed }
-
 /** What a turn sends of a chat: the summary of what was compacted, and the messages after it. */
 data class AssistantHistory(val summary: String?, val messages: List<AssistantMessage>)
 
@@ -131,18 +93,25 @@ object AssistantRules {
      * What the model is sent of [messages]: from the last compaction on, its summary in front, every
      * call answered, and at most the newest [MODEL_MESSAGES] from something the user said. The chat
      * itself keeps every message (docs/assistant-and-mcp.md); only a request is trimmed to fit.
+     * [answering], the message a turn is working on, always comes first: a compaction made while it
+     * worked, or the newest steps of a long answer, would leave it out.
      */
-    fun forModel(messages: List<AssistantMessage>): AssistantHistory {
+    fun forModel(messages: List<AssistantMessage>, answering: AssistantMessage.User? = null): AssistantHistory {
         val closed = closed(messages)
         val last = closed.indexOfLast { it is AssistantMessage.Compacted }
         val summary = (closed.getOrNull(last) as? AssistantMessage.Compacted)?.summary
         val since = closed.drop(last + 1)
-        val recent = if (since.size <= MODEL_MESSAGES) since else since.takeLast(MODEL_MESSAGES).dropWhile { it !is AssistantMessage.User }
-        return AssistantHistory(summary, recent)
+        // Cut where an exchange starts: a message of the user's, or, for a turn at work, a reply — its results follow it.
+        val recent = if (since.size <= MODEL_MESSAGES) since
+        else since.takeLast(MODEL_MESSAGES).dropWhile { it !is AssistantMessage.User && (answering == null || it !is AssistantMessage.Reply) }
+        return AssistantHistory(summary, listOfNotNull(answering?.takeIf { recent.firstOrNull() !is AssistantMessage.User }) + recent)
     }
 
     /** The most messages one request sends after its compaction: a chat longer than this is sent its newest. */
     const val MODEL_MESSAGES = 400
+
+    /** The chat's last request filled [COMPACT_AT] of the model's window or more: it is compacted before it goes on. */
+    fun nearFull(tokens: Long?, window: Long?): Boolean = (contextShare(tokens, window) ?: 0f) >= COMPACT_AT
 
     /** How full the context is, 0..1; null when the window is unknown or nothing was sent yet. */
     fun contextShare(tokens: Long?, window: Long?): Float? =

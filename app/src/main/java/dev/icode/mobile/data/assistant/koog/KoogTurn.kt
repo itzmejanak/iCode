@@ -38,25 +38,24 @@ import kotlinx.serialization.SerializationException
 /** A request of the turn's: whole, or one that streams ([KoogTurn.streamed]). */
 internal typealias KoogRequest = suspend AIAgentLLMWriteSession.() -> Message.Assistant
 
-/**
- * One turn on Koog's agent: its strategy, its requests, and what it reports
- * (docs/runtime-and-terminal.md).
- */
+/** One turn on Koog's agent: its strategy, its requests, and what it reports (docs/runtime-and-terminal.md). */
 internal object KoogTurn {
     /**
-     * Koog's `singleRunStrategy()`, its own nodes and edges, with two changes. It opens with a node
+     * Koog's `singleRunStrategy()`, its own nodes and edges, with three changes. It opens with a node
      * that only requests — Koog's `reActStrategy` has one — since the message, with its images and
-     * files, is already the prompt's last (`nodeLLMRequest` would add a text-only one). And after
-     * tool results it checks a reply's calls before its text: Koog's checks the text first and
-     * finishes, leaving the calls of a reply with both ("Now the tests:" and a call — how models
-     * work) unrun, as it already does after the first request. Its requests are [stream]'s where it
-     * is given; Koog's whole-reply request otherwise.
+     * files, is already the prompt's last (`nodeLLMRequest` would add a text-only one). After tool
+     * results it checks a reply's calls before its text: Koog's checks the text first and finishes,
+     * leaving the calls of a reply with both ("Now the tests:" and a call — how models work) unrun,
+     * as it already does after the first request. And once a step's calls have run, [handBack] may
+     * end the run before their results are sent, for iCode to go on from the chat. Its requests are
+     * [stream]'s where it is given; Koog's whole-reply request otherwise.
      */
     fun strategy(
         stream: KoogRequest?,
         picture: () -> AssistantPicture? = { null },
         place: PicturePlace = PicturePlace.None,
         picturesRefused: () -> Unit = {},
+        handBack: () -> Boolean = { false },
     ): AIAgentGraphStrategy<String, String> = strategy("icode-turn") {
         val request by node<String, Message.Assistant> { llm.writeSession { stream?.invoke(this) ?: requestLLM() } }
         val runTools by nodeExecuteTools()
@@ -93,6 +92,7 @@ internal object KoogTurn {
         edge(nodeStart forwardTo request)
         edge(request forwardTo runTools onToolCalls { true })
         edge(request forwardTo nodeFinish onTextMessage { true })
+        edge(runTools forwardTo nodeFinish onCondition { handBack() } transformed { "" })
         edge(runTools forwardTo sendResults)
         edge(sendResults forwardTo runTools onToolCalls { true })
         edge(sendResults forwardTo nodeFinish onTextMessage { true })

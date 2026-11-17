@@ -99,7 +99,7 @@ class PhoneRulesTest {
         val waiting = acting.changeTurn("/w/app", "s1") { it.copy(approval = AssistantApproval(call, "Tap [3]")) }
         assertEquals(PhoneOverlay.Glow.Dim, of(waiting, on).glow)
         assertTrue(of(waiting, on).asking)
-        assertTrue(of(acting.changeTurn("/w/app", "s1") { it.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type the password")) }, on).asking)
+        assertTrue(of(acting.changeTurn("/w/app", "s1") { it.copy(pause = AssistantPause("Type the password")) }, on).asking)
         val workspaceTurn = AssistantState(turns = listOf(AssistantTurn("/w/app", "app", "s1", "Thinking…")))
         assertEquals(PhoneOverlay.Glow.Off, of(workspaceTurn, on).glow)
         // Put away: the glow goes with the bubble.
@@ -117,7 +117,7 @@ class PhoneRulesTest {
         assertEquals(PhoneOverlay.Look.Acting, of(shownHome, on).look)
         assertEquals("Tap [3]", of(shownHome, on).step)
         assertTrue(of(shownHome, on).busy)
-        val asked = shownHome.changeTurn(null, "s2") { it.copy(pause = AssistantPause(AssistantPause.Kind.StepLimit, "")) }
+        val asked = shownHome.changeTurn(null, "s2") { it.copy(pause = AssistantPause("")) }
         assertEquals("s2", asked.focus?.session)
         assertEquals(PhoneOverlay.Glow.Dim, of(asked, on).glow)
         // Another chat shown: the bubble still follows the one at work, and sends to the shown one.

@@ -155,7 +155,7 @@ The Linux runtime uses PRoot. PRoot is not an operating-system security sandbox.
 
 **Status: Done**
 
-The assistant can ask structured questions with selectable answers instead of guessing. A server can also ask an MCP elicitation question while one of its tools is running. At the assistant's step limit, iCode asks whether to continue. Phone-control work can pause for a user hand-over.
+The assistant can ask structured questions with selectable answers instead of guessing. A server can also ask an MCP elicitation question while one of its tools is running. Phone-control work can pause for a user hand-over. A turn has no step limit and never stops to ask whether to go on: it takes as many steps as the task needs, until the model answers, the user stops it, or it fails.
 
 Approvals, pauses, and unanswered structured questions are live turn state. Completed messages, tool calls, and results are persisted, but a pending question is not restored as an active wait after process death.
 
@@ -175,7 +175,7 @@ Transient provider connection, rate-limit, and overload failures use provider-in
 
 **Status: Done**
 
-The context meter uses the token count of the last request and the chosen model's context window. When the automatic threshold is reached, iCode asks the model for a continuation summary, saves a compaction marker, resets context accounting, and sends the summary plus later messages on following turns. Manual compaction uses the same path.
+The context meter uses the token count of the last request and the chosen model's context window. When the automatic threshold of 80% is reached, iCode asks the model for a continuation summary, saves a compaction marker, resets context accounting, and sends the summary plus later messages on following turns. The threshold is checked before each new message and, while a turn works, after each step's calls have run: the engine then hands the turn back, iCode compacts the chat and goes on from it by itself, sending the message being answered first so the model keeps its task. If the first request after such a compaction is still over the threshold, that turn is not compacted again. Manual compaction uses the same path.
 
 ### Attachments
 

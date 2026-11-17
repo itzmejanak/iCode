@@ -61,6 +61,7 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.domain.AssistantAnswer
+import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantQuestionRules
@@ -254,7 +255,7 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val asked = view.overlay.question?.takeIf { approval == null && pause == null && clarification == null }
     // The chat at work, else the one shown: its workspace, or none.
     val workspace = if (turn != null) turn.workspace else view.assistant.workspace
-    val title = approval?.let { AssistantPermissions.question(it, AssistantPlace.name(workspace)) } ?: pause?.kind?.question
+    val title = approval?.let { AssistantPermissions.question(it, AssistantPlace.name(workspace)) } ?: pause?.let { AssistantPause.QUESTION }
         ?: clarification?.let { AssistantQuestionRules.TITLE } ?: asked?.let { "${it.server} asks" }
     Text(title.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
     Text(
@@ -269,7 +270,7 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
             PrimaryButton(AssistantPermissions.allowOnce(approval), { answer(AssistantAnswer.Allow) }, compact = true)
         } else if (turn != null && pause != null) {
             SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }, compact = true)
-            PrimaryButton(pause.kind.proceed, { dispatch(ICodeIntent.ContinueAssistant(turn.workspace, turn.session)) }, compact = true)
+            PrimaryButton(AssistantPause.PROCEED, { dispatch(ICodeIntent.ContinueAssistant(turn.workspace, turn.session)) }, compact = true)
         } else if (asked != null || clarification != null) {
             PrimaryButton("Open in iCode", actions.open, compact = true)
         }

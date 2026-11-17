@@ -99,20 +99,17 @@ internal fun AssistantApprovalCard(turn: AssistantTurn, approval: AssistantAppro
     }
 }
 
-/**
- * [turn] waiting between its steps (docs/voice-and-phone-control.md): its question, why, and Stop or go on —
- * Continue past the step limit, Done after a step the user took.
- */
+/** [turn] waiting for a step the user takes (docs/voice-and-phone-control.md): what to do, and Stop or Done. */
 @Composable
 internal fun AssistantPauseCard(turn: AssistantTurn, pause: AssistantPause, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     IcodeCard(modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
         Column(Modifier.padding(horizontal = IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-            Text(pause.kind.question, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+            Text(AssistantPause.QUESTION, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
             Text(pause.detail, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
                 SecondaryButton("Stop", { gateway.dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }, compact = true)
-                PrimaryButton(pause.kind.proceed, { gateway.dispatch(ICodeIntent.ContinueAssistant(turn.workspace, turn.session)) }, compact = true)
+                PrimaryButton(AssistantPause.PROCEED, { gateway.dispatch(ICodeIntent.ContinueAssistant(turn.workspace, turn.session)) }, compact = true)
             }
         }
     }
