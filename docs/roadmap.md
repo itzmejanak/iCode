@@ -144,6 +144,63 @@ Each item records four things:
 
 **Verification evidence needed:** Provider matrix for OpenAI-compatible, OpenAI, Anthropic, Google, OpenRouter, Ollama, and representative custom endpoints; wrong key/model, rate limit, no network, TLS/plaintext, timeout, cancellation, background question, process death, image/PDF, tool failure, and log/redaction checks.
 
+### External coding agents through ACP
+
+**Status:** **Not Started**
+
+**Current implementation:** None. The owners an implementation builds on exist: `data/runtime/GuestStdio.kt` starts the runtime's protocol programs for local MCP servers (`data/assistant/mcp/McpLocal.kt`) and language servers (`data/language/LanguageServices.kt`); `data/assistant/AssistantTurns.kt` runs the assistant's turns and reports through `AssistantPage.kt`; `AssistantChats.kt` and `AssistantChatStore.kt` keep chats per workspace or none; `AssistantQuestions.kt` holds approvals, pauses, and questions for `ui/screens/tools/AssistantApprovalCard.kt` and `AssistantQuestionsCard.kt`; `data/assistant/mcp/McpQuestions.kt` and `ui/screens/tools/McpQuestionCard.kt` show form and URL questions; `data/runtime/PinnedToolSetup.kt` installs the pinned Node.js that npm-distributed agents need; and `data/workspace/WorkspaceWatcher.kt` reconciles open documents with changes made outside the editor. Today one turn runs at a time across the app (`AssistantTurns.kt`), the chat's model is one app-wide choice (`AssistantSettings.choice`), a saved chat keeps its newest 400 messages and bounds each tool result (`AssistantChatStore.kt`), and a shared transcript is cut at 100,000 characters (`domain/AssistantExports.kt`).
+
+**Remaining scope:** Build the behaviour the owner decided on 2026-11-17:
+
+- **Agents.** Claude Code, Codex, Gemini CLI, OpenCode, Cline, and Droid work through the Agent Client Protocol (ACP), with no per-agent protocol adapter in iCode. Other agents from the ACP registry later use the same path.
+- **Installing.** Agents are installed, updated, and removed in Settings › Assistant › Coding agents; choosing one that is not installed in the picker goes there. Installing an agent that needs Node.js installs Node.js first. iCode installs each agent's newest release from the ACP registry, checks for updates daily and whenever Coding agents opens, notifies the user, and updates on the user's tap. An agent not yet verified on phones is marked Untested.
+- **Signing in.** When a chat is set to an agent that is not signed in, its sign-in methods show in the chat before the user can send: every method the agent offers, whether it signs in itself, through a terminal, or with a key. iCode starts the agent once to learn this and remembers a successful sign-in.
+- **Choosing.** One sheet chooses the answerer, with Models and Agents tabs, each provider's and agent's icon, and the model's effort.
+- **Chats.** A chat can switch between models and agents at any time. The next answerer receives the whole conversation so far, summarised only when it would not fit, and each reply shows its answerer's icon and name. One answerer works in a chat at a time.
+- **Working.** Several chats work at once, the built-in assistant's and agents' alike; only one chat controls the phone's screen at a time. A message sent while a chat works waits in a queue under it, where it can be edited or removed. Send now steers the work in hand, or, when the message is for a different answerer, stops the current one and hands over.
+- **Running.** An agent starts with the first message, or the sign-in check, and stops after 10 idle minutes. It keeps working while iCode is in the background, with notifications when it finishes or needs an answer. If Android ends iCode mid-task, the chat says so and offers Continue.
+- **History.** Chats keep every message and full outputs; only what is sent to a model is trimmed to fit it. Sharing a chat sends all of it as a file. Retry and Edit start the agent fresh from the chat as it stands. Deleting a chat deletes the agents' sessions for it too. Sessions an agent's own CLI started in a workspace are listed and can be continued in iCode.
+- **Undo.** Before each message iCode records the workspace's files, and Undo changes on a reply restores them.
+- **Safety.** An agent chat's mode chip shows the agent's own modes and starts in the one that asks before changes. Modes that never ask are offered with a one-line warning. If Codex's sandbox cannot run, Codex runs without it and asks before every command.
+- **iCode's tools and voice.** Agents get iCode's Build & Run, Problems, language-server, and phone-control tools under the same approvals, and answer from the bubble and by voice as the built-in assistant does.
+- **Product contract.** The non-goal in [Product](product.md#non-goals) says iCode has no store or package format of its own; agents install from their makers' official releases.
+
+Where each part lives:
+
+- **Protocol.** ACP v1, the stable version (schema 1.18.0), through the official Kotlin SDK `com.agentclientprotocol:acp` 0.34.0: JVM, Java 8 bytecode, and a stdio transport over line streams. Only `data/assistant/acp/` imports the SDK, as only `data/assistant/koog/` imports Koog. ACP v2 is a draft that removes the client file-system and terminal methods; adopt it only once it is stable, negotiated per connection.
+- **Processes.** One process per agent, its sessions sharing one connection, started by `GuestStdio` with the login environment, the agent's own log folder, and the stop and stderr-tail rules of local MCP servers. Standard output is protocol traffic and is never logged.
+- **Catalogue and installs.** Agents are described in the ACP registry's own `agent.json` format, read by one parser, with the newest version of each read from the registry. Binaries are verified by SHA-256 and npm packages installed at an exact version. Install, update, and removal follow the `RuntimeToolSetup` contract into the guest home, with the Node.js runtime tool as a prerequisite; update notices go through the existing notification channels.
+- **One transcript.** iCode's chat file is the one record of a chat, whoever answered: each reply records its answerer, and the chat records its current answerer and, for each agent, the ACP session that continues it. A switch, Retry, or Edit opens a session whose first prompt carries the conversation so far. `AssistantChatStore.kt` drops its message and output caps and loads long chats in parts; `AssistantSettings.choice` becomes what a new chat starts with.
+- **Turns.** Turns per chat replace the single app-wide job in `AssistantTurns.kt`, which is at the 300-line budget, so an agent turn is a separate owner it calls. `AssistantState`'s turn, approval, pause, and questions become per chat, each chat has its queue, and the phone tools hold one lease. The Koog path keeps its loop.
+- **One mapping from ACP to the domain.** Message and thought chunks become `AssistantLive` and `AssistantMessage.Reply`; `user_message_chunk` during a replay becomes `AssistantMessage.User`; `tool_call` and `tool_call_update` become `AssistantCall` and `AssistantResult` (kinds `read`, `search`, `fetch`, and `think` as Read; `edit`, `delete`, and `move` as Change; `execute` as Command; diff content as `LineChanges`; terminal content as `printed`); `usage_update` feeds the context meter; `plan` needs a plan entry on the page, which `AssistantEntry` does not have yet.
+- **Approvals and questions.** `session/request_permission` goes to `AssistantQuestions.approve` and the approval card with the agent's own options; iCode never answers for the user. `elicitation/create` uses the MCP question card, and `McpQuestion` becomes a question type shared by MCP and ACP.
+- **Composer and slash commands.** In an agent chat, the mode, model, and effort controls show the agent's config options by category (`mode`, `model`, `thought_level`). Typing `/` opens one menu with the agent's slash commands from `available_commands_update`, sent as prompt text, and its other config options as toggles through `session/set_config_option`.
+- **Sign-in.** An `agent` method calls `authenticate`; a `terminal` method opens an iCode terminal tab running the agent's login command; keys entered in iCode are Keystore-encrypted like MCP secrets and passed only to that agent's process environment.
+- **MCP and iCode's tools.** `session/new` passes the user's enabled servers from `McpServers`, and a private MCP server on `127.0.0.1`, guarded by a per-session token, that offers iCode's tools through the existing gate.
+- **Client capabilities.** The first version advertises neither `fs/*` nor `terminal/*`: agents use their own tools in the runtime, and their file changes reach open editors through `WorkspaceWatcher`.
+- **Undo.** A snapshot store per workspace, outside the workspace in app-private storage, restored through the workspace's guarded writes.
+- **Sharing.** The transcript is written to a file and shared by content URI instead of intent text.
+- **Terminal fallback.** Each listed agent records the command that opens its own CLI in the chat's place and, where the agent supports it, resumes the same session.
+
+Compatibility is verified on a phone, not assumed:
+
+- **Claude Code:** the adapter's release binary bundles the native `claude` CLI. Community reports describe that binary crashing on Android under Termux's glibc wrapper and running in PRoot Ubuntu. Nothing is verified under iCode's PRoot 5.1.107.92 and Ubuntu 24.04.5.
+- **Codex:** its Linux sandbox starts bubblewrap, which needs user namespaces that PRoot is unlikely to provide. ChatGPT sign-in returns to `localhost:1455`, and a token-exchange failure is reported on native Termux.
+- **Gemini CLI, Cline, and Droid** ship as npm packages on Node.js; **OpenCode** ships an ARM64 binary. Their native dependencies, start-up time under PRoot, browser sign-in returns, and `loadSession` support are unverified. The Claude adapter advertises `loadSession`.
+- Several agents working at once each run a process under PRoot; memory pressure can make Android end iCode, which ends every agent and its turn.
+
+The implementation keeps and documents these security and privacy limits:
+
+- An agent is third-party code with the full reach of the PRoot guest: every workspace under `/workspace`, the guest home, and shared storage once All Files Access is granted. iCode's workspace boundary and place grants do not apply to an agent's own tools; only the agent's permission mode and its permission requests do. PRoot is not a sandbox.
+- An agent sends prompts, code, and tool output to its own vendor under that vendor's terms; iCode does not proxy that traffic. Handing a chat to another answerer sends the conversation so far to that answerer's vendor. [PRIVACY.md](../PRIVACY.md) and [SECURITY.md](../SECURITY.md) change with the first implementation.
+- Agents keep their own credentials in their configuration under the guest home: app-private, but not Keystore-encrypted. Keys iCode stores for an agent are encrypted and given only to that agent's process. Neither is logged or shown unmasked.
+- The local MCP server listens only on `127.0.0.1` and refuses any request without the session's token, because other apps on the phone can reach local ports.
+- Protocol traffic carries chat content and is never logged. The SDK logs through kotlin-logging, which must be confirmed to send nothing to logcat.
+- Downloads are verified by SHA-256 or exact npm version; an update replaces an agent only after its download verifies.
+- [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) lists the SDK (MIT), each agent's licence as its registry entry records it, and the provider icons' sources and terms.
+
+**Verification evidence needed:** For each agent on supported phones: install from the registry and update; start under PRoot; every sign-in method, including the browser return; new sessions in a workspace and in no workspace; streaming replies and reasoning; tool calls with diffs and command output; permission requests answered each way; form and URL questions; slash commands and every config option; switching between agents and models mid-chat; several chats working at once; queued messages and Send now; Undo changes; Stop; session continue after an iCode restart and after process death; sessions from the agent's own CLI; deleting a chat; MCP servers and iCode's tools passed through; the terminal fallback; idle stop; and no chat content, key, or token in logs. For Codex, each sandbox and approval mode; for Claude Code, the bundled binary.
+
 ### Phone-control safety and capture completion
 
 **Status:** **Partially Done**
