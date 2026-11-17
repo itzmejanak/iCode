@@ -163,4 +163,25 @@ class AssistantChatStoreTest {
         store.delete("/w/renamed", "s1")
         assertTrue(!File(moved.file!!).exists())
     }
+
+    @Test fun `a coding agent's chat keeps its agent and title, never what was said`() {
+        val bound = chat.copy(agent = AgentBinding("claude-acp", "sess-7"))
+        store.save("/w/app", "s3", bound, now = 4_000)
+        // The agent keeps the conversation; the chat is read back from it.
+        assertEquals(AssistantChat(contextTokens = 12_345, agent = AgentBinding("claude-acp", "sess-7")), store.load("/w/app", "s3"))
+        assertEquals(listOf(AssistantSession("s3", "Rename x — “quotes” and", 4_000, agent = "claude-acp")), store.sessions("/w/app"))
+        val file = folder.walk().single { it.name == "s3.json" }
+        assertTrue(!file.readText().contains("Rename x — “quotes” and\\nlines"))
+        // The list made again from the chats' files keeps whose each is.
+        folder.walk().single { it.name == "index.json" }.delete()
+        assertEquals("claude-acp", store.sessions("/w/app").single().agent)
+    }
+
+    @Test fun `a chat saved before agents is the built-in assistant's`() {
+        store.save("/w/app", "s1", chat, now = 1_000)
+        val file = folder.walk().single { it.name == "s1.json" }
+        assertTrue(!file.readText().contains("\"agent\""))
+        assertEquals(null, store.load("/w/app", "s1").agent)
+        assertEquals(null, store.sessions("/w/app").single().agent)
+    }
 }

@@ -94,7 +94,7 @@ object RuntimeTools {
     val Uv = RuntimeTool("uv", "uv $UV_VERSION", "Python's package runner: uv and uvx", "MCP servers that start with uvx", emptyList(), setup = "uv")
 
     /** In the order the page lists them: iCode's own first, and what a tool requires before it, so an install sets that up first. */
-    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(NodeJs, Uv, Curl, Python, BuildTools)
+    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(NodeJs, Uv) + CodingAgents.tools + listOf(Curl, Python, BuildTools)
 
     private val index = all.associateBy { it.id }
 

@@ -30,9 +30,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The assistant's work: one turn at a time, its own job, never behind the
- * mutation lock — a message answered, or a chat compacted — and the questions it asks before a
- * change or a command. What it does goes to its chat, and onto the [page] when that chat is open.
+ * The assistant's work: one turn at a time, its own job, never behind the mutation lock — a message answered,
+ * or a chat compacted — and the questions it asks before a change or a command. What it does goes to its
+ * chat, and onto the [page] when that chat is open.
  */
 internal class AssistantTurns(
     private val page: AssistantPage,
@@ -51,25 +51,25 @@ internal class AssistantTurns(
     private val storageAccess: () -> Boolean,
     /** What the turn asks the user; its answers come to it from the coordinator. */
     private val questions: AssistantQuestions,
+    /** The coding agents: a chat one answers has its turns there, in this same job (docs/assistant-and-mcp.md). */
+    private val agents: AssistantAgents = AssistantAgents.None,
 ) {
     private val lock = Any()
     private var job: Job? = null
-    /** The workspace — null for none — and chat [job] works in. */
-    private var place: Pair<String?, String>? = null
-    /** The call running now: what an approval is about. */
-    private var calling: AssistantCall? = null
+    /** The workspace — null for none — and chat [job] works in. */ private var place: Pair<String?, String>? = null
+    /** The call running now: what an approval is about. */ private var calling: AssistantCall? = null
 
-    /** The lines each change to a file added and removed, by call, until its result is recorded. */
-    private val counted = mutableMapOf<String, LineChanges>()
+    /** The lines each change to a file added and removed, by call, until its result is recorded. */ private val counted = mutableMapOf<String, LineChanges>()
 
     /** The workspace — null for none — and chat of the turn in hand; null when none runs. */
     val running: Pair<String?, String>? get() = synchronized(lock) { place }
 
-    fun send(workspace: String?, session: String, input: String, attachments: List<String>, aloud: Boolean = false) =
-        launch(workspace, session, aloud) { converse(input, attachments) }
+    fun send(workspace: String?, session: String, input: String, attachments: List<String>, aloud: Boolean = false) = launch(workspace, session, aloud) {
+        if (agents.answers(workspace, session)) agents.converse(workspace, session, input, attachments, this, ::step) else converse(input, attachments)
+    }
 
-    /** The last message, unanswered, sent again with its files as they were. */
-    fun retry(workspace: String?, session: String) = launch(workspace, session) {
+    /** The last message, unanswered, sent again with its files as they were. */ fun retry(workspace: String?, session: String) = launch(workspace, session) {
+        if (agents.answers(workspace, session)) return@launch agents.retry(workspace, session, this, ::step)
         val setup = setup()
         val message = chats.withdraw(workspace, session) ?: return@launch
         AssistantRules.attachmentProblem(message.attachments.map { it.kind }, setup.model)?.let {
@@ -87,8 +87,7 @@ internal class AssistantTurns(
         synchronized(lock) { job }?.cancel()
     }
 
-    /** Stops the turn in [workspace], if one runs there, and waits until its chat is saved. */
-    suspend fun stopIn(workspace: String) {
+    /** Stops the turn in [workspace], if one runs there, and waits until its chat is saved. */ suspend fun stopIn(workspace: String) {
         synchronized(lock) { job.takeIf { place?.first == workspace } }?.cancelAndJoin()
     }
 
@@ -258,9 +257,11 @@ internal class AssistantTurns(
                 calling = null
                 counted.remove(result.callId)
             }
-            chats.answer(workspace, session, result.copy(changes = changes, printed = step.takePrinted(result.callId)))
+            // A coding agent's result counts its own lines and carries its own output (docs/assistant-and-mcp.md).
+            val counts = changes ?: result.changes
+            chats.answer(workspace, session, result.copy(changes = counts, printed = step.takePrinted(result.callId) ?: result.printed))
             page.refresh(workspace, session)
-            val changed = changes != null && !result.failed
+            val changed = counts != null && !result.failed
             page.state { it.copy(turn = it.turn?.copy(step = THINKING, terminal = null, changedFiles = it.turn.changedFiles || changed)) }
         }
 
@@ -284,7 +285,7 @@ internal class AssistantTurns(
 
         private fun shows(opened: Boolean, shownWorkspace: String?, shownSession: String?) = opened && shownWorkspace == workspace && shownSession == session
 
-        private fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }
+        fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }
     }
 
     private companion object {
@@ -293,8 +294,7 @@ internal class AssistantTurns(
         const val THINKING = "Thinking…"
         const val COMPACTING = "Compacting the chat…"
 
-        /** The phone tools' names start so: a turn that calls one acts on the phone. */
-        const val PHONE_TOOLS = "phone_"
+        /** The phone tools' names start so: a turn that calls one acts on the phone. */ const val PHONE_TOOLS = "phone_"
         const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }
 }

@@ -36,9 +36,10 @@ internal class RuntimeToolSizes(
         onLists: () -> Unit,
         onMeasured: (Map<String, RuntimeToolDownload>) -> Unit,
     ): String? = coroutineScope {
-        // A tool apt has nothing for (CMake) is its setup's files alone.
+        // A tool apt has nothing for (CMake) is its setup's files alone; one whose size is not pinned stays unmeasured.
         val (setupsOnly, viaApt) = tools.partition { it.packages.isEmpty() }
-        if (setupsOnly.isNotEmpty()) onMeasured(setupsOnly.associate { it.id to RuntimeToolDownload(setups.download(it)) })
+        val measured = setupsOnly.filter(setups::measurable)
+        if (measured.isNotEmpty()) onMeasured(measured.associate { it.id to RuntimeToolDownload(setups.download(it)) })
         val queue = Channel<List<RuntimeTool>>(Channel.UNLIMITED)
         viaApt.groupBy { it.packages }.values.forEach(queue::trySend)
         queue.close()

@@ -130,6 +130,8 @@ data class ICodeSnapshot(
     val assistant: AssistantState = AssistantState(),
     /** The assistant's MCP servers (docs/assistant-and-mcp.md): their settings, connections and questions. */
     val mcp: McpState = McpState(),
+    /** The coding agents chats can be answered by (docs/assistant-and-mcp.md): their processes, and the shown chat's. */
+    val agents: AgentsState = AgentsState(),
 ) {
     /** [location], in the open workspace, as the runtime names it: what Copy path gives. */
     fun runtimePathOf(location: String): String = activeWorkspaceLocation?.let { WorkspaceRuntimePath.within(it, activePath, location) } ?: location

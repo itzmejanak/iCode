@@ -25,6 +25,9 @@ internal interface RuntimeToolSetup {
     /** Each file it downloads, by name, with its size as pinned. */
     fun measure(): Map<String, Long>
 
+    /** Its download's size is pinned: false when it is not known until fetched (a coding agent's), which the page says. */
+    val measurable: Boolean get() = true
+
     /**
      * Installs, saying each step as it goes and the output of what it runs. A step that fails throws,
      * in words the page can show; a cancel stops it only where [ToolSetupProgress.cancellable] says so.
@@ -76,6 +79,9 @@ internal class ToolSetups(setups: List<RuntimeToolSetup>, private val receipts: 
     fun installed(): Set<String> = byId.values.filter(::matches).mapTo(hashSetOf()) { it.id }
 
     fun matches(setup: RuntimeToolSetup): Boolean = runCatching { File(receipts, setup.id).readText() == setup.receipt }.getOrDefault(false)
+
+    /** [tool]'s download can be measured: it has no setup, or a registered one whose sizes are pinned. */
+    fun measurable(tool: RuntimeTool): Boolean = tool.setup?.let { byId[it]?.measurable ?: false } ?: true
 
     /** What [tool]'s setup downloads, by file, unless its receipt matches. */
     fun download(tool: RuntimeTool): Map<String, Long> = tool.setup?.let(::of)?.takeUnless(::matches)?.measure().orEmpty()
