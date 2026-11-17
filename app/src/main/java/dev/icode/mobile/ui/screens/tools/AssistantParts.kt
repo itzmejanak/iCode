@@ -43,13 +43,14 @@ import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.markdown.MarkdownPlace
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.AnswererName
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.markdown.MarkdownAnswer
 import java.io.File
 
 /**
- * One row of the chat — what the user wrote, an answer, a run of steps, the reasoning, a compaction —
+ * One row of the chat — what the user wrote, who answers, an answer, a run of steps, the reasoning, a compaction —
  * at the pinched size. An answer that ends its turn ([copyable]) can be copied, and played: the chat
  * is read, not heard, so an answer there is read aloud only from its ▶. The turn's last one
  * may still be [streaming]. A row with more behind it [onOpen]s it in a sheet
@@ -69,6 +70,7 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streami
                 }
             }
         }
+        is AssistantEntry.Answerer -> AnswererName(entry.by)
         is AssistantEntry.Reasoning -> AssistantReasoningRow(entry, onOpen)
         is AssistantEntry.Steps -> AssistantStepsRow(entry, onOpen, onHold)
         is AssistantEntry.Step -> AssistantStepsRow(AssistantEntry.Steps(entry.key, listOf(entry)), onOpen, onHold)

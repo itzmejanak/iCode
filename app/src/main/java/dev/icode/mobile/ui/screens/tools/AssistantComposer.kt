@@ -54,6 +54,7 @@ import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.CONTENT_URI
 import dev.icode.mobile.ui.HeardLine
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.mark
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.MicButton
 import dev.icode.mobile.ui.OnHeard
@@ -91,7 +92,7 @@ internal fun AssistantComposer(
         if (!state.running || state.replying && attached.isEmpty()) onSend()
     }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
-    val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
+    val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, state.model)
     // Words, files or both: a photo alone is a question too. While the turn asks its questions, words alone reply.
     val canSend = if (state.replying) draft.isNotBlank() && attached.isEmpty()
     else (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
@@ -156,6 +157,9 @@ internal fun AssistantComposer(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro),
                     ) {
+                        state.settings.providerOf(state.choice)?.let { provider ->
+                            Icon(provider.kind.mark(), contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+                        }
                         Text(modelLabel(state).ifEmpty { "Choose model" }, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     }
@@ -219,10 +223,10 @@ internal fun permissionLine(permission: AssistantPermission, workspace: String?)
     else -> "Changes, commands and anything outside $workspace run without asking"
 }
 
-/** "o3 · High": the model, and its effort ("Auto" for the provider's own) where it offers one. */
+/** "o3 · High": the chat's model, and its effort ("Auto" for the provider's own) where it offers one. */
 internal fun modelLabel(state: AssistantState): String {
     val settings = state.settings
-    val model = settings.model ?: return ""
+    val model = state.model ?: return ""
     if (model.efforts.isEmpty()) return model.id
     return "${model.id} · ${AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO}"
 }

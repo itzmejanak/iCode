@@ -1,8 +1,10 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.domain.AssistantAnswerer
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
@@ -24,6 +26,7 @@ internal class AssistantChatCodec(private val folder: File) {
         )
         is AssistantMessage.Reply -> JSONObject().put("role", "reply").put("text", message.text).apply {
             if (message.reasoning.isNotBlank()) put("reasoning", message.reasoning)
+            message.by?.let { put("by", answerer(it)) }
         }.put(
             "calls",
             JSONArray().apply {
@@ -68,6 +71,7 @@ internal class AssistantChatCodec(private val folder: File) {
                 )
             },
             json.optString("reasoning"),
+            answerer(json.optJSONObject("by")),
         )
         "results" -> AssistantMessage.Results(
             json.getJSONArray("results").objects().map { result ->
@@ -80,6 +84,20 @@ internal class AssistantChatCodec(private val folder: File) {
         )
         "compacted" -> AssistantMessage.Compacted(json.getString("summary"))
         else -> throw IllegalArgumentException("Unknown role $role")
+    }
+
+    companion object {
+        /** Who answers, as a chat file and the chat list keep it. */
+        fun answerer(by: AssistantAnswerer): JSONObject = when (by) {
+            is AssistantChoice -> JSONObject().put("provider", by.provider).put("model", by.model)
+        }
+
+        /** Who answers; null for none, or for one this build does not know. */
+        fun answerer(json: JSONObject?): AssistantAnswerer? = when {
+            json == null -> null
+            json.has("provider") -> AssistantChoice(json.getString("provider"), json.getString("model"))
+            else -> null
+        }
     }
 
     private fun attachment(attachment: AssistantAttachment): JSONObject =

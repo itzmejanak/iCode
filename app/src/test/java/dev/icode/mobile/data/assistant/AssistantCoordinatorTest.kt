@@ -76,6 +76,8 @@ class AssistantCoordinatorTest {
     private val openAI by lazy {
         providers.saveProvider("", AssistantProviderKind.OpenAI, "OpenAI", null, "sk-test", listOf(AssistantModelSpec("gpt-5"), AssistantModelSpec("o3")))
     }
+    /** What a chat answers with unless it chose another: the provider's first model. */
+    private val gpt5 by lazy { AssistantChoice(openAI, "gpt-5") }
     private val phoneFiles = mutableMapOf<String, PhoneFile>()
     private var listed: List<AssistantModel> = emptyList()
     /** No workspace is open: the home screen. */
@@ -295,8 +297,8 @@ class AssistantCoordinatorTest {
         until { state().turn == null }
         assertEquals(2, requests.size)
         assertNull(requests[1].input)
-        assertEquals(listOf(AssistantMessage.User("Do the long thing"), AssistantMessage.Reply("Working…")), requests[1].history)
-        assertEquals(AssistantMessage.Reply("Done."), state().messages.last())
+        assertEquals(listOf(AssistantMessage.User("Do the long thing"), AssistantMessage.Reply("Working…", by = gpt5)), requests[1].history)
+        assertEquals(AssistantMessage.Reply("Done.", by = gpt5), state().messages.last())
         assertNull(state().pause)
         assertNull(state().failure)
     }
@@ -329,7 +331,7 @@ class AssistantCoordinatorTest {
         until { state().turn == null }
         assertNull(state().pause)
         assertEquals(1, requests.size)
-        assertEquals(AssistantMessage.Reply("Working…"), state().messages.last())
+        assertEquals(AssistantMessage.Reply("Working…", by = gpt5), state().messages.last())
     }
 
     @Test fun `a change waits for Allow, runs, and the chat is kept and listed`() {
@@ -350,7 +352,7 @@ class AssistantCoordinatorTest {
         assertEquals(700L, state().contextTokens)
         val session = state().session!!
         assertEquals(listOf("Rename x"), state().sessions.map { it.title })
-        assertEquals(AssistantChat(state().messages, 700), AssistantChatStore(chatsFolder).load(app, session))
+        assertEquals(AssistantChat(state().messages, 700, gpt5), AssistantChatStore(chatsFolder).load(app, session))
         assertNull(state().failure)
         // Its end says it changed a file: the dock suggests Source Control (docs/design-and-navigation.md).
         assertEquals(AssistantTurnEnd(app, 1, changedFiles = true), state().ended)
@@ -493,7 +495,7 @@ class AssistantCoordinatorTest {
         go.complete(Unit)
         val after = runBlocking { withTimeout(5_000) { recorded.await() } }
         assertNull(after.turn?.live)
-        assertEquals(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt."), after.messages.last())
+        assertEquals(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt.", by = gpt5), after.messages.last())
         until { state().turn == null }
     }
 
@@ -657,6 +659,33 @@ class AssistantCoordinatorTest {
         assertEquals("o3", state().settings.model?.id)
     }
 
+    @Test fun `each chat keeps its own model, its replies say who wrote them, and a switch hands the chat on`() {
+        val gpt = AssistantChoice(openAI, "gpt-5")
+        val o3 = AssistantChoice(openAI, "o3")
+        said("one")
+        val first = state().session!!
+        assertEquals(gpt, (state().messages.last() as AssistantMessage.Reply).by)
+        assertEquals(gpt, state().answerer)
+        // Switched mid-chat: the next reply is o3's, the whole chat before it sent along.
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "o3"))
+        until { state().answerer == o3 }
+        said("two")
+        assertEquals("o3", requests.last().model.id)
+        assertEquals(listOf<AssistantMessage>(AssistantMessage.User("one"), AssistantMessage.Reply("Re: one", by = gpt)), requests.last().history)
+        assertEquals(o3, (state().messages.last() as AssistantMessage.Reply).by)
+        // A new chat starts with the model chosen last; the first keeps its own when it is opened again.
+        coordinator.handle(ICodeIntent.NewAssistantChat)
+        until { state().session == null }
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-5"))
+        until { state().settings.choice == gpt }
+        assertEquals("gpt-5", state().model?.id)
+        coordinator.handle(ICodeIntent.OpenAssistantSession(first))
+        until { state().session == first }
+        assertEquals("o3", state().model?.id)
+        said("three")
+        assertEquals("o3", requests.last().model.id)
+    }
+
     @Test fun `Compact summarizes the chat, and later turns send the summary and what came after`() {
         said("one")
         said("two")
@@ -680,7 +709,7 @@ class AssistantCoordinatorTest {
         until { requests.size == 1 && state().turn == null }
         assertEquals(850L, state().contextTokens)
         said("second")
-        assertEquals(listOf(AssistantMessage.User("first"), AssistantMessage.Reply("long")), compactions.single())
+        assertEquals(listOf(AssistantMessage.User("first"), AssistantMessage.Reply("long", by = gpt5)), compactions.single())
         assertEquals(emptyList<AssistantMessage>(), requests.last().history)
         // The marker comes before the message it was made for.
         val kinds = state().messages.map { it.javaClass.simpleName }
@@ -800,7 +829,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.RetryAssistantMessage)
         until { requests.size == 2 && state().turn == null }
         assertNull(state().failure)
-        assertEquals(listOf(AssistantMessage.User("Hello"), AssistantMessage.Reply("Hi.")), state().messages)
+        assertEquals(listOf(AssistantMessage.User("Hello"), AssistantMessage.Reply("Hi.", by = gpt5)), state().messages)
         assertEquals(AssistantMessage.User("Hello"), requests.last().input)
         coordinator.handle(ICodeIntent.RetryAssistantMessage)
         until { effects.any { it.said()?.title == "Nothing to send again" } }

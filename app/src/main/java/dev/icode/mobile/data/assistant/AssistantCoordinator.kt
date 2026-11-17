@@ -59,8 +59,9 @@ internal class AssistantCoordinator(
     /** A chat's own terminal tab, opened if it has none ([AssistantToolbox.openTab]); throws with why it cannot be. */
     private val openTab: suspend (workspace: String?, chat: String) -> String = { _, _ -> error("No terminal") },
     /** Where a shared chat's transcript is written for the share sheet: in the cache, only the latest kept. */
-    private val shares: File = File(System.getProperty("java.io.tmpdir"), "assistant-share"),
+    shares: File = File(System.getProperty("java.io.tmpdir"), "assistant-share"),
 ) {
+    private val shared = AssistantShares(shares)
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
@@ -114,7 +115,7 @@ internal class AssistantCoordinator(
             ICodeIntent.OpenAssistantTerminal -> openTerminal()
             ICodeIntent.RetryAssistantMessage -> retry()
             ICodeIntent.TakeBackAssistantMessage -> takeBack()
-            is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
+            is ICodeIntent.ChooseAssistantModel -> choose(AssistantChoice(intent.provider, intent.model))
             is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
             is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
             is ICodeIntent.SetAssistantPermission -> setPermission(intent)
@@ -178,6 +179,20 @@ internal class AssistantCoordinator(
         }
     }
 
+    /**
+     * [choice] answers the chat shown from its next message on — the conversation so far goes with it
+     * (docs/assistant-and-mcp.md) — and is what a new chat starts with.
+     */
+    private fun choose(choice: AssistantChoice) {
+        settings.choose(choice)
+        val shown = page.current
+        // Only a model its provider offers: one it does not list is not chosen, for the chat or for new ones.
+        if (shown.opened && shown.session != null && shown.settings.modelOf(choice) != null) {
+            chats.choose(shown.workspace, shown.session, choice)
+            page.refresh(shown.workspace, shown.session)
+        }
+    }
+
     /** The mode chosen in the chip: the setting, and the chat shown's, whose own answers it replaces. */
     private fun setPermission(intent: ICodeIntent.SetAssistantPermission) {
         settings.remember { providers.setPermission(intent.permission) }
@@ -237,18 +252,10 @@ internal class AssistantCoordinator(
         )
         val text = AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantPlace.name(workspace), chat.messages)
         scope.launch {
-            // Whole, as a file: a share's text has a size limit, a file has none (docs/assistant-and-mcp.md).
-            runCatching { written(title, text) }
+            runCatching { shared.write(title, text) }
                 .onSuccess { stateHolder.emit(ICodeEffect.ShareChat(title, it.path)) }
                 .onFailure { page.tell(AssistantNotices.notShared(it.javaClass.simpleName)) }
         }
-    }
-
-    /** [text] as the one file in [shares], named by [title]. */
-    private fun written(title: String, text: String): File {
-        shares.deleteRecursively()
-        shares.mkdirs()
-        return File(shares, AssistantExports.fileName(title)).apply { writeText(text) }
     }
 
     companion object {

@@ -38,6 +38,8 @@ iCode supports these assistant provider types:
 - Ollama
 - an OpenAI-compatible endpoint, including a user-entered server address and model ID
 
+Each chat keeps the model it answers with, chosen from the chat's model sheet, where every provider is listed under its own mark. Choosing another model in a chat applies from that chat's next message: the new model receives the whole conversation so far, and a new chat starts with the model chosen last. Each reply is named, above it, by the model that wrote it, with its provider's mark. A chat whose model is no longer offered by its provider answers with the model a new chat starts with.
+
 A provider can expose catalogued models or user-entered models. For a model that Koog does not know, iCode stores the limits and capabilities the user enters, such as context window, output limit, image input, and reasoning. Available reasoning choices depend on the provider and model.
 
 Provider metadata, model choices, assistant mode, approval mode, and the commit-message model are stored in app-private preferences. Each provider API key is stored separately and encrypted with an Android Keystore-backed key. A key is decrypted only when iCode creates a provider connection. It is not returned in UI state or included in connection descriptions. If the device can no longer decrypt a saved key, iCode removes the unusable encrypted value and treats the key as missing.

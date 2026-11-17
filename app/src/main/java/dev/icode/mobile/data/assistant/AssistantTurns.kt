@@ -5,6 +5,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
@@ -103,12 +104,7 @@ internal class AssistantTurns(
     }
 
     /** What a turn works with, as set when it starts: a change made while it runs is for the next one. */
-    private class Setup(
-        val settings: AssistantSettings,
-        val connection: AssistantConnection,
-        val model: AssistantModel,
-        val place: AssistantWorkspace,
-    )
+    private class Setup(val settings: AssistantSettings, val connection: AssistantConnection, val model: AssistantModel, val place: AssistantWorkspace, val choice: AssistantChoice)
 
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
@@ -120,6 +116,7 @@ internal class AssistantTurns(
             terminal = { callId, session -> page.state { it.copy(turn = it.turn?.copy(terminal = AssistantTerminal(callId, session))) } },
         )
 
+        /** Who answers this turn: its replies are kept as theirs (docs/assistant-and-mcp.md). */ var chosen: AssistantChoice? = null
         /** This chat's mode now: the setting, raised by its own answers. */
         fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session), workspace != null)
 
@@ -169,6 +166,8 @@ internal class AssistantTurns(
 
         /** [message] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
         suspend fun talk(setup: Setup, message: AssistantMessage.User) {
+            chosen = setup.choice.also { chats.choose(workspace, session, it) }
+            page.state { it.copy(turn = it.turn?.copy(by = setup.choice)) }
             val before = chats.of(workspace, session)
             chats.append(workspace, session, message)
             page.listed(workspace)
@@ -225,14 +224,15 @@ internal class AssistantTurns(
                 page.refresh(workspace, session)
             }
 
+        /** The chat's own model while its provider still offers it, else what a new chat starts with. */
         fun setup(): Setup {
             val settings = settings()
-            val provider = settings.provider
-            val model = settings.model
-            val connection = provider?.let { providers.connection(it.id) }
-            if (model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
+            val choice = (chats.of(workspace, session).answerer as? AssistantChoice)?.takeIf { settings.modelOf(it) != null } ?: settings.choice
+            val model = settings.modelOf(choice)
+            val connection = settings.providerOf(choice)?.let { providers.connection(it.id) }
+            if (choice == null || model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
             val folder = workspace?.let { runCatching { File(describe(it).location) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") } }
-            return Setup(settings, connection, model, AssistantWorkspace(folder, paths, storageAccess))
+            return Setup(settings, connection, model, AssistantWorkspace(folder, paths, storageAccess), choice)
         }
 
         override fun writing(reasoning: String, text: String) {
@@ -241,7 +241,7 @@ internal class AssistantTurns(
 
         override fun replied(reply: AssistantMessage.Reply) {
             step.calls = reply.calls
-            chats.append(workspace, session, reply)
+            chats.append(workspace, session, reply.copy(by = chosen))
             page.refresh(workspace, session, recorded = true)
         }
 
@@ -273,8 +273,8 @@ internal class AssistantTurns(
         override fun picturesRefused() {
             step.seesPictures = false
             val settings = settings()
-            val provider = settings.provider ?: return
-            val model = settings.model ?: return
+            val provider = settings.providerOf(chosen) ?: return
+            val model = settings.modelOf(chosen) ?: return
             val models = provider.models.map { if (it.id == model.id) it.spec.copy(images = false) else it.spec }
             runCatching { providers.saveProvider(provider.id, provider.kind, provider.name, provider.baseUrl, key = null, models) }
                 .onFailure { return }

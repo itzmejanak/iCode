@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.domain.AssistantAnswerer
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantResult
@@ -78,6 +79,9 @@ internal class AssistantChats(
         )
     }
 
+    /** [session] answered by [answerer] from now on: saved with the chat, or with its first message. */
+    fun choose(workspace: String?, session: String, answerer: AssistantAnswerer) = change(workspace, session) { it.copy(answerer = answerer) }
+
     /** The tokens the last request used; saved with the reply that follows them. */
     fun used(workspace: String?, session: String, tokens: Long?) {
         synchronized(lock) { loaded[Key(workspace, session)] = of(workspace, session).copy(contextTokens = tokens) }
@@ -90,7 +94,7 @@ internal class AssistantChats(
     fun compacted(workspace: String?, session: String, summary: String) = change(workspace, session) { chat ->
         val marker = AssistantMessage.Compacted(summary)
         val waiting = chat.messages.lastOrNull() as? AssistantMessage.User
-        AssistantChat(
+        chat.copy(
             messages = if (waiting != null) chat.messages.dropLast(1) + marker + waiting else chat.messages + marker,
             contextTokens = null,
         )

@@ -12,6 +12,9 @@ sealed interface AssistantEntry {
     /** What the assistant answered, Markdown. */
     data class Answer(override val key: String, val text: String) : AssistantEntry
 
+    /** Who answers from here on: named above the first reply after something the user said, and where it changes. */
+    data class Answerer(override val key: String, val by: AssistantAnswerer) : AssistantEntry
+
     /** What the model thought before it answered, as its provider sent it; [live] while it is still being written. */
     data class Reasoning(override val key: String, val text: String, val live: Boolean = false) : AssistantEntry
 
@@ -66,10 +69,19 @@ object AssistantRules {
     /** The page: what was said and done in [state]'s chat. */
     fun entries(state: AssistantState): List<AssistantEntry> = buildList {
         var firstOpen = true
+        var named: AssistantAnswerer? = null
+        fun name(key: String, by: AssistantAnswerer?) {
+            if (by != null && by != named) add(AssistantEntry.Answerer(key, by))
+            named = by ?: named
+        }
         state.messages.forEachIndexed { index, message ->
             when (message) {
-                is AssistantMessage.User -> add(AssistantEntry.Said("m$index", message.text, message.attachments))
+                is AssistantMessage.User -> {
+                    add(AssistantEntry.Said("m$index", message.text, message.attachments))
+                    named = null
+                }
                 is AssistantMessage.Reply -> {
+                    name("m${index}a", message.by)
                     if (message.reasoning.isNotBlank()) add(AssistantEntry.Reasoning("m${index}r", message.reasoning))
                     if (message.text.isNotBlank()) add(AssistantEntry.Answer("m$index", message.text))
                     val results = resultsOf(state.messages, index).associateBy { it.callId }
@@ -92,6 +104,7 @@ object AssistantRules {
         }
         // The reply being written, under the rest: replaced by the reply once it is recorded.
         state.turn?.live?.takeIf { state.runningHere }?.let { live ->
+            name(LIVE_BY, state.turn.by)
             if (live.reasoning.isNotBlank()) add(AssistantEntry.Reasoning(LIVE_REASONING, live.reasoning, live = true))
             if (live.text.isNotBlank()) add(AssistantEntry.Answer(LIVE_ANSWER, live.text))
         }
@@ -275,6 +288,7 @@ object AssistantRules {
     private val UNSHOWN_CHANGES = setOf(GitStatusCodes.UNTRACKED, GitStatusCodes.DELETED, GitStatusCodes.CONFLICTED)
     private const val LIVE_REASONING = "live-reasoning"
     private const val LIVE_ANSWER = "live-answer"
+    private const val LIVE_BY = "live-by"
     private const val OPENROUTER_HOST = "openrouter.ai"
     private const val OPENROUTER_HINT = "Choose the OpenRouter type for OpenRouter: only it shows the models' reasoning"
 

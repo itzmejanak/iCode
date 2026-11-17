@@ -94,7 +94,7 @@ fun AssistantScreen(actions: NavigationActions) {
         attached = all.take(AssistantRules.MAX_ATTACHMENTS)
     }
     val pickers = rememberAssistantPickers(onPicked = attach)
-    val ready = state.settings.ready && state.opened
+    val ready = state.model != null && state.opened
     val title = state.sessions.firstOrNull { it.id == state.session }?.title ?: "New chat"
 
     Box(Modifier.fillMaxSize()) {
@@ -131,7 +131,7 @@ fun AssistantScreen(actions: NavigationActions) {
                 },
             )
             when {
-                !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantProviders) }
+                state.model == null -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantProviders) }
                 // Its chats are shown once the page has opened.
                 !state.opened -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
                 else -> AssistantChatView(

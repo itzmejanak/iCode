@@ -43,7 +43,7 @@ internal class AssistantPage(
             val same = it.opened && it.workspace == workspace && it.session == session
             it.copy(
                 opened = true, workspace = workspace, sessions = sessions, session = session, messages = chat.messages,
-                contextTokens = chat.contextTokens, allowedInWorkspace = allowed, failure = if (same) it.failure else null,
+                contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed, failure = if (same) it.failure else null,
                 tab = if (same) it.tab else null,
             )
         }
@@ -59,7 +59,7 @@ internal class AssistantPage(
         state {
             val turn = if (recorded) it.turn?.copy(live = null) else it.turn
             if (!it.opened || it.workspace != workspace || it.session != session) it.copy(turn = turn)
-            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, allowedInWorkspace = allowed, turn = turn)
+            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed, turn = turn)
         }
     }
 
@@ -72,7 +72,7 @@ internal class AssistantPage(
     /** [workspace] was deleted: nothing of it stays on the page. */
     fun forgotten(workspace: String) = state {
         if (it.workspace != workspace) it
-        else it.copy(opened = false, workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, allowedInWorkspace = false)
+        else it.copy(opened = false, workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, answerer = null, allowedInWorkspace = false)
     }
 
     fun state(change: (AssistantState) -> AssistantState) = stateHolder.update { it.copy(assistant = change(it.assistant)) }

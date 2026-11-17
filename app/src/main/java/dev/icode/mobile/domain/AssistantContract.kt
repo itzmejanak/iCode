@@ -90,9 +90,6 @@ data class AssistantProvider(
     val models: List<AssistantModel>,
 )
 
-/** The chat's model: one of a provider's. */
-data class AssistantChoice(val provider: String, val model: String)
-
 /** What the user set for the assistant; never a key. */
 data class AssistantSettings(
     val providers: List<AssistantProvider> = emptyList(),
@@ -106,16 +103,21 @@ data class AssistantSettings(
     /** The model that writes commit messages (Settings › Source Control); null: the chat's. */
     val commitChoice: AssistantChoice? = null,
 ) {
-    val provider: AssistantProvider? get() = providers.firstOrNull { it.id == choice?.provider }
-    val model: AssistantModel? get() = provider?.models?.firstOrNull { it.id == choice?.model }
+    val provider: AssistantProvider? get() = providerOf(choice)
+    val model: AssistantModel? get() = modelOf(choice)
+
+    fun providerOf(choice: AssistantChoice?): AssistantProvider? = providers.firstOrNull { it.id == choice?.provider }
+
+    /** [choice]'s model, while its provider still offers it. */
+    fun modelOf(choice: AssistantChoice?): AssistantModel? = providerOf(choice)?.models?.firstOrNull { it.id == choice?.model }
 
     /** What writes commit messages: [commitChoice] while its provider lists its model, else the chat's model. */
     val commitWriter: Pair<AssistantProvider, AssistantModel>?
         get() = chosen(commitChoice) ?: chosen(choice)
 
     private fun chosen(choice: AssistantChoice?): Pair<AssistantProvider, AssistantModel>? {
-        val provider = providers.firstOrNull { it.id == choice?.provider } ?: return null
-        return provider.models.firstOrNull { it.id == choice?.model }?.let { provider to it }
+        val provider = providerOf(choice) ?: return null
+        return modelOf(choice)?.let { provider to it }
     }
 
     /** A model is chosen: the chat can be used. */
@@ -155,9 +157,10 @@ sealed interface AssistantMessage {
 
     /**
      * What the model said, and the tools it asked for. [reasoning] is what it thought first, where
-     * its provider sends that: shown on the page, never sent back to the model.
+     * its provider sends that: shown on the page, never sent back to the model. [by] is who wrote
+     * it; null in a chat saved before replies kept that.
      */
-    data class Reply(val text: String, val calls: List<AssistantCall> = emptyList(), val reasoning: String = "") : AssistantMessage
+    data class Reply(val text: String, val calls: List<AssistantCall> = emptyList(), val reasoning: String = "", val by: AssistantAnswerer? = null) : AssistantMessage
 
     /** The answers to the calls of the reply right before it. */
     data class Results(val results: List<AssistantResult>) : AssistantMessage
@@ -218,6 +221,8 @@ data class AssistantTurn(
     val terminal: AssistantTerminal? = null,
     /** One of its tools has changed a file: said when it ends ([AssistantTurnEnd]). */
     val changedFiles: Boolean = false,
+    /** Who answers it: named above its reply while that is written. */
+    val by: AssistantAnswerer? = null,
 )
 
 /** A streamed reply as far as it has come: what the model thought, and its answer so far. */
@@ -246,6 +251,8 @@ data class AssistantState(
     val sessions: List<AssistantSession> = emptyList(),
     /** The chat shown; null for a new one, not yet written to. */
     val session: String? = null,
+    /** Who answers the chat shown, as it last chose; null for a new one, which starts with [AssistantSettings.choice]. */
+    val answerer: AssistantAnswerer? = null,
     val messages: List<AssistantMessage> = emptyList(),
     /** Tokens the last request of this chat used; with [AssistantModel.contextWindow], how full it is. */
     val contextTokens: Long? = null,
@@ -268,6 +275,10 @@ data class AssistantState(
 ) {
     val running: Boolean get() = turn != null
 
+    /** The model the chat shown answers with: its own while its provider still offers it, else what a new chat starts with. */
+    val choice: AssistantChoice? get() = (answerer as? AssistantChoice)?.takeIf { settings.modelOf(it) != null } ?: settings.choice
+    val model: AssistantModel? get() = settings.modelOf(choice)
+
     /** The turn in hand has ended: what it waited on goes with it, and its end is said in [ended]. */
     fun turnEnded(): AssistantState = copy(
         turn = null, approval = null, pause = null, clarification = null,
@@ -285,16 +296,4 @@ data class AssistantState(
 
     /** The turn of the chat shown waits on its questions: a message sent now is the reply (docs/assistant-and-mcp.md). */
     val replying: Boolean get() = runningHere && clarification != null
-}
-
-/**
- * A commit message the model writes from [workspace]'s staged changes
- * (docs/assistant-and-mcp.md): being written, written, or why it could not be.
- */
-data class AssistantCommitMessage(
-    val workspace: String,
-    val message: String? = null,
-    val failure: String? = null,
-) {
-    val writing: Boolean get() = message == null && failure == null
 }

@@ -5,6 +5,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
@@ -120,6 +121,15 @@ class AssistantChatStoreTest {
         assertTrue(!File(workspace, "s1.json").exists())
         assertEquals(old.messages + AssistantMessage.User("Again"), AssistantChatStore(folder).load("/w/app", "s1").messages)
         assertEquals("Old", store.sessions("/w/app").single().title)
+    }
+
+    @Test fun `who answers a chat, and who wrote each reply, come back with it`() {
+        val saved = AssistantChat(
+            listOf(AssistantMessage.User("Hi"), AssistantMessage.Reply("Hello", by = AssistantChoice("p1", "gpt-5"))),
+            answerer = AssistantChoice("p1", "o3"),
+        )
+        store.save("/w/app", "s1", saved, now = 1)
+        assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
     }
 
     @Test fun `a call keeps the file and the command it names, and a change by how many lines`() {

@@ -68,7 +68,7 @@ internal fun AssistantEntrySheet(
         is AssistantEntry.Reasoning -> AssistantTextSheet("Reasoning", wordCount(entry.text), entry.text, modifier, onClose)
         is AssistantEntry.Compacted -> AssistantTextSheet("Chat compacted", "The model goes on from this summary", entry.summary, modifier, onClose)
         // A message opens its actions' sheet; an answer is selectable where it is, and copied under its turn.
-        is AssistantEntry.Said, is AssistantEntry.Answer -> Unit
+        is AssistantEntry.Said, is AssistantEntry.Answer, is AssistantEntry.Answerer -> Unit
     }
 }
 
@@ -90,7 +90,7 @@ internal fun AssistantActionsSheet(
         is AssistantEntry.Said -> MessageSheet(entry, modifier, onClose, onEdit)
         is AssistantEntry.Steps -> entry.steps.singleOrNull()?.let { StepFileSheet(it, modifier, onClose, onDiff) }
         is AssistantEntry.Step -> StepFileSheet(entry, modifier, onClose, onDiff)
-        is AssistantEntry.Answer, is AssistantEntry.Reasoning, is AssistantEntry.Compacted -> Unit
+        is AssistantEntry.Answer, is AssistantEntry.Answerer, is AssistantEntry.Reasoning, is AssistantEntry.Compacted -> Unit
     }
 }
 

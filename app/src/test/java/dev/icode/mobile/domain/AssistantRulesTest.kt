@@ -106,6 +106,19 @@ class AssistantRulesTest {
         assertEquals(long.takeLast(10), AssistantRules.forModel(long.takeLast(10)).messages)
     }
 
+    @Test fun `who answers is named above the first reply after each message, and where it changes`() {
+        val gpt = AssistantChoice("p", "gpt-5")
+        val o3 = AssistantChoice("p", "o3")
+        val messages = listOf(
+            AssistantMessage.User("a"), AssistantMessage.Reply("old"),
+            AssistantMessage.User("b"), AssistantMessage.Reply("one", by = gpt), AssistantMessage.Reply("two", by = gpt),
+            AssistantMessage.User("c"), AssistantMessage.Reply("three", by = o3), AssistantMessage.Reply("four", by = gpt),
+        )
+        val named = AssistantRules.entries(AssistantState(messages = messages)).filterIsInstance<AssistantEntry.Answerer>()
+        assertEquals(listOf(gpt, o3, gpt), named.map { it.by })
+        assertEquals(listOf("m3a", "m6a", "m7a"), named.map { it.key })
+    }
+
     @Test fun `the meter is the last request's share of the window, when both are known`() {
         assertEquals(0.5f, AssistantRules.contextShare(100_000, 200_000))
         assertEquals(1f, AssistantRules.contextShare(300_000, 200_000))

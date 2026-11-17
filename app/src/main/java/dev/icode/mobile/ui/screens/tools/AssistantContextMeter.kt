@@ -38,7 +38,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 @Composable
 internal fun ContextMeter(state: AssistantState) {
     val gateway = LocalICodeGateway.current
-    val window = state.settings.model?.contextWindow
+    val window = state.model?.contextWindow
     val label = AssistantRules.contextLabel(state.contextTokens, window)
     val share = AssistantRules.contextShare(state.contextTokens, window) ?: 0f
     var open by remember { mutableStateOf(false) }

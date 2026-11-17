@@ -8,6 +8,12 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Each chat keeps the model it answers with, and switching models in a chat hands the whole
+  conversation to the new one. A new chat starts with the model chosen last.
+- Each reply is named by the model that wrote it, with its provider's mark, and the model sheet
+  lists every provider under its own mark.
+
 ### Changed
 - Chats keep every message and every command's output in full, however long they grow. A long
   chat saves only what is new instead of writing the whole chat again, and a model request still

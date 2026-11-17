@@ -50,6 +50,7 @@ The Android package configuration excludes dependency `META-INF/LICENSE*` and `M
 | KaTeX fonts | `app/src/main/resources/licenses/OFL-KaTeX.txt` (OFL-1.1) |
 | 357 TextMate language and format definitions | Machine-readable source, commit, path, and license fields in `app/src/main/assets/textmate/catalog.json`; human-readable catalog in [`docs/editor-grammar-provenance.md`](docs/editor-grammar-provenance.md); imported by `tools/import-grammars.py` |
 | Material Icon Theme file and folder icons | `app/src/main/assets/file-icons/`; imported by `tools/import-file-icons.py`; `app/src/main/resources/licenses/MIT-Material-Icon-Theme.txt` |
+| Lobe Icons 1.103.0 assistant provider marks (OpenAI, Anthropic, Gemini, OpenRouter, Ollama) | `app/src/main/res/drawable/mark_*.xml`, each converted from the package's `icons/<name>.svg` path data and naming its source file; `app/src/main/resources/licenses/MIT-Lobe-Icons.txt`. The marks themselves are their owners' trademarks, shown only to name the provider. |
 | Theme palettes | `app/src/main/java/dev/icode/mobile/designsystem/palettes/`; provenance and notices in `app/src/main/resources/licenses/MIT-Theme-Palettes.txt` |
 
 The grammar catalog includes multiple licenses, including MIT, Apache-2.0, BSD variants, ISC, MPL-2.0, LGPL, GPL-3.0, Unlicense, and the TextMate Bundle License. Consult each catalog entry rather than applying one license to the whole grammar set.

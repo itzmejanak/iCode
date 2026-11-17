@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,13 +37,14 @@ import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
-import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
-import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.mark
 
 /**
  * The workspace's chats, newest first: open one, delete one, or start another.
@@ -131,7 +133,7 @@ internal fun AssistantModelsSheet(
     onClose: () -> Unit,
     onProviders: () -> Unit,
     title: String = "Model",
-    chosen: (AssistantChoice) -> Boolean = { it == state.settings.choice },
+    chosen: (AssistantChoice) -> Boolean = { it == state.choice },
     onChoose: ((AssistantChoice) -> Unit)? = null,
     showEffort: Boolean = true,
     /** A row that means "no choice" — the tool's default — shown above the providers. */
@@ -165,7 +167,7 @@ internal fun AssistantModelsSheet(
         },
     ) {
         if (showEffort) {
-            settings.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
+            state.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
                 // How much it reasons before answering: the provider's levels for this model, or its default.
                 SectionLabel("Reasoning")
                 val choices = listOf<AssistantEffort?>(null) + model.efforts
@@ -195,10 +197,15 @@ internal fun AssistantModelsSheet(
         }
         if (count > SEARCH_FROM) Search(query, "Search models", literal = true) { query = it }
         groups.forEachIndexed { index, (provider, models) ->
-            SectionLabel(
-                provider.name,
-                if (index > 0 || settings.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.SectionBreak) else Modifier,
-            )
+            // Each provider under its own mark, as the chat names who answers (docs/assistant-and-mcp.md).
+            Row(
+                if (index > 0 || state.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.SectionBreak) else Modifier,
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+            ) {
+                Icon(provider.kind.mark(), contentDescription = null, tint = IcodeColors.TextPrimary, modifier = Modifier.size(IcodeSizes.IconSm))
+                SectionLabel(provider.name)
+            }
             models.forEach { model ->
                 ModelRow(model, chosen(AssistantChoice(provider.id, model.id))) {
                     pick(AssistantChoice(provider.id, model.id))
