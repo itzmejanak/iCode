@@ -203,7 +203,8 @@ class AcpAgentsTest {
         until { state().messages.size == 2 }
         assertEquals(listOf("s-1"), agent.loaded)
         assertEquals(listOf(AssistantMessage.User("Hi"), AssistantMessage.Reply("Hello from the agent", emptyList(), "")), state().messages)
-        assertEquals(false, stateHolder.current.agents.chat?.loading)
+        // Read back, then no longer loading: the chat's messages land a moment before the flag clears.
+        until { stateHolder.current.agents.chat?.loading == false }
     }
 
     @Test fun stopCancelsThePromptInTheAgent() {
