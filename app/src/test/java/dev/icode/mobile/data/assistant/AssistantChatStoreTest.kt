@@ -136,6 +136,21 @@ class AssistantChatStoreTest {
         assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
     }
 
+    @Test fun `a message keeps its checkpoint, and a chat cut back to before one loses it and all after`() {
+        val chats = AssistantChats(store)
+        chats.append("/w/app", "s1", AssistantMessage.User("One", checkpoint = "c1"))
+        chats.append("/w/app", "s1", AssistantMessage.Reply("Done."))
+        chats.append("/w/app", "s1", AssistantMessage.User("Two", checkpoint = "c2"))
+        chats.append("/w/app", "s1", AssistantMessage.Reply("Done again."))
+        assertEquals("c2", (AssistantChatStore(folder).load("/w/app", "s1").messages[2] as AssistantMessage.User).checkpoint)
+        val reloaded = AssistantChats(AssistantChatStore(folder))
+        assertEquals(listOf(AssistantMessage.User("Two", checkpoint = "c2"), AssistantMessage.Reply("Done again.")), reloaded.cutBack("/w/app", "s1", 2))
+        assertEquals(listOf(AssistantMessage.User("One", checkpoint = "c1"), AssistantMessage.Reply("Done.")), AssistantChatStore(folder).load("/w/app", "s1").messages)
+        assertEquals(emptyList<AssistantMessage>(), reloaded.cutBack("/w/app", "s1", 7))
+        reloaded.cutBack("/w/app", "s1", 0)
+        assertEquals(emptyList<AssistantSession>(), AssistantChatStore(folder).sessions("/w/app"))
+    }
+
     @Test fun `messages waiting in a chat's queue come back with it, in order, with their files, and go with its delete`() {
         val chats = AssistantChats(store)
         chats.append("/w/app", "s1", AssistantMessage.User("Build it"))

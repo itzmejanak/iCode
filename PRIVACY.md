@@ -24,6 +24,8 @@ Assistant chats are stored locally per workspace, with a separate area for chats
 
 The app keeps every message of a chat and each stored tool-result output in full. Messages waiting in a chat's queue, with the names and locations of their files, are saved with the chat until they are sent or removed. Sharing a chat writes its whole transcript to a file in the app's cache for the app you share it with; only the latest one is kept. Deleting a chat removes its retained attachment directory. Deleting a workspace removes chats associated with that workspace.
 
+For Undo, before each message is answered the app keeps a copy of the files in that chat's workspace, or of the Linux runtime's home for a chat in no workspace, and keeps them again when the answer ends. Git's own folder, dependency, build, and cache folders, files over 64 MB, and, in the home, hidden folders are not copied. The copies stay in app-private storage, not separately encrypted, and are not sent anywhere. A message's copies are removed when that message leaves its chat; a chat's when it is deleted; a workspace's when it is deleted.
+
 When a model request is made, the provider can receive the active retained context, including earlier messages and tool traffic needed for the turn. Compacted history can be represented by a summary. Do not attach or expose data you do not want that provider to process.
 
 ### Secrets
@@ -117,7 +119,7 @@ You can turn sharing off in **Settings › Application › Share Device Info**. 
 
 ## Deletion
 
-- Delete a chat to remove its local messages and retained attachment copies.
+- Delete a chat to remove its local messages, retained attachment copies, and the file copies kept for its Undo.
 - Delete a workspace to remove its files and workspace-associated chats.
 - Use Android's **Clear storage** to remove iCode's app-private workspaces, runtime, chats, settings, drafts, keys, and credentials.
 - On uninstall, Android may offer to retain app data because iCode marks workspace data as important; the choice and result are controlled by Android.

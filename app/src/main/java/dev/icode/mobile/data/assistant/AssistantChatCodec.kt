@@ -25,7 +25,7 @@ internal class AssistantChatCodec(private val folder: File) {
         is AssistantMessage.User -> JSONObject().put("role", "user").put("text", message.text).put(
             "attachments",
             JSONArray().apply { message.attachments.forEach { put(attachment(it)) } },
-        )
+        ).apply { message.checkpoint?.let { put("checkpoint", it) } }
         is AssistantMessage.Reply -> JSONObject().put("role", "reply").put("text", message.text).apply {
             if (message.reasoning.isNotBlank()) put("reasoning", message.reasoning)
             message.by?.let { put("by", answerer(it)) }
@@ -58,7 +58,11 @@ internal class AssistantChatCodec(private val folder: File) {
     }
 
     fun decode(json: JSONObject): AssistantMessage = when (val role = json.getString("role")) {
-        "user" -> AssistantMessage.User(json.getString("text"), json.optJSONArray("attachments")?.objects().orEmpty().map(::attachment))
+        "user" -> AssistantMessage.User(
+            json.getString("text"),
+            json.optJSONArray("attachments")?.objects().orEmpty().map(::attachment),
+            json.optString("checkpoint").ifEmpty { null },
+        )
         "reply" -> AssistantMessage.Reply(
             json.getString("text"),
             json.getJSONArray("calls").objects().map { call ->

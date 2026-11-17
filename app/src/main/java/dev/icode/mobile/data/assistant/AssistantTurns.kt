@@ -4,25 +4,19 @@ import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
-import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantHistory
-import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
-import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
-import dev.icode.mobile.domain.AssistantTerminal
 import dev.icode.mobile.domain.AssistantTurn
-import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.notices.AssistantNotices
 import dev.icode.mobile.domain.notices.NoticePlace
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -54,6 +48,10 @@ internal class AssistantTurns(
     private val questions: AssistantQuestions,
     /** Each chat's waiting messages: the next when a chat's work ends, and the one Send now steers it with. */
     private val queue: AssistantQueue,
+    /** A model refused the pictures sent to it: it is kept as reading none. */
+    private val seesNoPictures: (AssistantChoice) -> Unit,
+    /** The places' files before each message and as each turn leaves them, for Undo; none in tests that need none. */
+    private val checkpoints: AssistantCheckpoints?,
 ) {
     /** The servers serve every chat: the last to end idles them. */
     private val working = AssistantWork(scope) { chat, last, goesOn ->
@@ -92,23 +90,20 @@ internal class AssistantTurns(
         if (!working.start(turn.chat) { turn.run(work) }) page.tell(AssistantNotices.busy(NoticePlace(AssistantPlace.name(workspace), workspace)))
     }
 
-    /** A turn in [session] of [workspace], and the events of its engine. */
-    private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
+    /** A turn in [session] of [workspace]. */
+    private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) {
         val chat = workspace to session
 
-        /** The step its tools are on, the hand-over its phone tools wait on, and the screen they take. */
-        val step = AssistantStep(
+        /** What its engine reports, and the step its tools are on. */
+        val events = AssistantTurnEvents(
+            workspace, session, page, chats, seesNoPictures,
             clarify = { call, asked -> questions.clarify(workspace, session, call, asked) },
             handOver = { why -> questions.pause(workspace, session, AssistantPause(why), THINKING) },
-            progress = { text -> step(text) },
-            terminal = { callId, tab -> update { it.copy(terminal = AssistantTerminal(callId, tab)) } },
-            takePhone = { if (working.takePhone(chat)) update { it.copy(onPhone = true) } },
+            takePhone = { working.takePhone(chat) },
         )
 
-        /** The lines each change to a file added and removed, by call, until its result is recorded. */
-        val counted = ConcurrentHashMap<String, LineChanges>()
-
-        /** Who answers this turn: its replies are kept as theirs (docs/assistant-and-mcp.md). */ var chosen: AssistantChoice? = null
+        /** The last checkpoint it took, and where: kept again as the turn leaves the files. */
+        var kept: Pair<String, AssistantWorkspace>? = null
         /** This chat's mode now: the setting, raised by its own answers. */
         fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session), workspace != null)
 
@@ -132,6 +127,7 @@ internal class AssistantTurns(
             } finally {
                 withContext(NonCancellable) {
                     chats.close(workspace, session)
+                    kept?.let { (id, place) -> checkpoints?.ended(place, id) }
                     questions.clear(workspace, session)
                     page.listed(workspace)
                     page.refresh(workspace, session)
@@ -146,25 +142,34 @@ internal class AssistantTurns(
             talk(setup, AssistantMessage.User(input, files(setup, locations)))
         }
 
-        /** [message] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
+        /** [setup]'s place's files now, kept for Undo: the checkpoint's ID, or null when none is kept. */
+        private fun checkpoint(setup: AssistantSetup): String? {
+            val owner = checkpoints ?: return null
+            events.show(KEEPING)
+            return owner.take(setup.place)?.also { kept = it to setup.place }
+        }
+
         /** The files at [locations], read for [setup]'s model: kept in the chat's folder where they are pictures or PDFs. */
         private suspend fun files(setup: AssistantSetup, locations: List<String>) =
             attachments.read(setup.place, locations, setup.model) { bytes, extension -> chats.keep(workspace, session, bytes, extension) }
 
-        suspend fun talk(setup: AssistantSetup, message: AssistantMessage.User) {
-            chosen = setup.choice.also { chats.choose(workspace, session, it) }
-            update { it.copy(by = setup.choice) }
+        /** [asked] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
+        suspend fun talk(setup: AssistantSetup, asked: AssistantMessage.User) {
+            events.chosen = setup.choice.also { chats.choose(workspace, session, it) }
+            events.update { it.copy(by = setup.choice) }
             val before = chats.of(workspace, session)
+            // Undo goes back to the files as they were before it; one sent again keeps its own, and how this turn leaves them.
+            val message = asked.copy(checkpoint = asked.checkpoint?.also { kept = it to setup.place } ?: checkpoint(setup))
             chats.append(workspace, session, message)
             page.listed(workspace)
             page.refresh(workspace, session)
             if (AssistantRules.nearFull(before.contextTokens, setup.model.contextWindow)) compact(setup, AssistantRules.forModel(before.messages))
-            step.seesPictures = setup.model.images
-            val offer = tools.of(setup.place, session, step, setup.settings.mode)
+            events.step.seesPictures = setup.model.images
+            val offer = tools.of(setup.place, session, events.step, setup.settings.mode)
             val phone = offer.tools.any { it.name.startsWith(PHONE_TOOLS) }
             val gated = offer.tools.map { tool ->
-                AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { step.current }) { call, changes ->
-                    counted[call.id] = changes
+                AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { events.step.current }) { call, changes ->
+                    events.counted[call.id] = changes
                 }
             }
             // The first request after a compaction made while it works says whether it helped: one still near full is not made again.
@@ -179,7 +184,7 @@ internal class AssistantTurns(
                 history = history.messages,
                 input = input,
                 tools = gated,
-                picture = step::take,
+                picture = events.step::take,
                 handBack = {
                     val full = AssistantRules.nearFull(chats.of(workspace, session).contextTokens, setup.model.contextWindow)
                     if (compacted) {
@@ -197,22 +202,22 @@ internal class AssistantTurns(
             // As many steps as it takes: no limit, and no asking whether to go on.
             while (true) {
                 val end = runWithRetry { attempt ->
-                    step(if (attempt == 0) THINKING else "Preparing to retry…")
+                    events.show(if (attempt == 0) THINKING else "Preparing to retry…")
                     // A retry after the model answered goes on from the chat: what it ran or asked is not done again.
                     if (attempt > 0 && AssistantRules.replied(chats.of(workspace, session).messages)) next = goOn()
-                    engine.run(next, this)
+                    engine.run(next, events)
                 }
                 if (end == AssistantRunEnd.Answered) return
                 // Given back: near full, compacted; for Send now, the first waiting message joins the chat. It goes on by itself.
                 // The screen the step left is not sent a step later.
-                step.take()
+                events.step.take()
                 if (compacting) {
                     compact(setup, AssistantRules.forModel(chats.of(workspace, session).messages, message))
                     compacted = true
                 }
                 val steered = queue.steered(chat)
                 next = if (steered == null) goOn() else {
-                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }))
+                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }), checkpoint(setup))
                     chats.append(workspace, session, said)
                     page.refresh(workspace, session)
                     request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1), message), said)
@@ -220,11 +225,11 @@ internal class AssistantTurns(
             }
         }
 
-        private suspend fun <T> runWithRetry(block: suspend (Int) -> T): T = AssistantRetries.runWithRetry(step = ::step, block = block)
+        private suspend fun <T> runWithRetry(block: suspend (Int) -> T): T = AssistantRetries.runWithRetry(step = events::show, block = block)
 
         /** [history] summarized by the model and marked in the chat. */
         suspend fun compact(setup: AssistantSetup, history: AssistantHistory) =
-            AssistantRetries.retryable(COMPACTING, step = ::step) {
+            AssistantRetries.retryable(COMPACTING, step = events::show) {
                 val instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary)
                 chats.compacted(workspace, session, engine.compact(setup.connection, setup.model, instructions, history.messages))
                 page.refresh(workspace, session)
@@ -235,60 +240,14 @@ internal class AssistantTurns(
             AssistantWorkspace(folder, paths, storageAccess)
         }
 
-        override fun writing(reasoning: String, text: String) {
-            update { it.copy(live = AssistantLive(reasoning, text)) }
-        }
-
-        override fun replied(reply: AssistantMessage.Reply) {
-            step.calls = reply.calls
-            chats.append(workspace, session, reply.copy(by = chosen))
-            page.refresh(workspace, session, recorded = true)
-        }
-
-        override fun calling(call: AssistantCall) {
-            step.current = call
-            step(call.summary)
-        }
-
-        override fun answered(result: AssistantResult) {
-            // A change to a file says by how many lines, as its tool counted them while it ran.
-            val changes = counted.remove(result.callId)
-            chats.answer(workspace, session, result.copy(changes = changes, printed = step.takePrinted(result.callId)))
-            page.refresh(workspace, session)
-            val changed = changes != null && !result.failed
-            update { it.copy(step = THINKING, terminal = null, changedFiles = it.changedFiles || changed) }
-        }
-
-        override fun used(tokens: Long) {
-            chats.used(workspace, session, tokens)
-            page.refresh(workspace, session)
-        }
-
-        /** Its model does not see after all: the rest of the turn sends no picture, and it is kept as reading none. */
-        override fun picturesRefused() {
-            step.seesPictures = false
-            val settings = settings()
-            val provider = settings.providerOf(chosen) ?: return
-            val model = settings.modelOf(chosen) ?: return
-            val models = provider.models.map { if (it.id == model.id) it.spec.copy(images = false) else it.spec }
-            runCatching { providers.saveProvider(provider.id, provider.kind, provider.name, provider.baseUrl, key = null, models) }
-                .onFailure { return }
-            page.state { it.copy(settings = settings()) }
-            page.tell(AssistantNotices.noPictures(model.id))
-        }
-
         private fun shows(opened: Boolean, shownWorkspace: String?, shownSession: String?) = opened && shownWorkspace == workspace && shownSession == session
-
-        private fun step(text: String) = update { it.copy(step = text) }
-
-        /** Its own turn on the page changed: another chat's is never touched. */
-        private fun update(change: (AssistantTurn) -> AssistantTurn) = page.state { it.changeTurn(workspace, session, change) }
     }
 
     private companion object {
         const val TAG = "Assistant"
-        const val THINKING = "Thinking…"
+        const val THINKING = AssistantTurnEvents.THINKING
         const val COMPACTING = "Compacting the chat…"
+        const val KEEPING = "Keeping a checkpoint…"
 
         /** The phone tools' names start so: a turn offered one is told how to act on the phone. */
         const val PHONE_TOOLS = "phone_"

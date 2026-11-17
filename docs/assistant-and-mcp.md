@@ -173,6 +173,16 @@ The turn runs in a process-scoped coroutine rather than a screen-owned job. iCod
 
 Transient provider connection, rate-limit, and overload failures use provider-independent retry rules with visible countdown state. A retry resumes from the chat as already persisted. Calls and results recorded before the failure are not deliberately repeated. Cancellation remains cancellation and does not become a retry.
 
+### Undo
+
+**Status: Done**
+
+Before it answers a message, a turn keeps a checkpoint of its place's files, and as the turn ends it keeps them again as the turn left them. A message sent again by Try again keeps its first checkpoint. Undo on a message offers to put back the files and the chat, the files only, or the chat only, to how they were before that message: everything since is undone, the changes of later messages included. Putting back the chat removes that message and everything after it and returns its words to the composer. Undo is not offered while the chat works, and is refused while any chat works in the same place.
+
+Before putting files back, iCode compares each turn's end with the next message's checkpoint, and the last turn's end with the files now. Files changed between them, outside the chat's own work, are listed and the user is asked before they are undone too.
+
+A checkpoint covers every file under the workspace, or under the runtime home for a chat in no workspace, except Git's own folder, folders that tools make again (dependencies such as `node_modules`, build output, and caches), files over 64 MB, and links; in the home, hidden folders are left out too. Undo leaves those untouched. Contents are kept once each by their SHA-256 in app-private storage, one folder per place, with a list per checkpoint; a file whose size and change time match the place's last checkpoint is not read again. Files are put back exactly, with whether they run, each written through a temporary file and an atomic rename; files and folders added since are removed. A file that cannot be put back is named in a notice. A message's checkpoint goes when the message leaves its chat; a chat's go with its delete, and a workspace's move with its rename and go with its delete. Messages sent before this feature have no checkpoint, so only their chat can be undone.
+
 ### Compaction
 
 **Status: Done**
@@ -257,6 +267,7 @@ Important boundaries are:
 
 - The selected AI provider receives the retained model context, selected attachments, and tool traffic needed for the turn.
 - Assistant chats stay in app-private local storage, but ordinary chat content is not separately encrypted.
+- Undo's checkpoints keep copies of the place's files in app-private local storage, not separately encrypted, until their messages, chat, or workspace go.
 - Provider keys, MCP secret values, and MCP OAuth material use separate Keystore-backed encryption.
 - An MCP server is a separate trust boundary. Local servers execute third-party code in PRoot; remote servers receive approved MCP requests.
 - MCP output and instructions are untrusted external content even when the server itself is trusted to start.

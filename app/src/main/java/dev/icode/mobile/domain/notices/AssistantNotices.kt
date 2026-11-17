@@ -26,6 +26,22 @@ object AssistantNotices {
 
     fun stopFirst(chat: NoticePlace?) = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Stop the assistant first", chat, detail = "It is working in this chat. Then delete it.")
 
+    fun undone(files: Boolean, chat: Boolean) = Notice(
+        NoticeTone.HeadsUp, NoticeSource.Assistant,
+        when {
+            files && chat -> "Files and chat back to before that message"
+            files -> "Files back to before that message"
+            else -> "Chat back to before that message"
+        },
+        keep = NoticeKeep.Moment,
+    )
+
+    fun noCheckpoint() = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "No checkpoint for that message", detail = "Its files were not kept: it was sent before Undo, or they could not be read.")
+
+    fun undoWaits(place: NoticePlace) = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Stop the work there first", place, detail = "A chat is working in ${place.workspace}.")
+
+    fun notPutBack(paths: List<String>) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Some files couldn't be put back", output = paths.joinToString("\n"))
+
     fun busy(chat: NoticePlace) = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Wait for this chat to finish", chat, detail = "It is still working. Or stop it.")
 
     fun terminalNotOpened(words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't open the chat's terminal", output = words)

@@ -107,6 +107,17 @@ internal class AssistantProviders(
         }
     }
 
+    /** [choice]'s model does not see pictures after all: it is kept as reading none, and that is said. */
+    fun seesNoPictures(choice: AssistantChoice) {
+        val settings = settings()
+        val provider = settings.providerOf(choice) ?: return
+        val model = settings.modelOf(choice) ?: return
+        val models = provider.models.map { if (it.id == model.id) it.spec.copy(images = false) else it.spec }
+        runCatching { store.saveProvider(provider.id, provider.kind, provider.name, provider.baseUrl, key = null, models) }.onFailure { return }
+        page.state { it.copy(settings = settings()) }
+        page.tell(AssistantNotices.noPictures(model.id))
+    }
+
     /** A choice kept, then shown; a failure said. */
     fun remember(change: () -> Unit) {
         runCatching(change).exceptionOrNull()?.let { failure ->

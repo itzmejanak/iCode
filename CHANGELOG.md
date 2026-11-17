@@ -18,6 +18,9 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 - A message sent while a chat works waits in a queue above the composer, saved with the chat,
   and goes when the work ends. A waiting message can be edited, removed, or sent now: the same
   model takes it after its current step and goes on with it; another model takes over.
+- Undo on a message puts the files and the chat back to before it, or only the files, or only the
+  chat. Everything since is undone, and files changed outside the chat since are listed first so
+  you can decide.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

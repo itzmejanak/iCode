@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -33,6 +34,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.rememberSheetPages
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantEntry
+import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
 import dev.icode.mobile.domain.AssistantStepStatus
@@ -94,12 +96,14 @@ internal fun AssistantActionsSheet(
     }
 }
 
-/** A message's sheet, which it heads: Copy, Edit, Retry when its turn failed, and Select text, its one page. */
+/** A message's sheet, which it heads: Copy, Edit, Retry when its turn failed, Undo while its chat rests, and Select text. */
 @Composable
 private fun MessageSheet(entry: AssistantEntry.Said, modifier: Modifier, onClose: () -> Unit, onEdit: (AssistantEntry.Said) -> Unit) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
-    val failed = AssistantRules.unanswered(LocalICodeSnapshot.current.assistant) == entry.key
+    val state = LocalICodeSnapshot.current.assistant
+    val failed = AssistantRules.unanswered(state) == entry.key
+    val index = AssistantRules.messageIndex(entry.key)
     val pages = rememberSheetPages<MessagePage>(entry.key)
     when (pages.current) {
         null -> IcodeActionSheet(
@@ -107,6 +111,7 @@ private fun MessageSheet(entry: AssistantEntry.Said, modifier: Modifier, onClose
             actions = listOfNotNull(
                 IcodeMenuAction("Retry", Icons.Outlined.Refresh, { gateway.dispatch(ICodeIntent.RetryAssistantMessage) }).takeIf { failed },
                 IcodeMenuAction("Edit", Icons.Outlined.Edit, { onEdit(entry) }),
+                IcodeMenuAction("Undo", Icons.AutoMirrored.Outlined.Undo, { pages.open(MessagePage.Undo) }, opensPage = true).takeIf { index != null && !state.runningHere },
                 IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { copyText(context, "Message", entry.text, "Message copied", gateway::dispatch) }),
                 IcodeMenuAction("Select text", Icons.Outlined.SelectAll, { pages.open(MessagePage.SelectText) }, opensPage = true),
             ),
@@ -116,10 +121,11 @@ private fun MessageSheet(entry: AssistantEntry.Said, modifier: Modifier, onClose
             leading = { SheetIcon(Icons.Outlined.ChatBubbleOutline, IcodeColors.Accent) },
         )
         MessagePage.SelectText -> AssistantTextSheet("Select text", null, entry.text, modifier, onClose, pages.back)
+        MessagePage.Undo -> index?.let { AssistantUndoSheet(it, (state.messages.getOrNull(it) as? AssistantMessage.User)?.checkpoint != null, modifier, onClose) }
     }
 }
 
-private enum class MessagePage { SelectText }
+private enum class MessagePage { SelectText, Undo }
 
 /** A step's file's sheet, titled with its name and the step: what [fileActions] offers. */
 @Composable

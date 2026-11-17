@@ -38,6 +38,7 @@ import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.UndoIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -85,6 +86,12 @@ fun AssistantScreen(actions: NavigationActions) {
         val taken = snapshot.mcp.draft ?: return@LaunchedEffect
         draft = listOf(draft, taken).filter(String::isNotBlank).joinToString("\n\n")
         gateway.dispatch(McpIntent.DraftTaken)
+    }
+    // A message an Undo took out of the chat, back to send again as it is or changed.
+    LaunchedEffect(state.takenBack) {
+        val taken = state.takenBack ?: return@LaunchedEffect
+        draft = listOf(draft, taken).filter(String::isNotBlank).joinToString("\n\n")
+        gateway.dispatch(UndoIntent.Taken)
     }
     // Up to five, each once, in the order chosen; any past five are said to stay behind.
     val attach = { files: List<AssistantDraftFile> ->
@@ -203,6 +210,7 @@ fun AssistantScreen(actions: NavigationActions) {
                 }
             }
         }
+        state.undo?.let { AssistantUndoAsk(it) }
     }
 }
 

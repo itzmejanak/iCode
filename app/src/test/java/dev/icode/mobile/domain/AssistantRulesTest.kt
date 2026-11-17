@@ -297,6 +297,12 @@ class AssistantRulesTest {
         assertEquals("app", AssistantPlace.name("/data/files/workspaces/app/"))
     }
 
+    @Test fun `a message's row names its place in the chat, other rows none`() {
+        assertEquals(3, AssistantRules.messageIndex("m3"))
+        assertNull(AssistantRules.messageIndex("m3a"))
+        assertNull(AssistantRules.messageIndex("live-answer"))
+    }
+
     @Test fun `a key never shows in an intent's text`() {
         val save = ICodeIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAI, "OpenAI", "", "sk-secret", listOf(AssistantModelSpec("gpt-5")))
         assertTrue("sk-secret" !in save.toString())

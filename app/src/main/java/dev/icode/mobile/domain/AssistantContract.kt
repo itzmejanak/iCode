@@ -153,7 +153,12 @@ data class AssistantAttachment(
 
 /** The conversation as the model sees it; the page is drawn from it ([AssistantRules.entries]). */
 sealed interface AssistantMessage {
-    data class User(val text: String, val attachments: List<AssistantAttachment> = emptyList()) : AssistantMessage
+    data class User(
+        val text: String,
+        val attachments: List<AssistantAttachment> = emptyList(),
+        /** The checkpoint of its place's files before it was answered, which Undo goes back to; null where none was kept. */
+        val checkpoint: String? = null,
+    ) : AssistantMessage
 
     /**
      * What the model said, and the tools it asked for. [reasoning] is what it thought first, where
@@ -239,6 +244,10 @@ data class AssistantState(
     val tab: String? = null,
     /** Why the last turn stopped short; the next one clears it. */
     val failure: String? = null,
+    /** An Undo waiting for the user: files changed outside the chat's work since, to be undone too. */
+    val undo: AssistantUndo? = null,
+    /** The message an Undo of the chat took out, for the composer to take into its draft. */
+    val takenBack: String? = null,
     /** A commit message being written, or written and not yet in the commit field. */
     val commitMessage: AssistantCommitMessage? = null,
 ) {

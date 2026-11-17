@@ -69,6 +69,18 @@ internal class AssistantChats(
         last
     }
 
+    /**
+     * [session] back to before its message at [index]: that message and all after them go, and are
+     * returned; the meter starts again, and a chat left empty goes.
+     */
+    fun cutBack(workspace: String?, session: String, index: Int): List<AssistantMessage> = synchronized(lock) {
+        val messages = of(workspace, session).messages
+        if (index !in messages.indices) return@synchronized emptyList()
+        loaded[Key(workspace, session)] = of(workspace, session).copy(messages = messages.take(index), contextTokens = null)
+        if (index == 0) delete(workspace, session) else change(workspace, session) { it }
+        messages.drop(index)
+    }
+
     /** One call's result: with the others of its reply, which are right after it. */
     fun answer(workspace: String?, session: String, result: AssistantResult) = change(workspace, session) { chat ->
         val last = chat.messages.lastOrNull()

@@ -13,16 +13,10 @@ import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
-import dev.icode.mobile.domain.AssistantExports
-import dev.icode.mobile.domain.AssistantMessage
-import dev.icode.mobile.domain.AssistantPlace
-import dev.icode.mobile.domain.AssistantRules
-import dev.icode.mobile.domain.AssistantSession
-import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
+import dev.icode.mobile.domain.UndoIntent
 import dev.icode.mobile.domain.notices.AssistantNotices
-import dev.icode.mobile.domain.notices.NoticePlace
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -61,8 +55,10 @@ internal class AssistantCoordinator(
     private val openTab: suspend (workspace: String?, chat: String) -> String = { _, _ -> error("No terminal") },
     /** Where a shared chat's transcript is written for the share sheet: in the cache, only the latest kept. */
     shares: File = File(System.getProperty("java.io.tmpdir"), "assistant-share"),
+    /** Where the places' checkpoints are kept for Undo ([AssistantCheckpoints]); none in tests that need none. */
+    checkpoints: File? = null,
 ) {
-    private val shared = AssistantShares(shares)
+    private val checkpointing = checkpoints?.let(::AssistantCheckpoints)
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
@@ -71,7 +67,10 @@ internal class AssistantCoordinator(
     private val turns: AssistantTurns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
-        storageAccess, questions, queue,
+        storageAccess, questions, queue, settings::seesNoPictures, checkpointing,
+    )
+    private val actions = AssistantChatActions(
+        stateHolder, scope, page, chats, turns, AssistantShares(shares), checkpointing, { AssistantWorkspace(it?.let(::File), paths) }, forget,
     )
 
     /**
@@ -102,8 +101,8 @@ internal class AssistantCoordinator(
                 mcp?.handle(McpIntent.Connect)
             }
             is ICodeIntent.OpenAssistantSession -> page.display(intent.workspace, intent.id)
-            is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
-            is ICodeIntent.ExportAssistantSession -> export(intent.id)
+            is ICodeIntent.DeleteAssistantSession -> actions.delete(intent.id)
+            is ICodeIntent.ExportAssistantSession -> actions.export(intent.id)
             ICodeIntent.NewAssistantChat -> page.display(here(), null)
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments, intent.aloud)
             is ICodeIntent.SendQueuedAssistantMessage -> queue.sendNow(intent.id)
@@ -112,10 +111,13 @@ internal class AssistantCoordinator(
             is ICodeIntent.AnswerAssistant -> questions.answer(intent.workspace, intent.session, intent.callId, intent.answer)
             is ICodeIntent.ReplyAssistant -> questions.reply(intent.workspace, intent.session, intent.callId, intent.reply)
             is ICodeIntent.ContinueAssistant -> questions.resume(intent.workspace, intent.session)
-            ICodeIntent.CompactAssistantChat -> compact()
+            ICodeIntent.CompactAssistantChat -> actions.compact()
             ICodeIntent.OpenAssistantTerminal -> openTerminal()
-            ICodeIntent.RetryAssistantMessage -> retry()
-            ICodeIntent.TakeBackAssistantMessage -> takeBack()
+            ICodeIntent.RetryAssistantMessage -> actions.retry()
+            ICodeIntent.TakeBackAssistantMessage -> actions.takeBack()
+            is UndoIntent.Message -> actions.undo(intent.index, intent.files, intent.chat, intent.confirmed)
+            UndoIntent.Dismiss -> actions.dismissUndo()
+            UndoIntent.Taken -> page.state { it.copy(takenBack = null) }
             is ICodeIntent.ChooseAssistantModel -> choose(AssistantChoice(intent.provider, intent.model))
             is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
             is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
@@ -139,6 +141,7 @@ internal class AssistantCoordinator(
     suspend fun workspaceMoved(from: String, to: String) {
         turns.stopIn(from)
         chats.moved(from, to)
+        checkpointing?.moved(from, to)
         if (page.current.workspace == from) page.display(to, page.current.session)
     }
 
@@ -146,6 +149,7 @@ internal class AssistantCoordinator(
     suspend fun workspaceForgotten(location: String) {
         turns.stopIn(location)
         chats.forgotten(location)
+        checkpointing?.forgotten(location)
         page.forgotten(location)
     }
 
@@ -208,61 +212,6 @@ internal class AssistantCoordinator(
         }
     }
 
-    private fun retry() {
-        if (!page.current.opened) return
-        val workspace = page.current.workspace
-        val session = page.current.session ?: return
-        if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.tell(AssistantNotices.nothingToSendAgain())
-        turns.retry(workspace, session)
-    }
-
-    /** The last message, unanswered, out of the chat for the user to edit; a chat left empty is a new one. */
-    private fun takeBack() {
-        if (!page.current.opened) return
-        val workspace = page.current.workspace
-        val session = page.current.session ?: return
-        if (turns.runs(workspace, session)) return
-        chats.takeBack(workspace, session) ?: return
-        page.state { it.copy(failure = null) }
-        if (chats.of(workspace, session).messages.isEmpty()) page.display(workspace, null) else page.refresh(workspace, session)
-        page.listed(workspace)
-    }
-
-    private fun compact() {
-        if (!page.current.opened) return
-        val workspace = page.current.workspace
-        val session = page.current.session ?: return
-        if (AssistantRules.forModel(chats.of(workspace, session).messages).messages.isEmpty()) return page.tell(AssistantNotices.nothingToCompact())
-        turns.compact(workspace, session)
-    }
-
-    private fun delete(session: String) {
-        if (!page.current.opened) return
-        val workspace = page.current.workspace
-        if (turns.runs(workspace, session)) return page.tell(AssistantNotices.stopFirst(NoticePlace(AssistantPlace.name(workspace), workspace)))
-        chats.delete(workspace, session)
-        scope.launch { forget(workspace, session) }
-        if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
-    }
-
-    /** One chat, shared as its transcript: the user's words, the answers, the steps and their output. */
-    private fun export(session: String) {
-        if (!page.current.opened) return
-        val workspace = page.current.workspace
-        val chat = chats.of(workspace, session)
-        if (chat.messages.isEmpty()) return page.tell(AssistantNotices.nothingToShare())
-        val listed = page.current.sessions.firstOrNull { it.id == session }
-        val title = listed?.title ?: AssistantRules.sessionTitle(
-            chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty(),
-        )
-        val text = AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantPlace.name(workspace), chat.messages)
-        scope.launch {
-            runCatching { shared.write(title, text) }
-                .onSuccess { stateHolder.emit(ICodeEffect.ShareChat(title, it.path)) }
-                .onFailure { page.tell(AssistantNotices.notShared(it.javaClass.simpleName)) }
-        }
-    }
-
     companion object {
         /**
          * The assistant on Koog, its settings in preferences, its chats in iCode's storage, its files
@@ -295,6 +244,7 @@ internal class AssistantCoordinator(
             forget = toolbox::forget,
             openTab = toolbox::openTab,
             shares = File(context.applicationContext.cacheDir, "assistant-share"),
+            checkpoints = File(context.applicationContext.filesDir, "assistant/checkpoints"),
         )
     }
 }

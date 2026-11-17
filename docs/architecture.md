@@ -258,6 +258,8 @@ Android's package installer owns user confirmation. The current source does not 
 
 `data/assistant/AssistantTurns.kt` runs each chat's turn in its own job through `AssistantWork.kt`, which also gives the phone's screen to one chat at a time and idles the MCP servers when the last chat ends. `AssistantQuestions.kt` keeps each chat's approval, pause, or questions on that chat's turn in `AssistantState.turns`. `AssistantQueue.kt` owns each chat's waiting messages, saved with the chat by `AssistantChats.kt`: a message sent while the chat works waits there, the first goes when the work ends, and Send now steers the work in hand at its next step or stops it for another model.
 
+`AssistantCheckpoints.kt` keeps each place's checkpoints for Undo under `<filesDir>/assistant/checkpoints`: a folder per place, named by the SHA-256 of its workspace's location or `home`, with each file content stored once under its SHA-256 and a JSON list per checkpoint. A turn keeps one before each message and again as it ends; `domain/AssistantCheckpoints.kt` decides what is left out and what changed outside a chat's work. `AssistantChatActions.kt` owns the page's chat actions — Try again, take back, compact, delete, share, and Undo, which puts files back through a temporary file and atomic rename and cuts the chat back through `AssistantChats.kt`.
+
 `data/assistant/tools/AssistantToolbox.kt` adapts the same file, search, Git, runtime process, Run, language, voice, and phone owners used by the UI. It does not create parallel repositories or shells. `AssistantGate` and domain permission rules control assistant-requested changes and commands. Those approvals are an assistant interaction boundary, not a restriction on commands the user launches directly in a terminal.
 
 Chats are files under `<filesDir>/assistant/chats`, one JSON line for the chat and one for each message after it; `AssistantChatStore.kt` appends what is new and cuts back only what changed at the end, and writes the chat list, `index.json`, whole through a temporary file and rename. Provider configuration uses private preferences; secrets are encrypted with `data/io/KeystoreCipher.kt`.
@@ -295,6 +297,7 @@ The app does not use Room or an application SQLite database. Persistence is spli
 | Open workspace, tab order, active tab, recents, favorites, last-opened metadata | `data/workspace/WorkspaceStore.kt` through `SharedPreferencesWorkspaceStore`. |
 | Dirty document recovery | `<filesDir>/document-drafts` through `DocumentDraftStore.kt`. |
 | Assistant chats and attachments | `<filesDir>/assistant/chats` through `AssistantChatStore.kt`. |
+| Assistant Undo checkpoints | `<filesDir>/assistant/checkpoints` through `AssistantCheckpoints.kt`. |
 | Appearance, editor, terminal, explorer, Git, and workspace preferences | DataStore through `data/settings/AndroidWorkspacePreferencesRepository.kt`. |
 | Language services, runs, notices, phone/voice state, assistant/MCP/provider metadata, and interruption ledgers | Feature-owned private SharedPreferences stores. |
 | Git/provider/MCP/speech secrets | Ciphertext in private stores, keys in Android Keystore through `data/io/KeystoreCipher.kt`. |

@@ -22,6 +22,9 @@ object AssistantRules {
     fun unanswered(state: AssistantState): String? =
         if (!state.runningHere && state.messages.lastOrNull() is AssistantMessage.User) "m${state.messages.lastIndex}" else null
 
+    /** The place in the chat of the message a row's [key] names, as [entries] keys a message's row; null for another row. */
+    fun messageIndex(key: String): Int? = key.removePrefix("m").toIntOrNull()?.takeIf { key.startsWith("m") }
+
     /**
      * The turn has answered since the user's message — a reply, a call's result: a retry then goes on
      * from the chat, never asking or running again what it did (docs/assistant-and-mcp.md).
