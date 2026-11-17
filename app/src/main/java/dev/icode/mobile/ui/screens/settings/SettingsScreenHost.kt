@@ -33,6 +33,8 @@ fun SettingsScreenHost(screen: Route, actions: NavigationActions) {
         Route.ShizukuSetup -> ShizukuScreen(actions)
         Route.McpServers -> McpServersScreen(actions)
         Route.McpServer -> McpServerScreen(actions)
+        Route.CodingAgents -> CodingAgentsScreen(actions)
+        Route.CodingAgent -> CodingAgentScreen(actions)
         Route.SourceControlSettings -> SourceControlSettingsScreen(actions)
         else -> Unit
     }

@@ -38,7 +38,8 @@ class SettingsCatalogTest {
         assertEquals(Route.WorkspaceSettings, searchSettingsCategories("auto fetch").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("api key").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("ollama").single().destination)
-        assertEquals("Providers, voice, phone control", settingsSubtitle(Route.AssistantSettings))
+        assertEquals("Providers, coding agents, voice, phone control", settingsSubtitle(Route.AssistantSettings))
+        assertEquals(Route.AssistantSettings, searchSettingsCategories("claude code").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("microphone").single().destination)
         assertEquals(
             listOf(Route.SettingsEditor, Route.WorkspaceSettings),

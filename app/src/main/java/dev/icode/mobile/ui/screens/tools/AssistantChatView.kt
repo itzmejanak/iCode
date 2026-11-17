@@ -41,6 +41,7 @@ import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PinchToScaleText
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.scaledBy
+import dev.icode.mobile.domain.AgentIntent
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPlace
@@ -206,6 +207,12 @@ internal fun AssistantChatView(
         }
         LocalICodeSnapshot.current.mcp.question?.takeIf { state.runningHere }?.let { question ->
             McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
+        }
+        // A coding agent's question, on the same card; its answer goes back to the agent.
+        LocalICodeSnapshot.current.agents.question?.takeIf { state.runningHere }?.let { question ->
+            McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2)) {
+                gateway.dispatch(AgentIntent.Answer(it))
+            }
         }
     }
 }
