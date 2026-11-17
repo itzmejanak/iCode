@@ -13,6 +13,8 @@ This page uses the four canonical labels defined in the documentation index: [Do
 | Modern MCP protocol compatibility | **Partially Done** | iCode uses the official Kotlin SDK's active legacy client. Support for newer protocol behavior remains blocked until that SDK's client implements it. |
 | Real-provider assistant acceptance | **Needs Verification** | Provider, network, lifecycle, privacy, and process-death checks remain. |
 | Existing MCP transport, sign-in, and server acceptance | **Needs Verification** | Local stdio, remote HTTP, browser sign-in, lifecycle, and real-server checks remain. |
+| Repository implementation of external coding agents through ACP | **Done** | The ACP client, the six listed agents' installs, chats bound to an agent and read back from it, turns, approvals, questions, settings, slash commands, plans, sign-in, MCP passthrough and the terminal fallback exist with automated coverage against an in-process ACP agent. |
+| Coding agents on a phone | **Needs Verification** | No listed agent has been installed, signed in, or run under iCode's PRoot yet; see [External coding agents through ACP](roadmap.md#external-coding-agents-through-acp). |
 
 ## Architecture
 
@@ -243,6 +245,86 @@ iCode currently uses version 0.16.0 of the official Kotlin MCP SDK. Its active c
 
 iCode will add dual-era behavior when the official SDK's client supports it instead of maintaining a second protocol client. Legacy stdio, Streamable HTTP, HTTP+SSE fallback, prompts, resources, tools, sign-in, and elicitation remain available. A modern-only server may not connect today. The [modern MCP roadmap](roadmap.md#mcp-modern-protocol-support) is the sole owner of the missing protocol scope and acceptance evidence.
 
+## External coding agents (ACP)
+
+**Status: Done in the repository; Needs Verification on a phone**
+
+A chat can be answered by another vendor's coding agent instead of the built-in assistant. iCode speaks the [Agent Client Protocol](https://agentclientprotocol.com) (ACP) v1 to it through the official Kotlin SDK (`com.agentclientprotocol:acp`, pinned in `app/build.gradle.kts`). Only `data/assistant/acp/` imports the SDK; the `acp-owner` rule of `tools/check-backend-consistency.sh` enforces it. There is no per-agent adapter: every agent goes through the same client, and the Koog assistant is unchanged.
+
+### The listed agents
+
+`assets/agents/registry.json` pins the agents iCode lists, as entries of the ACP registry's own `agent.json` format (registry commit `ccec929`, 2026-11-17). `data/assistant/acp/AgentRegistry.kt` is its one parser; `domain/CodingAgents.kt` names each agent and its own CLI, and a test keeps the two in step.
+
+| Agent | Registry ID | Version | Distribution | Licence |
+|---|---|---|---|---|
+| Claude Agent (Claude Code) | `claude-acp` | 0.107.2 | `linux-aarch64` binary, SHA-256 pinned; bundles the `claude` CLI | proprietary |
+| Codex | `codex-acp` | 2.7.0 | npm `@agentclientprotocol/codex-acp@2.7.0`, which brings `@openai/codex` | Apache-2.0 |
+| Gemini CLI | `gemini` | 0.68.0 | npm `@google/gemini-cli@0.68.0 --acp` | Apache-2.0 |
+| OpenCode | `opencode` | 2.3.0 | `linux-aarch64` binary, SHA-256 pinned, `opencode acp` | MIT |
+| Cline | `cline` | 3.0.74 | npm `cline@3.0.74 --acp` | Apache-2.0 |
+| Factory Droid | `factory-droid` | 1.12.1 | npm `droid@1.12.1 exec --output-format acp-daemon` | proprietary |
+
+The parser takes a `linux-aarch64` binary with a SHA-256 first, else an npm package at an exact version. An entry with neither, or an npm package without a version, is left out: what runs could change under the user. Other registry agents, and agents the user names by command, are a later step that reuses the same parser and launcher.
+
+### Installs
+
+Each agent is a runtime tool (`agent-<id>`), listed in its own **Coding agents** section of Runtime Tools and on Settings › Assistant › Coding Agents. `AgentSetup` implements the `RuntimeToolSetup` contract: a binary is downloaded with `PinnedDownload`, checked against its SHA-256 and unpacked; an npm package is installed with the runtime's Node.js (`npm install --prefix … <package>@<version>`), which the tool requires. Everything lands in `~/.local/share/icode/agents/<id>`; the receipt names the version and the checksum or package, so a build pinning another reads as not installed. Download sizes are not pinned by the registry, so the tools page says "Size unknown" for them.
+
+### Processes
+
+`AcpConnections` starts one process per agent with `GuestStdio`, as local MCP servers are started: the login environment, then the agent's own variables, then the keys saved for it. Its sessions share the connection. Standard output is protocol traffic and is never logged; standard error goes to `/tmp/icode-agents/<id>.log`, whose end the agent's settings page and failures show. A process idle for 10 minutes with no turn and no chat being read back is stopped; one that ends on its own is reported with the end of its log.
+
+iCode advertises neither the ACP file-system nor the terminal methods. An agent uses its own tools in the runtime, and its file changes reach the editor and the tree as any outside change does; iCode refreshes the workspace when an agent's change step ends.
+
+An agent's `xdg-open` and `BROWSER` are a small script of iCode's that records the link instead of opening it. The Assistant page then shows "<agent> asks to open <host>" with Open and Not Now; nothing opens without a tap.
+
+### Chats
+
+A chat records what answers it: the built-in assistant, or an agent with its ACP session ID (`"agent": {"id", "session"}` in the chat file and the index). The model sheet lists installed agents beside the providers; choosing one makes new chats go to it, and a shown chat answered by something else gives way to a new chat. An agent's chat keeps its agent.
+
+The agent owns the conversation. iCode saves an agent chat's title and binding only, never its messages. Opening the chat the first time in a process reads it back through `session/load`, and `AcpTranscript` turns the replay into the chat shown. An agent that cannot load sessions cannot reopen its chats, and says so.
+
+### Turns
+
+A message in an agent's chat runs in the assistant's own one-turn job (`AssistantTurns`), with its page state, notices and clean-up. It is sent as `session/prompt`, and `AcpTranscript` maps the session updates onto the built-in assistant's shapes:
+
+- message and thought chunks are the reply's text and reasoning, streamed as it is written;
+- each `tool_call` is a step: `read`, `search`, `fetch` and `think` as reads, `edit`, `delete` and `move` as changes, `execute` as a command; its end is the step's result, a `diff` counted in lines;
+- a call started while another of the reply waits joins that reply, so each result stays right after its reply;
+- `plan` is the plan row above the composer and its sheet;
+- `usage_update` feeds the context meter with the agent's own window.
+
+Stop sends `session/cancel` and answers any question still asked as cancelled. An agent that stops at its output limit, its step limit, or by refusing says so as the turn's failure. Retry sends the unanswered message again. Compact and Edit are the agent's own: iCode explains that and points to its commands.
+
+### Approvals and questions
+
+`session/request_permission` is shown on the approval card with the agent's own options (allow once, allow always, reject). The agent's permission mode decides what it asks; iCode never answers for the user, and the built-in permission modes do not apply to agent chats. A request with no turn of its chat in hand is answered cancelled. Questions (`elicitation/create`, form and URL modes) use the MCP question card; only where the answer goes differs.
+
+### Composer, slash commands, and settings
+
+In an agent's chat the model chip names the agent and its model. The agent's config options in the `mode`, `model` and `thought_level` categories are chips beside it, set with `session/set_config_option`; an agent that offers only ACP's older modes or models gets the same chips through `session/set_mode` and `session/set_model`. Typing `/` opens one menu with the agent's slash commands (`available_commands_update`), typed into the message by a tap, and its other config options, toggled in place.
+
+### Sign-in
+
+When the agent answers "authentication required", the page shows each way it offers: an `agent` method calls `authenticate`; a `terminal` method types the agent's own login into the chat's terminal tab, and Done starts the agent again to read the new credentials; a keys method (`env_var`) takes its keys on the agent's settings page, kept with a Keystore key of their own (`icode.agents.key`) and given only to that agent's process. Keys are never typed into a terminal, logged or shown again.
+
+### MCP passthrough
+
+`session/new` and `session/load` pass the user's own enabled MCP servers from `McpServers`, with their values as saved, so a server is configured once for every assistant. A remote server goes only to an agent that supports its transport, with its configured headers but not iCode's own OAuth sign-in. A workspace's `.mcp.json` is not passed: an agent reads it itself in that workspace. A local server's working folder is not carried by ACP.
+
+### Terminal fallback
+
+The chat menu's "Open in <agent> CLI" types the agent's own CLI into the chat's terminal tab and shows it, so anything ACP does not carry is still reachable. Claude Agent and Codex resume the chat's session (`--resume <session>` and `resume <session>`); the others open a new CLI session. The agent's settings page opens the same CLI in a new tab.
+
+### Limits
+
+- An agent is third-party code with the full reach of the PRoot guest: every workspace, the guest home, and shared storage once All Files Access is granted. iCode's workspace boundary and place grants do not apply to its own tools; only its own permission mode and requests do.
+- What a chat sends goes to the agent's vendor under that vendor's terms; iCode does not proxy it.
+- Agents keep their own credentials in their configuration under the guest home: app-private, not Keystore-encrypted.
+- Deleting a chat in iCode removes iCode's record of it; the agent's own session history stays in its storage.
+- Android ending iCode ends every agent and its turn. The chat reads back afterwards; the interrupted turn is not resumed.
+- The SDK logs through kotlin-logging, which on Android goes to SLF4J unless the `kotlin-logging-to-android-native` system property is set. iCode sets no such property and ships no SLF4J provider (only `slf4j-api` is on the classpath), so SLF4J's no-op logger drops everything the SDK logs, its traces of message content among them; the MCP SDK's logging is dropped the same way.
+
 ## Security and privacy boundaries
 
 The [privacy policy](../PRIVACY.md) explains what leaves the device. The [security policy](../SECURITY.md) defines supported versions, reporting, and scope.
@@ -253,6 +335,7 @@ Important boundaries are:
 - Assistant chats stay in app-private local storage, but ordinary chat content is not separately encrypted.
 - Provider keys, MCP secret values, and MCP OAuth material use separate Keystore-backed encryption.
 - An MCP server is a separate trust boundary. Local servers execute third-party code in PRoot; remote servers receive approved MCP requests.
+- A coding agent is a separate trust boundary: third-party code in PRoot with the guest's full reach, governed by its own permission mode, sending what it is given to its own vendor ([External coding agents](#external-coding-agents-acp)).
 - MCP output and instructions are untrusted external content even when the server itself is trusted to start.
 - Full access intentionally removes ordinary per-call approvals. Per-tool Runs choices and per-chat place grants can also widen access.
 - Approval parsing cannot turn PRoot into an OS sandbox or prove everything a shell command or third-party server will do.

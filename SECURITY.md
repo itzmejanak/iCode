@@ -31,16 +31,18 @@ Reports are in scope when the weakness is in this repository's code or release p
 - workspace, recovery, chat, attachment, report-draft, and log handling;
 - Git HTTPS/SSH authentication, GPG signing, provider credentials, speech keys, MCP secrets, OAuth returns/tokens, and Android Keystore use;
 - assistant tool approvals, prompt/context assembly, attachments, model-provider adapters, local and remote MCP integrations, and tool-result handling;
+- the coding-agent client (ACP): agent installs and their pinning, process start-up, approvals, questions, keys, sign-in, MCP passthrough, and the link opener;
 - phone control, accessibility, overlays, Shizuku authorization and shell actions, screenshots, and sensitive-screen handoff;
 - microphone capture, remote speech recognition, speech synthesis, and audio/text routing;
 - app-to-website update, notice, device-fact, report, signed Cloudinary upload, and runtime-manifest requests; and
 - CI/release configuration, dependency and submodule integrity, APK signing, checksums, update-channel selection, and release/update supply chain.
 
-The iCode website service, external AI or speech providers, Git hosts, remote MCP services, Cloudinary, Android services, Ubuntu repositories, and user-installed runtime tools are separate systems. A vulnerability solely in one of those systems should normally be reported to its operator. Report it here as well when iCode exposes data, grants access, validates a response, or composes those systems in an unsafe way.
+The iCode website service, external AI or speech providers, coding agents and their vendors, Git hosts, remote MCP services, Cloudinary, Android services, Ubuntu repositories, and user-installed runtime tools are separate systems. A vulnerability solely in one of those systems should normally be reported to its operator. Report it here as well when iCode exposes data, grants access, validates a response, or composes those systems in an unsafe way.
 
 ## Current security boundaries and limitations
 
 - **PRoot is not a sandbox or virtual machine.** It provides Linux userspace compatibility inside iCode's Android sandbox. Runtime commands, language servers, local MCP servers, and other installed tools execute with the app's access and can read or modify data available to them.
+- **A coding agent has the runtime's reach.** An installed agent is third-party code in PRoot: it can read and change every workspace, the runtime's home, and shared storage once All Files Access is granted. Its own permission mode decides what it asks before it acts; iCode's approval modes and workspace boundary do not apply to its tools. iCode answers its permission requests only with the user's choice.
 - **Assistant access is consequential.** A configured model or MCP tool can receive prompts, files, attachments, screen context, commands, and tool output, and approved tools can change files or run processes. Review providers, endpoints, tools, and approval mode before use.
 - **App-private does not mean application-encrypted.** Workspaces, chats, runtime files, and most settings are ordinary files protected primarily by Android's app sandbox. Supported stored secrets use Keystore-backed encryption, while SSH/GPG keys remain files in the private runtime.
 - **Optional permissions increase impact.** All Files Access, accessibility, microphone access, package installation, and Shizuku are enabled only for their described features, but a compromise while they are active can expose more data or control.
