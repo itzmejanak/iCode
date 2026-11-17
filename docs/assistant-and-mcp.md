@@ -57,6 +57,8 @@ A chat belongs either to:
 
 Chats are listed separately for each place. Several chats can work at once, in one place or in several; each chat answers one message at a time. A running turn remains tied to the place and chat where it began, even if the user views another workspace or chat. Each working chat shows its own step, questions, and Stop, the chats list marks it as working, and a workspace with a chat at work cannot be renamed, moved, or deleted until that chat stops. MCP servers serve every chat: a server's question shows in each chat at work, and local servers idle once the last chat ends.
 
+A message sent while its chat works waits in the chat's queue, shown above the composer and saved with the chat. When the work ends, whether answered, stopped, or failed, the first waiting message is sent. Tapping a waiting message takes it back into the composer, with its files, to edit; × removes it. Send now sends it at once. While the same model works, the turn takes it after the step in hand, adds it to the chat, and goes on with it in mind. For a different model, the work stops and that message goes next with the new model. A chat not at work sends it straight away. Waiting messages kept when iCode was closed wait until the user sends one; those of a workspace being renamed, moved, or deleted are not sent.
+
 ### Local persistence
 
 Chats are stored as app-private files. iCode writes each chat through a temporary file and atomic rename, and can rebuild a damaged chat index from the individual chat files. Image and PDF attachments are copied into the chat's private folder and move or disappear with that chat.

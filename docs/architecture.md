@@ -256,7 +256,7 @@ Android's package installer owns user confirmation. The current source does not 
 
 `data/assistant/AssistantCoordinator.kt` owns assistant state, provider configuration, chats, turns, questions, commit-message generation, tools, background behavior, and MCP connection to the assistant. `data/assistant/AssistantEngine.kt` is the application seam; `data/assistant/koog/KoogAssistantEngine.kt` is the current Koog adapter.
 
-`data/assistant/AssistantTurns.kt` runs each chat's turn in its own job through `AssistantWork.kt`, which also gives the phone's screen to one chat at a time and idles the MCP servers when the last chat ends. `AssistantQuestions.kt` keeps each chat's approval, pause, or questions on that chat's turn in `AssistantState.turns`.
+`data/assistant/AssistantTurns.kt` runs each chat's turn in its own job through `AssistantWork.kt`, which also gives the phone's screen to one chat at a time and idles the MCP servers when the last chat ends. `AssistantQuestions.kt` keeps each chat's approval, pause, or questions on that chat's turn in `AssistantState.turns`. `AssistantQueue.kt` owns each chat's waiting messages, saved with the chat by `AssistantChats.kt`: a message sent while the chat works waits there, the first goes when the work ends, and Send now steers the work in hand at its next step or stops it for another model.
 
 `data/assistant/tools/AssistantToolbox.kt` adapts the same file, search, Git, runtime process, Run, language, voice, and phone owners used by the UI. It does not create parallel repositories or shells. `AssistantGate` and domain permission rules control assistant-requested changes and commands. Those approvals are an assistant interaction boundary, not a restriction on commands the user launches directly in a terminal.
 

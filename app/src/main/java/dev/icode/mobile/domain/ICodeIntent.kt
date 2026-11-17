@@ -225,13 +225,17 @@ sealed interface ICodeIntent {
     data class ExportAssistantSession(val id: String) : AssistantIntent
     /** A new, empty chat; it is kept once something is said in it. */
     data object NewAssistantChat : AssistantIntent
-    /** [attachments]: the files sent with it — a workspace file's location, or a phone file's `content://` URI. */
+    /** [attachments]: the files sent with it. While its chat works it waits in the chat's queue (docs/assistant-and-mcp.md). */
     data class SendAssistantMessage(
         val text: String,
-        val attachments: List<String> = emptyList(),
+        val attachments: List<AssistantDraftFile> = emptyList(),
         /** Sent from the bubble: answered aloud when Spoken replies says so (docs/voice-and-phone-control.md). */
         val aloud: Boolean = false,
     ) : AssistantIntent
+    /** The shown chat's waiting message [id] goes now: steering the work in hand, or in its place for another answerer. */
+    data class SendQueuedAssistantMessage(val id: String) : AssistantIntent
+    /** The shown chat's waiting message [id] out of its queue: removed, or taken back to edit. */
+    data class RemoveQueuedAssistantMessage(val id: String) : AssistantIntent
     /** Stops [session]'s turn in [workspace]: the request, and a running command with everything it started. */
     data class StopAssistant(val workspace: String?, val session: String) : AssistantIntent
     /** The user's answer to the approval of the call [callId], in [session] of [workspace]. */

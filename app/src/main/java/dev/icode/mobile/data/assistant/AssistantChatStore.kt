@@ -4,6 +4,7 @@ import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantAnswerer
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantQueued
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import java.io.ByteArrayOutputStream
@@ -16,7 +17,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** One chat as kept: what was said, the tokens its last request used (the context meter), and who answers it now. */
-internal data class AssistantChat(val messages: List<AssistantMessage> = emptyList(), val contextTokens: Long? = null, val answerer: AssistantAnswerer? = null)
+internal data class AssistantChat(
+    val messages: List<AssistantMessage> = emptyList(),
+    val contextTokens: Long? = null,
+    val answerer: AssistantAnswerer? = null,
+    /** The messages waiting while it works, kept in its entry in `index.json`. */
+    val queued: List<AssistantQueued> = emptyList(),
+)
 
 /**
  * Each workspace's chats, in iCode's storage: a folder per workspace named by the SHA-256 of its
@@ -46,7 +53,7 @@ internal class AssistantChatStore(private val folder: File) {
             file.isFile -> runCatching { read(file, codec(workspace)) }.onFailure { warn("read a chat", it) }.getOrDefault(emptyList())
             else -> legacy(workspace, session)
         }
-        AssistantChat(AssistantRules.closed(messages), listed?.tokens, listed?.by)
+        AssistantChat(AssistantRules.closed(messages), listed?.tokens, listed?.by, listed?.queued.orEmpty())
     }
 
     /** Saves [chat] as [session] of [workspace], updated at [now]: every message, in full. Its title, once given, stays. */
@@ -59,7 +66,7 @@ internal class AssistantChatStore(private val folder: File) {
         val before = written[file]?.takeIf { file.isFile && file.length() == it.ends.last() }
         written[file] = if (before == null) whole(file, workspace, session, title, chat.messages, codec) else tail(file, before, chat.messages, codec)
         legacyFile(workspace, session).delete()
-        writeIndex(workspace, listOf(Listed(AssistantSession(session, title, now), chat.contextTokens, chat.answerer)) + others.filter { it.session.id != session })
+        writeIndex(workspace, listOf(Listed(AssistantSession(session, title, now), chat.contextTokens, chat.answerer, chat.queued)) + others.filter { it.session.id != session })
     }
 
     /**
@@ -163,14 +170,17 @@ internal class AssistantChatStore(private val folder: File) {
     private fun titled(first: AssistantMessage.User): String = first.text.ifBlank { first.attachments.joinToString(", ") { it.name } }
 
     /** A chat on the list, with the tokens of its last request and who answers it now. */
-    private class Listed(val session: AssistantSession, val tokens: Long?, val by: AssistantAnswerer? = null)
+    private class Listed(val session: AssistantSession, val tokens: Long?, val by: AssistantAnswerer? = null, val queued: List<AssistantQueued> = emptyList())
 
     /** The list as saved, newest first; made again from the chats' files when it cannot be read. */
     private fun listed(workspace: String?): List<Listed> {
         val index = File(folderOf(workspace), INDEX).takeIf { it.isFile } ?: return rebuilt(workspace)
         return runCatching {
             JSONArray(index.readText()).objects().map {
-                Listed(session(it), it.optLong("contextTokens", -1).takeIf { tokens -> tokens >= 0 }, AssistantChatCodec.answerer(it.optJSONObject("by")))
+                Listed(
+                    session(it), it.optLong("contextTokens", -1).takeIf { tokens -> tokens >= 0 }, AssistantChatCodec.answerer(it.optJSONObject("by")),
+                    it.optJSONArray("queued")?.objects().orEmpty().map(AssistantChatCodec::queued),
+                )
             }
         }.onFailure { warn("read a chat list", it) }.getOrElse { rebuilt(workspace) }.sortedByDescending { it.session.updatedAt }
     }
@@ -197,7 +207,8 @@ internal class AssistantChatStore(private val folder: File) {
                 put(
                     JSONObject().put("id", listed.session.id).put("title", listed.session.title).put("updatedAt", listed.session.updatedAt)
                         .apply { listed.tokens?.let { put("contextTokens", it) } }
-                        .apply { listed.by?.let { put("by", AssistantChatCodec.answerer(it)) } },
+                        .apply { listed.by?.let { put("by", AssistantChatCodec.answerer(it)) } }
+                        .apply { if (listed.queued.isNotEmpty()) put("queued", JSONArray(listed.queued.map(AssistantChatCodec::queued))) },
                 )
             }
         }

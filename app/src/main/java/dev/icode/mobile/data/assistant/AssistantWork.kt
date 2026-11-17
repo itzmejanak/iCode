@@ -9,14 +9,21 @@ import kotlinx.coroutines.launch
 /**
  * Which chats work now (docs/assistant-and-mcp.md): each its own job, as many chats at once as the user
  * starts, one job in a chat; and which of them has the phone's screen, one at a time
- * (docs/voice-and-phone-control.md). A chat is its workspace — null for none — and its session. When
- * the last one ends, [idle] says so: what serves every chat may rest.
+ * (docs/voice-and-phone-control.md). A chat is its workspace — null for none — and its session. Each
+ * chat's work, once it has ended, is told to [ended]: whether it was the last, and whether the chat
+ * goes on — not when it was stopped with its workspace, which is being moved or deleted.
  */
-internal class AssistantWork(private val scope: CoroutineScope, private val idle: () -> Unit) {
+internal class AssistantWork(
+    private val scope: CoroutineScope,
+    private val ended: (chat: Pair<String?, String>, last: Boolean, goesOn: Boolean) -> Unit,
+) {
     private val lock = Any()
 
     /** A chat's job is here from its start until it has completed, its end done or never begun: here, it works. */
     private val jobs = mutableMapOf<Pair<String?, String>, Job>()
+
+    /** The chats stopped with their workspace, until their work has ended. */
+    private val held = mutableSetOf<Pair<String?, String>>()
 
     /** The chat whose turn acts on the phone: the screen is its until that turn ends. */
     private var phone: Pair<String?, String>? = null
@@ -38,21 +45,21 @@ internal class AssistantWork(private val scope: CoroutineScope, private val idle
     }
 
     private fun completed(chat: Pair<String?, String>) {
-        val last = synchronized(lock) {
+        val (last, goesOn) = synchronized(lock) {
             jobs -= chat
             if (phone == chat) phone = null
-            jobs.isEmpty()
+            jobs.isEmpty() to !held.remove(chat)
         }
-        if (last) idle()
+        ended(chat, last, goesOn)
     }
 
     fun stop(chat: Pair<String?, String>) {
         synchronized(lock) { jobs[chat] }?.cancel()
     }
 
-    /** Stops every chat working in [workspace], and waits until each is saved. */
+    /** Stops every chat working in [workspace], and waits until each is saved; none goes on. */
     suspend fun stopIn(workspace: String) {
-        synchronized(lock) { jobs.filterKeys { it.first == workspace }.values.toList() }.onEach { it.cancel() }.joinAll()
+        synchronized(lock) { jobs.filterKeys { it.first == workspace }.also { held += it.keys }.values.toList() }.onEach { it.cancel() }.joinAll()
     }
 
     /**

@@ -44,6 +44,7 @@ import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPlace
+import dev.icode.mobile.domain.AssistantQueued
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -66,6 +67,7 @@ internal fun AssistantChatView(
     onSuggestion: (String) -> Unit,
     onOpen: (row: String, step: String?) -> Unit,
     onHold: (row: String) -> Unit,
+    onEditQueued: (AssistantQueued) -> Unit,
 ) {
     val gateway = LocalICodeGateway.current
     Column(modifier) {
@@ -205,6 +207,10 @@ internal fun AssistantChatView(
             LocalICodeSnapshot.current.mcp.question?.let { question ->
                 McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
             }
+        }
+        // What waits for the work to end, last before the composer.
+        if (state.queued.isNotEmpty()) {
+            AssistantQueueCard(state.queued, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2), onEditQueued)
         }
     }
 }

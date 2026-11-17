@@ -6,7 +6,9 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantQueued
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
@@ -16,6 +18,8 @@ import java.io.File
 import org.json.JSONArray
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -130,6 +134,29 @@ class AssistantChatStoreTest {
         )
         store.save("/w/app", "s1", saved, now = 1)
         assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
+    }
+
+    @Test fun `messages waiting in a chat's queue come back with it, in order, with their files, and go with its delete`() {
+        val chats = AssistantChats(store)
+        chats.append("/w/app", "s1", AssistantMessage.User("Build it"))
+        val photo = AssistantDraftFile("content://photos/1", "1.jpg", AssistantAttachmentKind.Image)
+        chats.enqueue("/w/app", "s1", "Then the tests", emptyList(), aloud = false)
+        chats.enqueue("/w/app", "s1", "And this", listOf(photo), aloud = true)
+        val queued = AssistantChatStore(folder).load("/w/app", "s1").queued
+        assertEquals(listOf("Then the tests", "And this"), queued.map { it.text })
+        assertEquals(listOf(photo), queued[1].files)
+        assertTrue(queued[1].aloud)
+        // Put first, then taken out: the next to go, then the rest.
+        val reloaded = AssistantChats(AssistantChatStore(folder))
+        assertTrue(reloaded.toFront("/w/app", "s1", queued[1].id))
+        assertFalse(reloaded.toFront("/w/app", "s1", "gone"))
+        assertEquals(queued[1], reloaded.unqueue("/w/app", "s1"))
+        assertEquals(listOf(queued[0]), AssistantChatStore(folder).load("/w/app", "s1").queued)
+        assertEquals(queued[0], reloaded.unqueue("/w/app", "s1", queued[0].id))
+        assertNull(reloaded.unqueue("/w/app", "s1"))
+        reloaded.enqueue("/w/app", "s1", "Last", emptyList(), aloud = false)
+        reloaded.delete("/w/app", "s1")
+        assertEquals(emptyList<AssistantQueued>(), AssistantChatStore(folder).load("/w/app", "s1").queued)
     }
 
     @Test fun `a call keeps the file and the command it names, and a change by how many lines`() {

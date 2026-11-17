@@ -34,6 +34,7 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.domain.AssistantAttachmentKind
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeIntent
@@ -46,9 +47,6 @@ import dev.icode.mobile.ui.ThumbnailKind
 import java.io.File
 import dev.icode.mobile.domain.notices.AssistantNotices
 
-/** A file going with the message: a workspace file's location, or a phone file's `content://` URI. */
-internal data class DraftFile(val location: String, val name: String, val kind: AssistantAttachmentKind)
-
 /** What Attach opens on the phone: no permission is asked for any of them; [camera] is null on a phone without one. */
 internal class AssistantPickers(val photos: () -> Unit, val files: () -> Unit, val camera: (() -> Unit)?)
 
@@ -57,7 +55,7 @@ internal class AssistantPickers(val photos: () -> Unit, val files: () -> Unit, v
  * files chosen, described ([describe]). A device with no camera app says so.
  */
 @Composable
-internal fun rememberAssistantPickers(onPicked: (List<DraftFile>) -> Unit): AssistantPickers {
+internal fun rememberAssistantPickers(onPicked: (List<AssistantDraftFile>) -> Unit): AssistantPickers {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
     var shot by rememberSaveable { mutableStateOf<String?>(null) }
@@ -106,12 +104,12 @@ private fun cameraFile(context: Context): Uri {
 }
 
 /** A picked file's name and kind, as Android describes it; null when it cannot be read already. */
-private fun describe(context: Context, uri: Uri): DraftFile? = runCatching {
+private fun describe(context: Context, uri: Uri): AssistantDraftFile? = runCatching {
     val resolver = context.contentResolver
     val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
         if (cursor.moveToFirst()) cursor.getString(0) else null
     } ?: uri.lastPathSegment ?: return@runCatching null
-    DraftFile(uri.toString(), name, AssistantRules.attachmentKind(name, resolver.getType(uri)))
+    AssistantDraftFile(uri.toString(), name, AssistantRules.attachmentKind(name, resolver.getType(uri)))
 }.getOrNull()
 
 /**

@@ -9,7 +9,6 @@ import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
-import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
@@ -27,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -52,9 +52,14 @@ internal class AssistantTurns(
     private val storageAccess: () -> Boolean,
     /** What the turn asks the user; its answers come to it from the coordinator. */
     private val questions: AssistantQuestions,
+    /** Each chat's waiting messages: the next when a chat's work ends, and the one Send now steers it with. */
+    private val queue: AssistantQueue,
 ) {
-    /** The servers serve every chat: the last chat to end idles them. */
-    private val working = AssistantWork(scope) { tools.done() }
+    /** The servers serve every chat: the last to end idles them. */
+    private val working = AssistantWork(scope) { chat, last, goesOn ->
+        if (last) tools.done()
+        scope.launch { queue.ended(chat, goesOn) }
+    }
 
     fun runs(workspace: String?, session: String): Boolean = working.runs(workspace to session)
 
@@ -78,7 +83,7 @@ internal class AssistantTurns(
 
     fun stop(workspace: String?, session: String) = working.stop(workspace to session)
 
-    /** Stops every turn in [workspace], and waits until their chats are saved. */
+    /** Stops every turn in [workspace], and waits until their chats are saved; their waiting messages wait. */
     suspend fun stopIn(workspace: String) = working.stopIn(workspace)
 
     /** One turn in a chat at a time; another chat's never waits on it. */
@@ -86,9 +91,6 @@ internal class AssistantTurns(
         val turn = Turn(workspace, session, aloud)
         if (!working.start(turn.chat) { turn.run(work) }) page.tell(AssistantNotices.busy(NoticePlace(AssistantPlace.name(workspace), workspace)))
     }
-
-    /** What a turn works with, as set when it starts: a change made while it runs is for the next one. */
-    private class Setup(val settings: AssistantSettings, val connection: AssistantConnection, val model: AssistantModel, val place: AssistantWorkspace, val choice: AssistantChoice)
 
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
@@ -141,12 +143,15 @@ internal class AssistantTurns(
 
         suspend fun converse(input: String, locations: List<String>) {
             val setup = setup()
-            val files = attachments.read(setup.place, locations, setup.model) { bytes, extension -> chats.keep(workspace, session, bytes, extension) }
-            talk(setup, AssistantMessage.User(input, files))
+            talk(setup, AssistantMessage.User(input, files(setup, locations)))
         }
 
         /** [message] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
-        suspend fun talk(setup: Setup, message: AssistantMessage.User) {
+        /** The files at [locations], read for [setup]'s model: kept in the chat's folder where they are pictures or PDFs. */
+        private suspend fun files(setup: AssistantSetup, locations: List<String>) =
+            attachments.read(setup.place, locations, setup.model) { bytes, extension -> chats.keep(workspace, session, bytes, extension) }
+
+        suspend fun talk(setup: AssistantSetup, message: AssistantMessage.User) {
             chosen = setup.choice.also { chats.choose(workspace, session, it) }
             update { it.copy(by = setup.choice) }
             val before = chats.of(workspace, session)
@@ -165,6 +170,7 @@ internal class AssistantTurns(
             // The first request after a compaction made while it works says whether it helped: one still near full is not made again.
             var compacted = false
             var compacts = true
+            var compacting = false
             fun request(history: AssistantHistory, input: AssistantMessage.User?) = AssistantTurnRequest(
                 connection = setup.connection,
                 model = setup.model,
@@ -180,7 +186,8 @@ internal class AssistantTurns(
                         compacts = !full
                         compacted = false
                     }
-                    full && compacts
+                    compacting = full && compacts
+                    queue.steering(chat) || compacting
                 },
             )
 
@@ -196,33 +203,36 @@ internal class AssistantTurns(
                     engine.run(next, this)
                 }
                 if (end == AssistantRunEnd.Answered) return
-                // Given back with the chat near full: compacted, it goes on by itself. The screen the step left is not sent a step later.
+                // Given back: near full, compacted; for Send now, the first waiting message joins the chat. It goes on by itself.
+                // The screen the step left is not sent a step later.
                 step.take()
-                compact(setup, AssistantRules.forModel(chats.of(workspace, session).messages, message))
-                compacted = true
-                next = goOn()
+                if (compacting) {
+                    compact(setup, AssistantRules.forModel(chats.of(workspace, session).messages, message))
+                    compacted = true
+                }
+                val steered = queue.steered(chat)
+                next = if (steered == null) goOn() else {
+                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }))
+                    chats.append(workspace, session, said)
+                    page.refresh(workspace, session)
+                    request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1), message), said)
+                }
             }
         }
 
         private suspend fun <T> runWithRetry(block: suspend (Int) -> T): T = AssistantRetries.runWithRetry(step = ::step, block = block)
 
         /** [history] summarized by the model and marked in the chat. */
-        suspend fun compact(setup: Setup, history: AssistantHistory) =
+        suspend fun compact(setup: AssistantSetup, history: AssistantHistory) =
             AssistantRetries.retryable(COMPACTING, step = ::step) {
                 val instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary)
                 chats.compacted(workspace, session, engine.compact(setup.connection, setup.model, instructions, history.messages))
                 page.refresh(workspace, session)
             }
 
-        /** The chat's own model while its provider still offers it, else what a new chat starts with. */
-        fun setup(): Setup {
-            val settings = settings()
-            val choice = (chats.of(workspace, session).answerer as? AssistantChoice)?.takeIf { settings.modelOf(it) != null } ?: settings.choice
-            val model = settings.modelOf(choice)
-            val connection = settings.providerOf(choice)?.let { providers.connection(it.id) }
-            if (choice == null || model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
+        fun setup() = AssistantSetup.of(settings(), chats.of(workspace, session).answerer, providers) {
             val folder = workspace?.let { runCatching { File(describe(it).location) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") } }
-            return Setup(settings, connection, model, AssistantWorkspace(folder, paths, storageAccess), choice)
+            AssistantWorkspace(folder, paths, storageAccess)
         }
 
         override fun writing(reasoning: String, text: String) {
@@ -282,6 +292,5 @@ internal class AssistantTurns(
 
         /** The phone tools' names start so: a turn offered one is told how to act on the phone. */
         const val PHONE_TOOLS = "phone_"
-        const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }
 }

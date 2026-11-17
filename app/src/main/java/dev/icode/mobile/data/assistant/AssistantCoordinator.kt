@@ -12,6 +12,7 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantExports
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPlace
@@ -66,11 +67,11 @@ internal class AssistantCoordinator(
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val questions = AssistantQuestions(page)
-    private val turns = AssistantTurns(
+    private val queue: AssistantQueue = AssistantQueue(chats, page) { turns }
+    private val turns: AssistantTurns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
-        storageAccess,
-        questions,
+        storageAccess, questions, queue,
     )
 
     /**
@@ -90,9 +91,7 @@ internal class AssistantCoordinator(
         }
     }
 
-    fun handle(intent: ICodeIntent.AssistantIntent) {
-        intents.trySend(intent)
-    }
+    fun handle(intent: ICodeIntent.AssistantIntent) { intents.trySend(intent) }
 
     private suspend fun apply(intent: ICodeIntent.AssistantIntent) {
         when (intent) {
@@ -107,6 +106,8 @@ internal class AssistantCoordinator(
             is ICodeIntent.ExportAssistantSession -> export(intent.id)
             ICodeIntent.NewAssistantChat -> page.display(here(), null)
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments, intent.aloud)
+            is ICodeIntent.SendQueuedAssistantMessage -> queue.sendNow(intent.id)
+            is ICodeIntent.RemoveQueuedAssistantMessage -> queue.remove(intent.id)
             is ICodeIntent.StopAssistant -> turns.stop(intent.workspace, intent.session)
             is ICodeIntent.AnswerAssistant -> questions.answer(intent.workspace, intent.session, intent.callId, intent.answer)
             is ICodeIntent.ReplyAssistant -> questions.reply(intent.workspace, intent.session, intent.callId, intent.reply)
@@ -148,10 +149,10 @@ internal class AssistantCoordinator(
         page.forgotten(location)
     }
 
-    private fun send(text: String, attachments: List<String>, aloud: Boolean) {
+    private fun send(text: String, files: List<AssistantDraftFile>, aloud: Boolean) {
         // A photo alone is a message, as it is in any chat; nothing at all is not.
         val input = text.trim()
-        if (input.isEmpty() && attachments.isEmpty()) return
+        if (input.isEmpty() && files.isEmpty()) return
         val shown = page.current
         val workspace = here()
         val onPage = shown.opened && shown.workspace == workspace
@@ -159,10 +160,10 @@ internal class AssistantCoordinator(
             // A new chat on the page is this one from now, so a second Send finds it at work; it is listed with its first message.
             if (onPage) page.state { it.copy(session = created) }
         }
-        // Sent while the turn there asks its questions: the reply, not a new turn refused as working.
-        if (attachments.isEmpty() && questions.replyWith(workspace, session, input)) return
+        // Sent while the turn there asks its questions: the reply, not a message waiting for the work to end.
+        if (files.isEmpty() && questions.replyWith(workspace, session, input)) return
         // Read aloud as Spoken replies says: decided once, so the turn's instructions and its voice agree.
-        turns.send(workspace, session, input, attachments, stateHolder.current.voice.spoken.speaks(aloud))
+        queue.send(workspace, session, input, files, stateHolder.current.voice.spoken.speaks(aloud))
     }
 
     /**

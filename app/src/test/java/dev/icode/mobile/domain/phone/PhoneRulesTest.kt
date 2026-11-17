@@ -108,7 +108,7 @@ class PhoneRulesTest {
         assertEquals(PhoneOverlay.Glow.Off, of(acting, away).glow)
     }
 
-    @Test fun `with chats at work at once, the bubble follows one asking, then the one on the phone, and sends unless its chat works`() {
+    @Test fun `with chats at work at once, the bubble follows one asking, then the one on the phone`() {
         val on = PhoneAccess(service = true, bubble = true)
         val phone = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true)
         val home = AssistantTurn(null, "Home", "s2", "Thinking…")
@@ -116,7 +116,6 @@ class PhoneRulesTest {
         assertEquals(phone, shownHome.focus)
         assertEquals(PhoneOverlay.Look.Acting, of(shownHome, on).look)
         assertEquals("Tap [3]", of(shownHome, on).step)
-        assertTrue(of(shownHome, on).busy)
         val asked = shownHome.changeTurn(null, "s2") { it.copy(pause = AssistantPause("")) }
         assertEquals("s2", asked.focus?.session)
         assertEquals(PhoneOverlay.Glow.Dim, of(asked, on).glow)
@@ -124,7 +123,6 @@ class PhoneRulesTest {
         val elsewhere = shownHome.copy(session = "s3")
         assertEquals(phone, elsewhere.focus)
         assertTrue(of(elsewhere, on).working)
-        assertFalse(of(elsewhere, on).busy)
     }
 
     @Test fun `the bubble shows the agent's activity before the microphone's, and listening only while it listens`() {

@@ -225,6 +225,8 @@ data class AssistantState(
     /** Who answers the chat shown, as it last chose; null for a new one, which starts with [AssistantSettings.choice]. */
     val answerer: AssistantAnswerer? = null,
     val messages: List<AssistantMessage> = emptyList(),
+    /** The chat shown's waiting messages, oldest first (docs/assistant-and-mcp.md). */
+    val queued: List<AssistantQueued> = emptyList(),
     /** Tokens the last request of this chat used; with [AssistantModel.contextWindow], how full it is. */
     val contextTokens: Long? = null,
     /** Every chat's turn in hand, in the order they began: chats work at once (docs/assistant-and-mcp.md). */

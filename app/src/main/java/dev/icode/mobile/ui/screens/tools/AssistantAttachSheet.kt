@@ -34,6 +34,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.SearchEngineState
@@ -50,11 +51,11 @@ import dev.icode.mobile.ui.screens.workspace.rankFiles
 @Composable
 internal fun AssistantAttachSheet(
     snapshot: ICodeSnapshot,
-    attached: List<DraftFile>,
+    attached: List<AssistantDraftFile>,
     pickers: AssistantPickers,
     modifier: Modifier,
     onClose: () -> Unit,
-    onAttached: (List<DraftFile>) -> Unit,
+    onAttached: (List<AssistantDraftFile>) -> Unit,
 ) {
     val gateway = LocalICodeGateway.current
     // A workspace's files go with a chat of that workspace, not with the phone's.
@@ -82,7 +83,7 @@ internal fun AssistantAttachSheet(
             onClick = {
                 when {
                     chosen -> onAttached(attached.filterNot { it.location == location })
-                    !full -> onAttached(attached + DraftFile(location, name, AssistantRules.attachmentKind(name, null)))
+                    !full -> onAttached(attached + AssistantDraftFile(location, name, AssistantRules.attachmentKind(name, null)))
                 }
             },
             leading = { IcodeCheckbox(chosen, onCheckedChange = null, enabled = chosen || !full) },

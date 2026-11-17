@@ -2,8 +2,10 @@ package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantAnswerer
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPermissions
+import dev.icode.mobile.domain.AssistantQueued
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
@@ -81,6 +83,26 @@ internal class AssistantChats(
 
     /** [session] answered by [answerer] from now on: saved with the chat, or with its first message. */
     fun choose(workspace: String?, session: String, answerer: AssistantAnswerer) = change(workspace, session) { it.copy(answerer = answerer) }
+
+    /** A message waits at the end of [session]'s queue while it works; saved with the chat (docs/assistant-and-mcp.md). */
+    fun enqueue(workspace: String?, session: String, text: String, files: List<AssistantDraftFile>, aloud: Boolean) =
+        change(workspace, session) { it.copy(queued = it.queued + AssistantQueued(UUID.randomUUID().toString(), text, files, aloud)) }
+
+    /** [id] out of [session]'s queue — the first when null — or null when it is not there. */
+    fun unqueue(workspace: String?, session: String, id: String? = null): AssistantQueued? = synchronized(lock) {
+        val queue = of(workspace, session).queued
+        val taken = (if (id == null) queue.firstOrNull() else queue.firstOrNull { it.id == id }) ?: return@synchronized null
+        change(workspace, session) { it.copy(queued = queue - taken) }
+        taken
+    }
+
+    /** [id] first in [session]'s queue, the next to go; false when it is not there. */
+    fun toFront(workspace: String?, session: String, id: String): Boolean = synchronized(lock) {
+        val queue = of(workspace, session).queued
+        val moved = queue.firstOrNull { it.id == id } ?: return@synchronized false
+        change(workspace, session) { it.copy(queued = listOf(moved) + (queue - moved)) }
+        true
+    }
 
     /** The tokens the last request used; saved with the reply that follows them. */
     fun used(workspace: String?, session: String, tokens: Long?) {

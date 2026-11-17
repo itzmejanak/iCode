@@ -5,7 +5,9 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantQueued
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.LineChanges
@@ -98,6 +100,21 @@ internal class AssistantChatCodec(private val folder: File) {
             json.has("provider") -> AssistantChoice(json.getString("provider"), json.getString("model"))
             else -> null
         }
+
+        /** A waiting message, as the chat list keeps it. */
+        fun queued(queued: AssistantQueued): JSONObject = JSONObject().put("id", queued.id).put("text", queued.text).put("aloud", queued.aloud).put(
+            "files",
+            JSONArray(queued.files.map { JSONObject().put("location", it.location).put("name", it.name).put("kind", it.kind.name) }),
+        )
+
+        fun queued(json: JSONObject): AssistantQueued = AssistantQueued(
+            json.getString("id"),
+            json.getString("text"),
+            json.optJSONArray("files")?.objects().orEmpty().map {
+                AssistantDraftFile(it.getString("location"), it.getString("name"), AssistantAttachmentKind.valueOf(it.getString("kind")))
+            },
+            json.optBoolean("aloud"),
+        )
     }
 
     private fun attachment(attachment: AssistantAttachment): JSONObject =

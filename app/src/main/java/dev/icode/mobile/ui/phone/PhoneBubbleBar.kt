@@ -166,7 +166,7 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
                 view.voice.speaking && draft.isBlank() -> OverlayButton(Icons.Outlined.StopCircle, "Stop reading aloud", IcodeColors.Accent, bottom) { actions.dispatch(VoiceIntent.Silence) }
                 else -> OverlayButton(
                     Icons.AutoMirrored.Outlined.Send, "Send", IcodeColors.Accent, bottom,
-                    enabled = draft.isNotBlank() && !overlay.busy, onClick = actions.send,
+                    enabled = draft.isNotBlank(), onClick = actions.send,
                 )
             }
         }

@@ -26,8 +26,6 @@ data class PhoneOverlay(
     val question: McpQuestion? = null,
     /** The model's questions wait in the chat the bubble sends to: what the bar sends is the reply. */
     val replying: Boolean = false,
-    /** The chat the bubble sends to works, and asks nothing to reply to: Send waits for it. */
-    val busy: Boolean = false,
 ) {
     enum class Glow { Off, On, Dim }
 
@@ -76,7 +74,7 @@ data class PhoneOverlay(
             }
             return PhoneOverlay(
                 bubble = access.bubble && !iCodeOnScreen, glow = glow, look = look, working = turn != null, asking = asking, step = turn?.step,
-                question = question, replying = assistant.replying, busy = assistant.runningHere && !assistant.replying,
+                question = question, replying = assistant.replying,
             )
         }
     }

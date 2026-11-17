@@ -204,21 +204,18 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         to(BubbleMode.Closed)
     }
 
-    /** A hearing for the bubble ended: its words sent in a voice session, else kept in the bar; nothing heard says why there. */
+    /**
+     * A hearing for the bubble ended: its words sent in a voice session — waiting in the chat's queue while it works — else
+     * kept in the bar; nothing heard says why there.
+     */
     private fun heard(next: ICodeSnapshot) {
         val heard = next.voice.heard?.takeIf { it.from == VoiceFrom.Bubble && it.final && it.id != heardId } ?: return
         heardId = heard.id
         val words = heard.sent
         when {
             words == null -> if (mode == BubbleMode.Voice) to(BubbleMode.Typing)
-            mode == BubbleMode.Voice && !next.assistant.runningHere -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
-            else -> {
-                draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ")
-                if (mode == BubbleMode.Voice) {
-                    muted = true
-                    to(BubbleMode.Typing)
-                }
-            }
+            mode == BubbleMode.Voice -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
+            else -> draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ")
         }
     }
 

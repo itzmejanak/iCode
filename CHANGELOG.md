@@ -15,6 +15,9 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   lists every provider under its own mark.
 - Several chats can work at once, each with its own step, questions, Stop, and notification;
   tapping a chat's notification opens that chat. One chat at a time acts on the phone.
+- A message sent while a chat works waits in a queue above the composer, saved with the chat,
+  and goes when the work ends. A waiting message can be edited, removed, or sent now: the same
+  model takes it after its current step and goes on with it; another model takes over.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

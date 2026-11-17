@@ -18,7 +18,12 @@ import org.junit.Test
 class AssistantWorkTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     @Volatile private var idled = 0
-    private val work = AssistantWork(scope) { idled++ }
+    /** Each chat that ended, and whether it goes on. */
+    private val ended = java.util.Collections.synchronizedList(mutableListOf<Pair<Pair<String?, String>, Boolean>>())
+    private val work = AssistantWork(scope) { chat, last, goesOn ->
+        ended += chat to goesOn
+        if (last) idled++
+    }
     private val a = "/w/app" to "a"
     private val b = "/w/app" to "b"
     private val home = null to "c"
@@ -71,6 +76,11 @@ class AssistantWorkTest {
         withTimeout(5_000) { work.stopIn("/w/app") }
         until { !work.runs(a) && !work.runs(b) }
         assertTrue(work.runs(home))
+        // Stopped with their workspace, they do not go on; a chat stopped on its own does.
+        assertEquals(setOf(a to false, b to false), ended.toSet())
+        work.stop(home)
+        until { ended.size == 3 }
+        assertEquals(home to true, ended.last())
     }
 
     @Test fun `the phone's screen is one chat's until its turn ends`() = runBlocking {

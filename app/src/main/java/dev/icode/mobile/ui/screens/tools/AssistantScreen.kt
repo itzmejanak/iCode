@@ -30,6 +30,7 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.AssistantAttachmentKind
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
@@ -78,7 +79,7 @@ fun AssistantScreen(actions: NavigationActions) {
     }
     // The message being written and the files going with it: this page's own until sent.
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
-    var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<DraftFile>()) }
+    var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<AssistantDraftFile>()) }
     // An MCP server's prompt or resource, taken into the message for the user to read before sending.
     LaunchedEffect(snapshot.mcp.draft) {
         val taken = snapshot.mcp.draft ?: return@LaunchedEffect
@@ -86,7 +87,7 @@ fun AssistantScreen(actions: NavigationActions) {
         gateway.dispatch(McpIntent.DraftTaken)
     }
     // Up to five, each once, in the order chosen; any past five are said to stay behind.
-    val attach = { files: List<DraftFile> ->
+    val attach = { files: List<AssistantDraftFile> ->
         val all = (attached + files).distinctBy { it.location }
         if (all.size > AssistantRules.MAX_ATTACHMENTS) {
             gateway.dispatch(NoticeIntent.Tell(AssistantNotices.tooManyFiles(all.size - AssistantRules.MAX_ATTACHMENTS, AssistantRules.MAX_ATTACHMENTS)))
@@ -148,6 +149,12 @@ fun AssistantScreen(actions: NavigationActions) {
                         entryKey = row
                         sheet = AssistantSheet.Actions
                     },
+                    // Back into the composer with what is already typed there, and out of the queue.
+                    onEditQueued = { queued ->
+                        draft = listOf(draft, queued.text).filter { it.isNotBlank() }.joinToString("\n")
+                        attached = (attached + queued.files).distinct().take(AssistantRules.MAX_ATTACHMENTS)
+                        gateway.dispatch(ICodeIntent.RemoveQueuedAssistantMessage(queued.id))
+                    },
                 )
             }
             // Above the composer on every state of the page: a process outlives the chat that started it.
@@ -162,7 +169,7 @@ fun AssistantScreen(actions: NavigationActions) {
                     onAttach = { sheet = AssistantSheet.Attach },
                     onModels = { sheet = AssistantSheet.Models },
                     onSend = {
-                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached.map { it.location }))
+                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached))
                         draft = ""
                         attached = emptyList()
                     },
@@ -200,7 +207,7 @@ fun AssistantScreen(actions: NavigationActions) {
 }
 
 /** The files going with a draft, through a configuration change: three strings each. */
-private val DRAFT_SAVER = listSaver<List<DraftFile>, String>(
+private val DRAFT_SAVER = listSaver<List<AssistantDraftFile>, String>(
     save = { files -> files.flatMap { listOf(it.location, it.name, it.kind.name) } },
-    restore = { saved -> saved.chunked(3).map { (location, name, kind) -> DraftFile(location, name, AssistantAttachmentKind.valueOf(kind)) } },
+    restore = { saved -> saved.chunked(3).map { (location, name, kind) -> AssistantDraftFile(location, name, AssistantAttachmentKind.valueOf(kind)) } },
 )

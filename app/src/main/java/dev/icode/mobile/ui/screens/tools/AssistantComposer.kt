@@ -43,6 +43,7 @@ import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPlace
@@ -69,8 +70,8 @@ internal fun AssistantComposer(
     state: AssistantState,
     draft: String,
     onDraft: (String) -> Unit,
-    attached: List<DraftFile>,
-    onDetach: (DraftFile) -> Unit,
+    attached: List<AssistantDraftFile>,
+    onDetach: (AssistantDraftFile) -> Unit,
     onAttach: () -> Unit,
     onModels: () -> Unit,
     onSend: () -> Unit,
@@ -85,17 +86,18 @@ internal fun AssistantComposer(
         gateway.dispatch(VoiceIntent.Refresh)
         if (granted) gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Chat))
     }
-    // Once the user stops talking, what was heard is sent with what was typed; while this chat works, it waits in the
-    // field — unless the chat's turn waits on its questions, which it answers.
+    // Once the user stops talking, what was heard is sent with what was typed: while this chat works it waits in its
+    // queue, or answers the chat's questions. A reply takes no files: then it stays in the field.
     OnHeard(voice, VoiceFrom.Chat) { words ->
         onDraft(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
-        if (!state.runningHere || state.replying && attached.isEmpty()) onSend()
+        if (!state.replying || attached.isEmpty()) onSend()
     }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
     val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, state.model)
-    // Words, files or both: a photo alone is a question too. While the turn asks its questions, words alone reply.
+    // Words, files or both: a photo alone is a question too, and while the chat works it waits in the queue.
+    // While the turn asks its questions, words alone reply.
     val canSend = if (state.replying) draft.isNotBlank() && attached.isEmpty()
-    else (draft.isNotBlank() || attached.isNotEmpty()) && !state.runningHere && unreadable == null
+    else (draft.isNotBlank() || attached.isNotEmpty()) && unreadable == null
     Column(
         Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
@@ -167,7 +169,8 @@ internal fun AssistantComposer(
                 MicButton(voice, VoiceFrom.Chat, gateway::dispatch) { askMicrophone.launch(Manifest.permission.RECORD_AUDIO) }
                 val turn = state.turn
                 when {
-                    turn != null && !(state.replying && draft.isNotBlank()) -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }) {
+                    // At work with nothing to send: Stop; typing brings Send back, to queue or to reply.
+                    turn != null && draft.isBlank() && attached.isEmpty() -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant(turn.workspace, turn.session)) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
                     }
                     // An answer read aloud: Stop silences it; typing brings Send back.
@@ -262,7 +265,7 @@ private fun <T> Choice(
  * photo, and opens a file of the workspace in the editor.
  */
 @Composable
-private fun AttachedFile(file: DraftFile, onRemove: () -> Unit) {
+private fun AttachedFile(file: AssistantDraftFile, onRemove: () -> Unit) {
     val open = attachmentOpener(file.name, file.kind, file.location, file.location.takeUnless { it.startsWith(CONTENT_URI) })
     Row(
         Modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small).tappable(open),

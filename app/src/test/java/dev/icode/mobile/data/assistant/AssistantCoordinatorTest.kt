@@ -12,6 +12,7 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantCommitMessage
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantLive
@@ -191,6 +192,9 @@ class AssistantCoordinatorTest {
     private fun halt() = state().turn!!.let { coordinator.handle(ICodeIntent.StopAssistant(it.workspace, it.session)) }
 
     private fun goOn() = state().turn!!.let { coordinator.handle(ICodeIntent.ContinueAssistant(it.workspace, it.session)) }
+
+    /** Files sent with a message, as the composer holds them. */
+    private fun files(vararg locations: String) = locations.map { AssistantDraftFile(it, it.substringAfterLast('/'), AssistantRules.attachmentKind(it.substringAfterLast('/'), null)) }
 
     private fun said(text: String) {
         val before = requests.size
@@ -540,13 +544,12 @@ class AssistantCoordinatorTest {
 
     @Test fun `chats work at once, one message at a time in each, and none without a provider`() {
         editTurn()
-        // Two in the same instant in one chat: the second finds the first one's turn before its page does.
+        // Two in the same instant in one chat: the second finds the first one's turn before its page does, and waits.
         coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
         coordinator.handle(ICodeIntent.SendAssistantMessage("at once"))
-        until { state().approval != null }
+        until { state().approval != null && state().queued.isNotEmpty() }
         val first = state().session!!
-        coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
-        until { effects.any { it.said() == Said(NoticeTone.HeadsUp, "Wait for this chat to finish", "It is still working. Or stop it.") } }
+        assertEquals(listOf("at once"), state().queued.map { it.text })
         assertEquals(1, requests.size)
         // Another chat works meanwhile, and asks its own question about a call with the same ID.
         coordinator.handle(ICodeIntent.NewAssistantChat)
@@ -560,6 +563,8 @@ class AssistantCoordinatorTest {
         // The first chat still waits on its own question.
         assertEquals(listOf(first), state().turns.map { it.session })
         assertEquals("Edit a.kt", state().turnOf(app, first)?.approval?.call?.summary)
+        // Its waiting message taken out, so stopping it sends nothing more.
+        chats.unqueue(app, first)
         coordinator.handle(ICodeIntent.StopAssistant(app, first))
         until { !state().running }
 
@@ -615,7 +620,7 @@ class AssistantCoordinatorTest {
         stateHolder.update { it.copy(openDocuments = listOf(OpenDocument("b.kt", b, "val b = 2 // unsaved", TextEncoding.Utf8, LineEnding.Lf, dirty = true, readOnly = false))) }
         said("Compare")
         script = { _, events -> events.replied(AssistantMessage.Reply("ok")) }
-        coordinator.handle(ICodeIntent.SendAssistantMessage("Compare", listOf(File(app, "a.kt").path, b)))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Compare", files(File(app, "a.kt").path, b)))
         until { requests.size == 2 && !state().running }
         assertEquals(
             listOf(AssistantAttachment("a.kt", text = "val a = 1", inWorkspace = true), AssistantAttachment("b.kt", text = "val b = 2 // unsaved", inWorkspace = true)),
@@ -623,7 +628,7 @@ class AssistantCoordinatorTest {
         )
 
         val outside = temp.newFile("secret.txt").apply { writeText("no") }
-        coordinator.handle(ICodeIntent.SendAssistantMessage("Leak", listOf(outside.path)))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Leak", files(outside.path)))
         until { state().failure != null }
         assertEquals("secret.txt is not in this workspace", state().failure)
         assertEquals(2, requests.size)
@@ -768,6 +773,139 @@ class AssistantCoordinatorTest {
         assertEquals(listOf("User", "Reply", "Compacted", "User", "Reply"), kinds)
     }
 
+    @Test fun `a message sent while its chat works waits in its queue, and goes when the work ends`() {
+        val gate = CompletableDeferred<Unit>()
+        script = { turn, events ->
+            if (turn.input?.text == "first") gate.await()
+            events.replied(AssistantMessage.Reply("Re: ${turn.input?.text}"))
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
+        until { state().turn != null }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("third"))
+        until { state().queued.size == 2 }
+        assertEquals(listOf("second", "third"), state().queued.map { it.text })
+        assertEquals(1, requests.size)
+        gate.complete(Unit)
+        until { requests.size == 3 && !state().running }
+        assertEquals(listOf("first", "second", "third"), requests.map { it.input?.text })
+        assertTrue(state().queued.isEmpty())
+        assertEquals(AssistantMessage.Reply("Re: third", by = gpt5), state().messages.last())
+    }
+
+    @Test fun `after Stop, and after a failure, the next waiting message goes too`() {
+        script = { turn, events ->
+            when (turn.input?.text) {
+                "first" -> awaitCancellation()
+                "second" -> throw AssistantTurnException("The provider refused")
+                else -> events.replied(AssistantMessage.Reply("Re: ${turn.input?.text}"))
+            }
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
+        until { state().turn != null }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("third"))
+        until { state().queued.size == 2 }
+        halt()
+        until { requests.size == 3 && !state().running }
+        assertEquals(listOf("first", "second", "third"), requests.map { it.input?.text })
+        assertEquals(AssistantMessage.Reply("Re: third", by = gpt5), state().messages.last())
+    }
+
+    @Test fun `Send now steers the work in hand with the same model, and after its step the message joins the chat and it goes on`() {
+        val read = AssistantCall("c1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
+        val gate = CompletableDeferred<Unit>()
+        script = { turn, events ->
+            if (turn.input?.text == "Build it") {
+                gate.await()
+                events.replied(AssistantMessage.Reply("Reading.", listOf(read)))
+                events.answered(AssistantResult(read.id, read.tool, "val a = 1", false))
+            } else {
+                events.replied(AssistantMessage.Reply("Done."))
+            }
+        }
+        ended = { if (it.input?.text == "Build it" && it.handBack()) AssistantRunEnd.HandedBack else AssistantRunEnd.Answered }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Build it"))
+        until { state().turn?.by != null }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Use Kotlin"))
+        until { state().queued.size == 1 }
+        coordinator.handle(ICodeIntent.SendQueuedAssistantMessage(state().queued.single().id))
+        gate.complete(Unit)
+        until { requests.size == 2 && !state().running }
+        assertEquals(AssistantMessage.User("Use Kotlin"), requests[1].input)
+        assertEquals(listOf("User", "Reply", "Results"), requests[1].history.map { it.javaClass.simpleName })
+        assertEquals(listOf("User", "Reply", "Results", "User", "Reply"), state().messages.map { it.javaClass.simpleName })
+        assertTrue(state().queued.isEmpty())
+    }
+
+    @Test fun `a message removed after Send now steers nothing in, and the work goes on from the chat`() {
+        val read = AssistantCall("c1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
+        val gate = CompletableDeferred<Unit>()
+        script = { turn, events ->
+            if (turn.input?.text == "Build it") {
+                gate.await()
+                events.replied(AssistantMessage.Reply("Reading.", listOf(read)))
+                events.answered(AssistantResult(read.id, read.tool, "val a = 1", false))
+            } else {
+                events.replied(AssistantMessage.Reply("Done."))
+            }
+        }
+        ended = { if (it.input?.text == "Build it" && it.handBack()) AssistantRunEnd.HandedBack else AssistantRunEnd.Answered }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Build it"))
+        until { state().turn?.by != null }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Use Kotlin"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Then tests"))
+        until { state().queued.size == 2 }
+        val chosen = state().queued.last().id
+        coordinator.handle(ICodeIntent.SendQueuedAssistantMessage(chosen))
+        coordinator.handle(ICodeIntent.RemoveQueuedAssistantMessage(chosen))
+        until { state().queued.map { it.text } == listOf("Use Kotlin") }
+        gate.complete(Unit)
+        // Given back, it goes on from the chat with nothing new; then the one left waiting goes.
+        until { requests.size == 3 && !state().running }
+        assertNull(requests[1].input)
+        assertEquals("Use Kotlin", requests[2].input?.text)
+        assertTrue(state().queued.isEmpty())
+    }
+
+    @Test fun `Send now for another model stops the work, and the message goes next with that model`() {
+        val o3 = AssistantChoice(openAI, "o3")
+        script = { turn, events ->
+            if (turn.input?.text == "first") awaitCancellation()
+            events.replied(AssistantMessage.Reply("Re: ${turn.input?.text}"))
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
+        until { state().turn?.by != null }
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "o3"))
+        until { state().answerer == o3 }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
+        until { state().queued.size == 1 }
+        coordinator.handle(ICodeIntent.SendQueuedAssistantMessage(state().queued.single().id))
+        until { requests.size == 2 && !state().running }
+        assertEquals("o3", requests[1].model.id)
+        assertEquals(AssistantMessage.Reply("Re: second", by = o3), state().messages.last())
+    }
+
+    @Test fun `waiting messages kept from before wait, one is removed, and Send now sends one at once`() {
+        // As iCode finds a chat after it was closed: its messages, and what still waits, with nothing at work.
+        val session = chats.newSession()
+        chats.append(app, session, AssistantMessage.User("one"))
+        chats.append(app, session, AssistantMessage.Reply("Re: one"))
+        chats.enqueue(app, session, "two", emptyList(), aloud = false)
+        chats.enqueue(app, session, "three", emptyList(), aloud = false)
+        coordinator.handle(ICodeIntent.OpenAssistantSession(app, session))
+        until { state().queued.size == 2 }
+        Thread.sleep(50)
+        assertTrue(requests.isEmpty())
+        coordinator.handle(ICodeIntent.RemoveQueuedAssistantMessage(state().queued.first().id))
+        until { state().queued.size == 1 }
+        script = { turn, events -> events.replied(AssistantMessage.Reply("Re: ${turn.input?.text}")) }
+        coordinator.handle(ICodeIntent.SendQueuedAssistantMessage(state().queued.single().id))
+        until { requests.size == 1 && !state().running }
+        assertEquals("three", requests.single().input?.text)
+        assertTrue(state().queued.isEmpty())
+    }
+
     @Test fun `a workspace's rename stops its turn first, then its chats and their answers follow, and its delete takes them`() = runBlocking {
         val asked = CompletableDeferred<Unit>()
         script = { _, events ->
@@ -780,8 +918,13 @@ class AssistantCoordinatorTest {
         val session = state().session!!
         chats.allowInWorkspace(app, session)
         chats.open(app, session, listOf("/etc"))
+        // A message waiting then waits on: it is not sent into a workspace being moved.
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Then this"))
+        until { state().queued.isNotEmpty() }
         coordinator.workspaceMoved(app, "$app-renamed")
         assertNull(state().turn)
+        assertEquals(1, requests.size)
+        assertEquals(listOf("Then this"), chats.of("$app-renamed", session).queued.map { it.text })
         assertEquals("$app-renamed", state().workspace)
         assertEquals(session, state().session)
         assertEquals(2, chats.of("$app-renamed", session).messages.size)
@@ -835,7 +978,7 @@ class AssistantCoordinatorTest {
 
     @Test fun `a photo from the phone goes to a model that sees, kept in its chat, and is refused by one that does not`() {
         phoneFiles["content://photos/1"] = PhoneFile("IMG_1.jpg", "image/jpeg") { byteArrayOf(9, 9, 9).inputStream() }
-        coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", files("content://photos/1")))
         until { state().failure != null }
         assertEquals("gpt-5 does not read images — choose a model that does", state().failure)
         assertTrue("nothing was sent", requests.isEmpty())
@@ -845,7 +988,7 @@ class AssistantCoordinatorTest {
         until { state().settings.model?.id == "gpt-5-vision" }
         said("ok")
         script = { _, events -> events.replied(AssistantMessage.Reply("A cat.")) }
-        coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", files("content://photos/1")))
         until { requests.size == 2 && !state().running }
         val photo = requests.last().input!!.attachments.single()
         assertEquals("IMG_1.jpg", photo.name)
@@ -854,7 +997,7 @@ class AssistantCoordinatorTest {
         assertTrue("kept in the chat's own folder", File(photo.file!!).parentFile!!.name == "${state().session}.files")
 
         // A grant gone with the process: said, nothing sent.
-        coordinator.handle(ICodeIntent.SendAssistantMessage("Again", listOf("content://photos/gone")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Again", files("content://photos/gone")))
         until { state().failure != null }
         assertEquals("A file from the phone can no longer be read — attach it again", state().failure)
     }
@@ -866,7 +1009,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
         until { state().settings.model?.id == "gpt-5-vision" }
         script = { _, events -> events.replied(AssistantMessage.Reply("A receipt.")) }
-        coordinator.handle(ICodeIntent.SendAssistantMessage("", listOf("content://photos/2")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("", files("content://photos/2")))
         until { requests.size == 1 && !state().running }
         assertEquals("", requests.single().input!!.text)
         assertEquals("IMG_2.jpg", requests.single().input!!.attachments.single().name)
