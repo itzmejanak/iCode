@@ -1,6 +1,6 @@
 # Assistant and MCP
 
-This document describes the assistant and Model Context Protocol (MCP) support that iCode currently ships. The [privacy policy](../PRIVACY.md) and [security policy](../SECURITY.md) are the policy sources for data handling and vulnerability reporting. Exact unfinished requirements and acceptance evidence live only in [Built-in assistant providers and tool lifecycle](roadmap.md#built-in-assistant-providers-and-tool-lifecycle), [Existing MCP transports, sign-in, and server acceptance](roadmap.md#existing-mcp-transports-sign-in-and-server-acceptance), and [MCP modern protocol support](roadmap.md#mcp-modern-protocol-support).
+This document describes the assistant and Model Context Protocol (MCP) support that iCode currently ships. The [privacy policy](../PRIVACY.md) and [security policy](../SECURITY.md) are the policy sources for data handling and vulnerability reporting. Exact unfinished requirements and acceptance evidence live only in [Built-in assistant providers and tool lifecycle](roadmap.md#built-in-assistant-providers-and-tool-lifecycle), [Existing MCP transports, sign-in, and server acceptance](roadmap.md#existing-mcp-transports-sign-in-and-server-acceptance), [MCP modern protocol support](roadmap.md#mcp-modern-protocol-support), and [External coding agents through ACP](roadmap.md#external-coding-agents-through-acp).
 
 ## Status labels
 
