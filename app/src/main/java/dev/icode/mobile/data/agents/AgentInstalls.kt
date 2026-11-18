@@ -42,8 +42,11 @@ internal class AgentInstalls(
     private val agents = File(home, ".local/share/icode/agents")
     val receipts = AgentReceipts(home)
 
-    /** [agent]'s release installed, in place of the one installed: saying each step. A failure or a cancel leaves nothing of it. */
-    suspend fun install(agent: CodingAgent, onProgress: (ToolSetupProgress) -> Unit): InstalledAgent {
+    /**
+     * [agent]'s release installed, in place of the one installed: saying each step, and put in place once
+     * [ready] returns, after it is downloaded. A failure or a cancel leaves nothing of it.
+     */
+    suspend fun install(agent: CodingAgent, ready: suspend () -> Unit = {}, onProgress: (ToolSetupProgress) -> Unit): InstalledAgent {
         val source = agent.source ?: throw IOException("${agent.name} has no build for this phone")
         if (!VERSION.matches(agent.version)) throw IOException("${agent.name}'s version is not one iCode installs")
         val folder = File(agents, "${agent.id}/${agent.version}")
@@ -52,7 +55,10 @@ internal class AgentInstalls(
                 is AgentSource.Binary -> unpack(agent, source, folder, onProgress)
                 is AgentSource.Npm -> npmInstall(agent, source, folder, onProgress)
             }
-            InstalledAgent(agent.version, listOf(receipts.guest(program)) + source.args, source.env, sizeOf(folder)).also { receipts.record(agent.id, it) }
+            InstalledAgent(agent.version, listOf(receipts.guest(program)) + source.args, source.env, sizeOf(folder)).also {
+                ready()
+                receipts.record(agent.id, it)
+            }
         } catch (failed: Throwable) {
             withContext(NonCancellable) { deleteTree(folder) }
             throw failed

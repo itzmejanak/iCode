@@ -10,7 +10,9 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AgentAction
 import dev.icode.mobile.domain.AgentIntent
 import dev.icode.mobile.domain.AgentWork
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.CodingAgentsState
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ToolSetupProgress
 import dev.icode.mobile.domain.notices.AgentNotices
@@ -19,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -83,7 +86,14 @@ internal class CodingAgentsCoordinator(
         val action = if (id in stateHolder.current.agents.installed) AgentAction.Update else AgentAction.Install
         run(agent.id, AgentWork(action, ToolSetupProgress("${action.doing} ${agent.name}", cancellable = true))) {
             try {
-                val installed = installs.install(agent) { progress -> state { it.copy(work = it.work + (id to AgentWork(action, progress))) } }
+                // While the agent works in a chat its release stays as it is: the new one goes in place once that work ends (owner's choice, 2026-11-17).
+                val ready: suspend () -> Unit = {
+                    if (!idle(id, stateHolder.current)) {
+                        state { it.copy(work = it.work + (id to AgentWork(action, ToolSetupProgress("Installs when ${agent.name} finishes", cancellable = true)))) }
+                        stateHolder.snapshot.first { idle(id, it) }
+                    }
+                }
+                val installed = installs.install(agent, ready) { progress -> state { it.copy(work = it.work + (id to AgentWork(action, progress))) } }
                 stateHolder.tell(AgentNotices.installed(agent.name, installed.version))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -130,6 +140,9 @@ internal class CodingAgentsCoordinator(
         }
         job.start()
     }
+
+    /** Whether no chat's turn is answered by agent [id] now. */
+    private fun idle(id: String, snapshot: ICodeSnapshot): Boolean = snapshot.assistant.turns.none { it.by == AssistantAgent(id) }
 
     private fun nameOf(id: String): String = stateHolder.current.agents.catalogue.firstOrNull { it.id == id }?.name ?: id
 

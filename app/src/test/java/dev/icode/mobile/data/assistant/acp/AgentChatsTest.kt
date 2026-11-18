@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -41,6 +42,7 @@ class AgentChatsTest {
     private val saved = AtomicInteger()
     private val runtime by lazy { TestRuntime(temp.root) }
     private val tabs = java.util.concurrent.CopyOnWriteArrayList<Triple<String?, String, String>>()
+    private val releases = kotlinx.coroutines.flow.MutableStateFlow(mapOf(CLAUDE to "1.0.0"))
     private val chats by lazy { AssistantChats(AssistantChatStore(temp.newFolder("chats"))) }
     private val agentChats by lazy {
         AgentChats(
@@ -53,6 +55,7 @@ class AgentChatsTest {
             saveOpen = { saved.incrementAndGet() },
             states = stateHolder.snapshot.map { it.assistant },
             ask = null,
+            releases = releases,
         ) { changed, stopped, records, asked ->
             AcpAgents(scope, fake, { emptyMap() }, { mapOf(CLAUDE to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", changed = changed, stopped = stopped, records = records, asked = asked)
         }
@@ -140,7 +143,8 @@ class AgentChatsTest {
         chats.agentSession("/workspaces/app", "c1", CLAUDE, "s-9")
         agentChats.start()
         stateHolder.update { it.copy(assistant = it.assistant.copy(opened = true, workspace = "/workspaces/app", session = "c1", agent = CLAUDE)) }
-        until { "s-9" in fake.loaded }
+        // Opened, and kept again as the chat's, before it is forgotten.
+        until { "s-9" in fake.loaded && page().agentChat != null }
         agentChats.forget("/workspaces/app" to "c1")
         until { "s-9" in fake.deleted }
         assertEquals(emptyMap<String, String>(), chats.of("/workspaces/app", "c1").agentSessions)
@@ -177,6 +181,15 @@ class AgentChatsTest {
         assertEquals(mapOf(CLAUDE to "s-new"), chats.of("/workspaces/app", chat).agentSessions)
         assertEquals(listOf("s-old"), page().agentFinds!!.found.map { it.session })
         assertNull(page().agentFinds!!.opening)
+    }
+
+    @Test fun `an agent whose release changes stops, and starts again for the chat shown`() {
+        agentChats.start()
+        stateHolder.update { it.copy(assistant = it.assistant.copy(opened = true, workspace = "/workspaces/app", session = null, agent = CLAUDE)) }
+        until { page().agentChat != null }
+        releases.value = mapOf(CLAUDE to "1.1.0")
+        until { fake.programs.size == 2 && page().agentChat != null }
+        assertTrue("The one that ran the old release stopped", !fake.programs.first().ended.isActive)
     }
 
     private companion object {

@@ -19,6 +19,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -121,6 +122,25 @@ class CodingAgentsCoordinatorTest {
         coordinator.handle(AgentIntent.UpdateAll)
         told("Codex 2.8.0 installed")
         until { agents().updates.isEmpty() && agents().work.isEmpty() }
+    }
+
+    @Test fun `an update tapped while the agent works downloads at once and goes in place when its work ends`() {
+        checked()
+        coordinator.handle(AgentIntent.Install("codex-acp"))
+        installed("Codex 2.7.0 installed")
+        val turn = dev.icode.mobile.domain.AssistantTurn("/w/app", "app", "c1", "Working", by = dev.icode.mobile.domain.AssistantAgent("codex-acp"))
+        stateHolder.update { it.copy(assistant = it.assistant.copy(turns = listOf(turn))) }
+        list = registry("2.8.0")
+        checked()
+        coordinator.handle(AgentIntent.Install("codex-acp"))
+        until { agents().work["codex-acp"]?.progress?.step == "Installs when Codex finishes" }
+        assertTrue("Downloaded meanwhile", File(home, ".local/share/icode/agents/codex-acp/2.8.0").isDirectory)
+        assertEquals("The release in use stays", "2.7.0", AgentReceipts(home).installed().getValue("codex-acp").version)
+        assertTrue(File(home, ".local/share/icode/agents/codex-acp/2.7.0").isDirectory)
+        stateHolder.update { it.copy(assistant = it.assistant.copy(turns = emptyList())) }
+        installed("Codex 2.8.0 installed")
+        assertEquals("2.8.0", agents().installed.getValue("codex-acp").version)
+        assertFalse(File(home, ".local/share/icode/agents/codex-acp/2.7.0").exists())
     }
 
     @Test fun `a failure is said with npm's words, and nothing is installed`() {

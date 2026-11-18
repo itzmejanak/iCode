@@ -33,6 +33,7 @@ import dev.icode.mobile.domain.notices.AgentNotices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -60,6 +61,8 @@ internal class AgentChats(
     private val states: Flow<AssistantState>,
     /** The question card the MCP servers ask on, for the agents' questions too; none where there is no card. */
     private val ask: (suspend ((Long) -> McpQuestion) -> McpAnswer)?,
+    /** Each installed agent's version, as it changes: an update put in place, or a removal. */
+    private val releases: Flow<Map<String, String>> = emptyFlow(),
     /**
      * The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]), their
      * sessions kept in the chats, and their questions put to the user ([asked]).
@@ -82,6 +85,19 @@ internal class AgentChats(
     fun start() {
         page.state { it.copy(agent = preferences.last, untestedSaid = preferences.untestedSaid()) }
         scope.launch { states.map(::shownOf).distinctUntilChanged().collect(::shown) }
+        scope.launch {
+            var before: Map<String, String>? = null
+            releases.collect { now ->
+                before?.let { was -> was.keys.filter { now[it] != was[it] }.forEach { released(it) } }
+                before = now
+            }
+        }
+    }
+
+    /** [agent]'s release changed or went: the one running stops, and the chat shown starts it again where it is still installed. */
+    private suspend fun released(agent: String) {
+        agents.restart(agent)
+        if (agent in installed()) prepareShown()
     }
 
     fun handle(intent: AgentChatIntent) {
@@ -267,7 +283,7 @@ internal class AgentChats(
             return { page, chats, placeOf, ask ->
                 AgentChats(
                     scope, page, chats, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen,
-                    icode.snapshot.map { it.assistant }, ask,
+                    icode.snapshot.map { it.assistant }, ask, icode.snapshot.map { snapshot -> snapshot.agents.installed.mapValues { it.value.version } }.distinctUntilChanged(),
                 ) { changed, stopped, records, asked ->
                     AcpAgents(
                         scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),
