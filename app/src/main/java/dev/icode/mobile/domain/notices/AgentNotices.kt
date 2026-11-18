@@ -26,6 +26,9 @@ object AgentNotices {
     /** An agent's own program that did not open in the terminal, with why. */
     fun notOpened(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't open $name in the terminal", output = words)
 
+    /** An agent that could not list its conversations, or take one up, with why. */
+    fun notFound(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't read $name's chats", output = words)
+
     /** A setting the agent refused to change, with why. */
     fun notSet(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "$name kept its setting", output = words)
 

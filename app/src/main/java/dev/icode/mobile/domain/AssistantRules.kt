@@ -31,6 +31,12 @@ object AssistantRules {
      */
     fun replied(messages: List<AssistantMessage>): Boolean = messages.isNotEmpty() && messages.last() !is AssistantMessage.User
 
+    /** [messages] with [result]: a turn's results kept together, after the reply that asked for them. */
+    fun answered(messages: List<AssistantMessage>, result: AssistantResult): List<AssistantMessage> {
+        val last = messages.lastOrNull()
+        return if (last is AssistantMessage.Results) messages.dropLast(1) + AssistantMessage.Results(last.results + result) else messages + AssistantMessage.Results(listOf(result))
+    }
+
     /** The page: what was said and done in [state]'s chat. */
     fun entries(state: AssistantState): List<AssistantEntry> = buildList {
         var firstOpen = true

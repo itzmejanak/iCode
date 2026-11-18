@@ -56,7 +56,7 @@ internal class AcpTurn(private val agents: AcpAgents) {
         approve: suspend (AssistantCall, List<AssistantOption>) -> String?,
     ) = agents.use(agent) { running ->
         // Another answerer wrote since this agent last did: its session missed that, so it starts afresh.
-        if (history.lastOrNull { it is AssistantMessage.Reply }.let { it as? AssistantMessage.Reply }?.by != AssistantAgent(agent)) forget(chat)
+        if ((history.lastOrNull { it is AssistantMessage.Reply } as? AssistantMessage.Reply)?.let { it.by != AssistantAgent(agent) } == true) forget(chat)
         val (session, first) = agents.session(running, chat, place.guestPath)
         if (first) costs.remove(chat)
         val replies = AcpReplies(events) { path -> path.removePrefix(place.guestPath + "/").takeIf { it != path } }
@@ -163,6 +163,9 @@ internal class ChatOperations(
 ) : ClientSessionOperations {
     @Volatile var asking: (suspend (SessionUpdate.ToolCallUpdate, List<PermissionOption>) -> RequestPermissionResponse)? = null
 
+    /** Told every update while the agent replays the session as it loads it, for a chat to take it up with all that was said. */
+    @Volatile var replaying: ((SessionUpdate) -> Unit)? = null
+
     /**
      * The mode iCode set, until the agent says another: the protocol's answer to setting one carries none,
      * and the SDK records a mode only as the agent reports it.
@@ -176,7 +179,10 @@ internal class ChatOperations(
     override suspend fun requestPermissions(toolCall: SessionUpdate.ToolCallUpdate, permissions: List<PermissionOption>, _meta: JsonElement?) =
         asking?.invoke(toolCall, permissions) ?: RequestPermissionResponse(RequestPermissionOutcome.Cancelled)
 
-    override suspend fun notify(notification: SessionUpdate, _meta: JsonElement?) = heard(notification)
+    override suspend fun notify(notification: SessionUpdate, _meta: JsonElement?) {
+        replaying?.invoke(notification)
+        heard(notification)
+    }
 
     override suspend fun createElicitation(request: CreateElicitationRequest): CreateElicitationResponse = asked(request)
 

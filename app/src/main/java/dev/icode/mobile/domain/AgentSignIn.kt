@@ -39,4 +39,10 @@ sealed interface AgentChatIntent : ICodeIntent.AssistantIntent {
 
     /** [agent]'s own program in the chat shown's terminal tab, taking up the chat's session where it can. */
     data class OpenProgram(val agent: String) : AgentChatIntent
+
+    /** Every installed agent asked for its conversations in the place shown that no chat has (owner's choice, 2026-11-18). */
+    data object Find : AgentChatIntent
+
+    /** [found] taken up as a new chat, its conversation so far replayed into it. */
+    data class TakeUp(val found: AgentFound) : AgentChatIntent
 }

@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant.acp
 
 import com.agentclientprotocol.agent.Agent
+import com.agentclientprotocol.annotations.UnstableApi
 import com.agentclientprotocol.agent.AgentInfo
 import com.agentclientprotocol.agent.AgentSession
 import com.agentclientprotocol.agent.AgentSupport
@@ -23,6 +24,8 @@ import com.agentclientprotocol.model.SessionConfigOptionValue
 import com.agentclientprotocol.model.SessionCapabilities
 import com.agentclientprotocol.model.SessionConfigValueId
 import com.agentclientprotocol.model.SessionDeleteCapabilities
+import com.agentclientprotocol.model.SessionInfo
+import com.agentclientprotocol.model.SessionListCapabilities
 import com.agentclientprotocol.model.SessionId
 import com.agentclientprotocol.model.SessionMode
 import com.agentclientprotocol.model.SessionModeId
@@ -60,6 +63,7 @@ import kotlinx.serialization.json.JsonElement
  * pipes, speaking the protocol as a real agent's stdout would. [answer] is what a prompt does — its
  * updates sent and its end — by default one line of text and the end of the turn.
  */
+@OptIn(UnstableApi::class)
 internal class FakeAgents : StdioPrograms {
     /** What each start was given: its command, its variables and its folder. */
     data class Start(val id: String, val argv: List<String>, val variables: Map<String, String>, val folder: String)
@@ -87,6 +91,13 @@ internal class FakeAgents : StdioPrograms {
     /** Whether it says it deletes sessions, and each it deleted. */
     @Volatile var deletes = false
     val deleted = CopyOnWriteArrayList<String>()
+
+    /** Whether it says it lists sessions, and those it lists, each in its folder. */
+    @Volatile var lists = false
+    @Volatile var listed: List<SessionInfo> = emptyList()
+
+    /** What a session loaded replays of what was said in it. */
+    @Volatile var history: List<SessionUpdate> = emptyList()
 
     /** Each mode and option set, as the client asked: "mode" to "default", "auto_approve" to "false". */
     val sets = CopyOnWriteArrayList<Pair<String, String>>()
@@ -138,9 +149,12 @@ internal class FakeAgents : StdioPrograms {
     private fun support() = object : AgentSupport {
         override suspend fun initialize(clientInfo: ClientInfo): AgentInfo {
             client = clientInfo
-            val sessions = SessionCapabilities(delete = if (deletes) SessionDeleteCapabilities() else null)
+            val sessions = SessionCapabilities(list = if (lists) SessionListCapabilities() else null, delete = if (deletes) SessionDeleteCapabilities() else null)
             return AgentInfo(capabilities = AgentCapabilities(loadSession = loads, sessionCapabilities = sessions), authMethods = methods)
         }
+
+        override suspend fun listSessions(cwd: String?, additionalDirectories: List<String>?, _meta: JsonElement?): Sequence<SessionInfo> =
+            listed.filter { cwd == null || it.cwd == cwd }.asSequence()
 
         override suspend fun deleteSession(sessionId: SessionId, _meta: JsonElement?): DeleteSessionResponse {
             deleted += sessionId.value
@@ -197,6 +211,10 @@ internal class FakeAgents : StdioPrograms {
                         }
                     }
                     return SetSessionConfigOptionResponse(settings)
+                }
+
+                override suspend fun replayHistory() {
+                    history.forEach { currentCoroutineContext().client.notify(it) }
                 }
 
                 override suspend fun postInitialize() {

@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,12 +29,15 @@ import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
+import dev.icode.mobile.domain.AgentChatIntent
+import dev.icode.mobile.domain.AgentFound
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
@@ -45,17 +49,27 @@ import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.mark
 
 /**
- * The workspace's chats, newest first: open one, delete one, or start another.
+ * The workspace's chats, newest first: open one, delete one, or start another. Once looked for, the
+ * agents' conversations no chat here has are among them, by date (owner's choice, 2026-11-18).
  */
 @Composable
 internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit) {
     val gateway = LocalICodeGateway.current
+    val agentsInstalled = LocalICodeSnapshot.current.agents.installed.isNotEmpty()
     var query by rememberSaveable { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AssistantSession?>(null) }
-    val shown = state.sessions.filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
+    var tookUp by remember { mutableStateOf(false) }
+    // A conversation taken up opens as the chat shown: the list has done its part.
+    LaunchedEffect(state.session) { if (tookUp) onClose() }
+    val finds = state.agentFinds?.takeIf { it.workspace == state.workspace }
+    val matches = { title: String -> query.isBlank() || title.contains(query.trim(), ignoreCase = true) }
+    val shown = (state.sessions.filter { matches(it.title) }.map { it.updatedAt to it } + finds?.found.orEmpty().filter { matches(it.title) }.map { it.updatedAt to it })
+        .sortedByDescending { it.first }
+        .map { it.second }
     IcodeBottomSheet(
         title = "Chats",
         onClose = onClose,
@@ -72,8 +86,15 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
         },
     ) {
         if (state.sessions.size > SEARCH_FROM) Search(query, "Search chats") { query = it }
-        if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in ${AssistantPlace.name(state.workspace)} yet" else "No chat matches")
-        shown.forEach { session ->
+        if (shown.isEmpty()) Hint(if (state.sessions.isEmpty() && finds?.found.isNullOrEmpty()) "No chats in ${AssistantPlace.name(state.workspace)} yet" else "No chat matches")
+        shown.forEach { entry ->
+            if (entry is AgentFound) {
+                return@forEach FoundAgentChatRow(entry, opening = finds?.opening == entry.session, enabled = finds?.opening == null) {
+                    tookUp = true
+                    gateway.dispatch(AgentChatIntent.TakeUp(entry))
+                }
+            }
+            val session = entry as AssistantSession
             val working = state.turnOf(state.workspace, session.id) != null
             IcodeListRow(
                 title = session.title,
@@ -104,6 +125,17 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
                         }
                     }
                 },
+            )
+        }
+        // An agent's own conversations here are looked for only when asked: each agent starts to list them.
+        if (agentsInstalled) {
+            if (finds?.looking == false && finds.found.isEmpty()) Hint("No agent chats found")
+            IcodeTextButton(
+                if (finds?.looking == true) "Looking…" else "Find Agent Chats",
+                { gateway.dispatch(AgentChatIntent.Find) },
+                Modifier.align(Alignment.CenterHorizontally),
+                icon = Icons.Outlined.Search,
+                busy = finds?.looking == true,
             )
         }
     }

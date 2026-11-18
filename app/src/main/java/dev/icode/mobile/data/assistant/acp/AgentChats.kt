@@ -18,7 +18,6 @@ import dev.icode.mobile.data.runtime.shellLine
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AgentChat
 import dev.icode.mobile.domain.AgentChatIntent
-import dev.icode.mobile.domain.AgentPrograms
 import dev.icode.mobile.domain.AgentSignInWay
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantCall
@@ -74,6 +73,7 @@ internal class AgentChats(
 ) : AgentAnswers {
     private val agents = agentsOf(::offered, ::stopped, ChatRecords(chats), ask?.let { { agent, request -> asked(agent, request) } })
     private val turn = AcpTurn(agents)
+    private val outside = OutsideSessions(scope, page, chats, agents, placeOf, installed, runInTab, ::name)
 
     /** The chat shown, by its session — [AcpAgents.NEW_CHAT] for one not started — and the agent answering it, if one is. */
     private data class Shown(val chat: Pair<String?, String>, val agent: String?)
@@ -96,7 +96,9 @@ internal class AgentChats(
             }
             is AgentChatIntent.SignedIn -> scope.launch { prepareShown() }
             is AgentChatIntent.Set -> set(intent)
-            is AgentChatIntent.OpenProgram -> openProgram(intent.agent)
+            is AgentChatIntent.OpenProgram -> outside.openProgram(intent.agent)
+            AgentChatIntent.Find -> outside.find()
+            is AgentChatIntent.TakeUp -> outside.takeUp(intent.found)
         }
     }
 
@@ -218,26 +220,6 @@ internal class AgentChats(
                 }
                 is AgentSignInWay.Keys -> Unit
             }
-        }
-    }
-
-    /**
-     * [agent]'s own program in the chat shown's terminal tab ([AgentPrograms]), with the variables its
-     * receipt records — not the keys kept in iCode, which the tab would show. One that takes up the chat's
-     * session stops the agent first, so the session has one writer; the chat's next message takes it up
-     * again with what was done in the terminal. An agent at work in a chat is not stopped.
-     */
-    private fun openProgram(agent: String) {
-        val shown = page.current
-        val session = shown.session ?: return
-        val install = installed()[agent] ?: return
-        val kept = chats.of(shown.workspace, session).agentSessions[agent]?.takeIf { AgentPrograms.resumes(agent) }
-        val command = AgentPrograms.command(agent, install.command, kept) ?: return
-        if (kept != null && shown.turns.any { it.by == AssistantAgent(agent) }) return page.tell(AgentNotices.working(name(agent)))
-        scope.launch {
-            if (kept != null) agents.restart(agent)
-            runCatching { runInTab(shown.workspace, session, shellLine(command, install.env)) }
-                .onFailure { page.tell(AgentNotices.notOpened(name(agent), it.message ?: it.javaClass.simpleName)) }
         }
     }
 

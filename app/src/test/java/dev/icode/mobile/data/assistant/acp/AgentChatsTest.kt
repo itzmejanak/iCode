@@ -146,6 +146,39 @@ class AgentChatsTest {
         assertEquals(emptyMap<String, String>(), chats.of("/workspaces/app", "c1").agentSessions)
     }
 
+    @Test fun `asked, the agents' conversations no chat here keeps are listed newest first, and one taken up opens as a chat with all that was said`() {
+        fake.lists = true
+        fake.loads = true
+        fake.history = listOf(
+            com.agentclientprotocol.model.SessionUpdate.UserMessageChunk(com.agentclientprotocol.model.ContentBlock.Text("Fix the login")),
+            FakeAgents.chunk("Fixed."),
+        )
+        val place = runtime.workspace.guestPath
+        fake.listed = listOf(
+            com.agentclientprotocol.model.SessionInfo(com.agentclientprotocol.model.SessionId("s-old"), place, "Old work", "2026-11-01T10:00:00Z"),
+            com.agentclientprotocol.model.SessionInfo(com.agentclientprotocol.model.SessionId("s-kept"), place, "Kept by a chat", "2026-11-17T10:00:00Z"),
+            com.agentclientprotocol.model.SessionInfo(com.agentclientprotocol.model.SessionId("s-new"), place, null, "2026-11-10T10:00:00Z"),
+        )
+        chats.append("/workspaces/app", "c1", dev.icode.mobile.domain.AssistantMessage.User("Mine"))
+        chats.agentSession("/workspaces/app", "c1", CLAUDE, "s-kept")
+        agentChats.start()
+        stateHolder.update { it.copy(assistant = it.assistant.copy(opened = true, workspace = "/workspaces/app", session = "c1")) }
+        agentChats.handle(AgentChatIntent.Find)
+        until { page().agentFinds?.looking == false }
+        assertEquals(listOf("s-new" to "claude-acp chat", "s-old" to "Old work"), page().agentFinds!!.found.map { it.session to it.title })
+
+        agentChats.handle(AgentChatIntent.TakeUp(page().agentFinds!!.found.first()))
+        until { page().session != "c1" && page().messages.isNotEmpty() }
+        val chat = page().session!!
+        assertEquals(
+            listOf(dev.icode.mobile.domain.AssistantMessage.User("Fix the login"), dev.icode.mobile.domain.AssistantMessage.Reply("Fixed.", by = dev.icode.mobile.domain.AssistantAgent(CLAUDE))),
+            chats.of("/workspaces/app", chat).messages,
+        )
+        assertEquals(mapOf(CLAUDE to "s-new"), chats.of("/workspaces/app", chat).agentSessions)
+        assertEquals(listOf("s-old"), page().agentFinds!!.found.map { it.session })
+        assertNull(page().agentFinds!!.opening)
+    }
+
     private companion object {
         const val CLAUDE = "claude-acp"
     }

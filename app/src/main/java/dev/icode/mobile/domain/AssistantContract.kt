@@ -235,6 +235,8 @@ data class AssistantState(
     val interrupted: Boolean = false,
     /** What the agent answering the chat shown offers it — settings and commands — once it has started for it. */
     val agentChat: AgentChat? = null,
+    /** The agents' conversations last looked for, in the chats' list until the place shown changes. */
+    val agentFinds: AgentFinds? = null,
     /** A commit message being written, or written and not yet in the commit field. */
     val commitMessage: AssistantCommitMessage? = null,
 ) {

@@ -3,6 +3,13 @@ package dev.icode.mobile.data.assistant.acp
 import com.agentclientprotocol.model.CreateElicitationRequest
 import com.agentclientprotocol.model.ElicitationScope
 import com.agentclientprotocol.model.SessionId
+import com.agentclientprotocol.model.SessionInfo
+import com.agentclientprotocol.model.ContentBlock
+import com.agentclientprotocol.model.Cost
+import com.agentclientprotocol.model.ToolCallContent
+import com.agentclientprotocol.model.ToolCallId
+import com.agentclientprotocol.model.ToolCallStatus
+import com.agentclientprotocol.model.ToolKind
 import com.agentclientprotocol.annotations.UnstableApi
 import com.agentclientprotocol.common.Event
 import com.agentclientprotocol.model.AvailableCommand
@@ -151,6 +158,74 @@ class AcpSessionsTest {
         delay(300)
         assertTrue(fake.deleted.isEmpty())
         assertEquals(1, fake.programs.size)
+    }
+
+    @Test fun `an agent lists its sessions in a chat's place, but none a chat holds`() = runBlocking {
+        fake.lists = true
+        val held = prepared(CLAUDE, CHAT)
+        fake.listed = listOf(
+            SessionInfo(SessionId("s-out"), place.guestPath, "Fix the login", "2026-11-17T10:00:00Z"),
+            SessionInfo(held.session.sessionId, place.guestPath, "Held"),
+            SessionInfo(SessionId("s-else"), "/elsewhere", "Elsewhere"),
+        )
+        assertEquals(listOf("s-out"), withTimeout(20_000) { agents.listed(CLAUDE, place.guestPath) }.map { it.sessionId.value })
+    }
+
+    @Test fun `an agent that lists no sessions is not started again to be asked`() = runBlocking {
+        prepared(CLAUDE, CHAT)
+        agents.restart(CLAUDE)
+        assertEquals(emptyList<SessionInfo>(), agents.listed(CLAUDE, place.guestPath))
+        assertEquals(1, fake.programs.size)
+    }
+
+    @Test fun `a session taken up is loaded and its conversation replayed into the chat's messages`() = runBlocking {
+        fake.loads = true
+        fake.history = listOf(
+            SessionUpdate.UserMessageChunk(ContentBlock.Text("Fix the ")),
+            SessionUpdate.UserMessageChunk(ContentBlock.Text("login")),
+            FakeAgents.chunk("Looking."),
+            SessionUpdate.ToolCall(ToolCallId("c1"), "List files", ToolKind.EXECUTE, ToolCallStatus.COMPLETED, content = listOf(ToolCallContent.Content(ContentBlock.Text("a.kt")))),
+            SessionUpdate.UsageUpdate(10, 100, Cost(1.5, "USD")),
+            FakeAgents.chunk("Done."),
+            SessionUpdate.UserMessageChunk(ContentBlock.Text("Thanks")),
+        )
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        records.keep(OTHER, CHAT, "s-out")
+        val replay = AcpReplay(OTHER) { null }
+        val held = withTimeout(20_000) { first.use(OTHER) { first.prepare(it, CHAT, place.guestPath, replay::on) } }
+        assertEquals("s-out", held.session.sessionId.value)
+        assertTrue("Nothing more goes with its first message", held.prompted)
+        assertTrue(fake.sessions.isEmpty())
+        val messages = replay.messages()
+        assertEquals(listOf("User", "Reply", "Results", "Reply", "User"), messages.map { it.javaClass.simpleName })
+        assertEquals("Fix the login", (messages[0] as AssistantMessage.User).text)
+        assertEquals(AssistantMessage.Reply("Looking.", (messages[1] as AssistantMessage.Reply).calls, by = AssistantAgent(OTHER)), messages[1])
+        assertEquals("a.kt", (messages[2] as AssistantMessage.Results).results.single().output)
+        assertEquals(AssistantMessage.Reply("Done.", by = AssistantAgent(OTHER)), messages[3])
+    }
+
+    @Test fun `a session to take up that the agent cannot load is said, never replaced by a new one`() = runBlocking {
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        records.keep(OTHER, CHAT, "s-out")
+        val failure = runCatching { withTimeout(20_000) { first.use(OTHER) { first.prepare(it, CHAT, place.guestPath) {} } } }.exceptionOrNull()
+        assertEquals("The agent could not load this chat", failure?.message)
+        assertTrue(fake.sessions.isEmpty())
+        assertEquals("s-out", records.ids[OTHER to CHAT])
+    }
+
+    @Test fun `a chat the agent has not replied in yet keeps its session, so one taken up is never deleted`() = runBlocking {
+        fake.loads = true
+        fake.deletes = true
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        records.keep(OTHER, CHAT, "s-out")
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, listOf(AssistantMessage.User("One")), AssistantMessage.User("Two"), Recorded()) { _, _ -> null } }
+        assertEquals(listOf("s-out"), fake.loaded.toList())
+        assertEquals("Two", fake.prompts.last())
+        delay(200)
+        assertTrue(fake.deleted.isEmpty())
     }
 
     @Test fun `an agent's question is asked as the card asks it, and the answer goes back as its fields' types`() = runBlocking {

@@ -24,6 +24,15 @@ enum class AgentPlanStatus { Pending, Working, Done }
 /** One entry of the to-do list an agent keeps while it works. */
 data class AgentPlanStep(val text: String, val status: AgentPlanStatus)
 
+/** A conversation an agent keeps in a chat's place that no chat here has: started outside iCode, as the agent lists it. */
+data class AgentFound(val agent: String, val session: String, val title: String, val updatedAt: Long)
+
+/**
+ * The agents' conversations found in [workspace]'s place — the runtime's home for none — whether some
+ * are still being looked for, and the one being taken up as a chat, by its session.
+ */
+data class AgentFinds(val workspace: String?, val found: List<AgentFound> = emptyList(), val looking: Boolean = true, val opening: String? = null)
+
 /** What the agent answering the chat shown offers it, once it has started for it: its settings and commands. */
 data class AgentChat(val agent: String, val settings: List<AgentSetting> = emptyList(), val commands: List<AgentCommand> = emptyList())
 

@@ -49,6 +49,9 @@ internal class AssistantChatStore(private val folder: File) {
     /** [workspace]'s chats, newest first. */
     fun sessions(workspace: String?): List<AssistantSession> = synchronized(lock) { listed(workspace).map { it.session } }
 
+    /** Every agent's session [workspace]'s chats keep, by its ID. */
+    fun agentSessions(workspace: String?): Set<String> = synchronized(lock) { listed(workspace).flatMap { it.agentSessions.values }.toSet() }
+
     /** [session] of [workspace], every call answered; empty when it is not there or cannot be read. */
     fun load(workspace: String?, session: String): AssistantChat = synchronized(lock) {
         val listed = listed(workspace).firstOrNull { it.session.id == session }

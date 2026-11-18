@@ -33,6 +33,10 @@ internal class AssistantChats(
     fun sessions(workspace: String?): List<AssistantSession> =
         runCatching { store.sessions(workspace) }.onFailure { warn("list", it) }.getOrDefault(emptyList())
 
+    /** Every agent's session [workspace]'s chats keep: an agent's conversations no chat has are the others. */
+    fun agentSessions(workspace: String?): Set<String> =
+        runCatching { store.agentSessions(workspace) }.onFailure { warn("list", it) }.getOrDefault(emptySet())
+
     /** An ID for a new chat: it is saved, and listed, with its first message. */
     fun newSession(): String = UUID.randomUUID().toString()
 
@@ -82,16 +86,10 @@ internal class AssistantChats(
     }
 
     /** One call's result: with the others of its reply, which are right after it. */
-    fun answer(workspace: String?, session: String, result: AssistantResult) = change(workspace, session) { chat ->
-        val last = chat.messages.lastOrNull()
-        chat.copy(
-            messages = if (last is AssistantMessage.Results) {
-                chat.messages.dropLast(1) + AssistantMessage.Results(last.results + result)
-            } else {
-                chat.messages + AssistantMessage.Results(listOf(result))
-            },
-        )
-    }
+    fun answer(workspace: String?, session: String, result: AssistantResult) = change(workspace, session) { it.copy(messages = AssistantRules.answered(it.messages, result)) }
+
+    /** [session] begins with [messages] said elsewhere: an agent's conversation, taken up here. */
+    fun begin(workspace: String?, session: String, messages: List<AssistantMessage>) = change(workspace, session) { it.copy(messages = messages) }
 
     /** [session] answered by [answerer] from now on: saved with the chat, or with its first message. */
     fun choose(workspace: String?, session: String, answerer: AssistantAnswerer) = change(workspace, session) { it.copy(answerer = answerer) }

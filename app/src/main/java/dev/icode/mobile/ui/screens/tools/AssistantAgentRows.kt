@@ -9,12 +9,15 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AgentChatIntent
+import dev.icode.mobile.domain.AgentFound
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.CodingAgents
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.agentMark
@@ -60,4 +63,21 @@ internal fun AgentRows(state: AssistantState, onClose: () -> Unit, onAgents: () 
             },
         )
     }
+}
+
+/**
+ * An agent's conversation no chat here has, among the chats by date (docs/assistant-and-mcp.md): under the
+ * agent's mark; a tap takes it up as a chat with all that was said, [opening] while it loads.
+ */
+@Composable
+internal fun FoundAgentChatRow(found: AgentFound, opening: Boolean, enabled: Boolean, onTakeUp: () -> Unit) {
+    val name = LocalICodeSnapshot.current.agents.catalogue.firstOrNull { it.id == found.agent }?.name ?: found.agent
+    IcodeListRow(
+        title = found.title,
+        subtitle = if (opening) "Opening…" else listOfNotNull(name, found.updatedAt.takeIf { it > 0 }?.let(RelativeTime::since)).joinToString(" · "),
+        subtitleStyle = IcodeType.Caption,
+        leading = { Icon(agentMark(found.agent), contentDescription = name, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd)) },
+        onClick = onTakeUp.takeIf { enabled },
+        trailing = { if (opening) IcodeSpinner(color = IcodeColors.Accent) },
+    )
 }

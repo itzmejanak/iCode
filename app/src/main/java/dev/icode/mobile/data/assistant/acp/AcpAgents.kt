@@ -14,7 +14,10 @@ import com.agentclientprotocol.model.ElicitationCapabilities
 import com.agentclientprotocol.model.ElicitationFormCapabilities
 import com.agentclientprotocol.model.ElicitationUrlCapabilities
 import com.agentclientprotocol.model.Implementation
+import com.agentclientprotocol.model.SessionCapabilities
 import com.agentclientprotocol.model.SessionId
+import com.agentclientprotocol.model.SessionInfo
+import com.agentclientprotocol.model.SessionUpdate
 import com.agentclientprotocol.protocol.JsonRpcException
 import com.agentclientprotocol.protocol.Protocol
 import com.agentclientprotocol.rpc.JsonRpcErrorCode
@@ -32,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -105,8 +109,8 @@ internal class AcpAgents(
     private val lock = Mutex()
     private val running = ConcurrentHashMap<String, Running>()
 
-    /** Whether each agent said it deletes sessions, as it last started. */
-    private val deletes = ConcurrentHashMap<String, Boolean>()
+    /** What each agent said it does with sessions, as it last started. */
+    private val said = ConcurrentHashMap<String, SessionCapabilities>()
 
     /** [block] with [id]'s connection, started if it is not running; it idles from the last use on. */
     suspend fun <T> use(id: String, block: suspend (Running) -> T): T {
@@ -139,10 +143,12 @@ internal class AcpAgents(
     /**
      * [chat]'s session with [agent], made in [cwd] if it has none, for its settings and commands to show
      * before a message goes: [NEW_CHAT] names a chat not started yet. Throws [SignInNeeded] when the agent
-     * asks to be signed in first.
+     * asks to be signed in first. With [replay], the session the chat keeps is loaded, never made anew,
+     * and [replay] is told what the agent replays of it.
      */
-    suspend fun prepare(agent: Running, chat: Pair<String?, String>, cwd: String): Held = agent.opening.withLock {
-        agent.sessions[chat] ?: adopted(agent, chat) ?: open(agent, chat, cwd)
+    suspend fun prepare(agent: Running, chat: Pair<String?, String>, cwd: String, replay: ((SessionUpdate) -> Unit)? = null): Held = agent.opening.withLock {
+        // A session to replay is the one the chat keeps, never a new chat's.
+        agent.sessions[chat] ?: replay?.let { open(agent, chat, cwd, it) } ?: adopted(agent, chat) ?: open(agent, chat, cwd, null)
     }
 
     /** The session made for a new chat in [chat]'s workspace, now [chat]'s: no message has gone in it, so the chat so far goes with its first. */
@@ -159,12 +165,15 @@ internal class AcpAgents(
      * [chat]'s session: the one it had with [agent] before it stopped, taken up again where the agent can,
      * else a new one, started in the agent's asking values. A session taken up has had the chat so far.
      */
-    private suspend fun open(agent: Running, chat: Pair<String?, String>, cwd: String): Held {
+    private suspend fun open(agent: Running, chat: Pair<String?, String>, cwd: String, replay: ((SessionUpdate) -> Unit)?): Held {
         val operations = ChatOperations(agent.id, chat, { changed(agent.id, it) }) { request -> asked?.invoke(agent.id, request) ?: AcpQuestions.CANCELLED }
         val parameters = SessionCreationParameters(cwd, emptyList())
         // A new chat has no session to take up, nor a place in the chats' records.
         val recorded = chat.second != NEW_CHAT
-        val again = (if (recorded) records.of(agent.id, chat) else null)?.let { reopened(agent, SessionId(it), parameters, operations) }
+        operations.replaying = replay
+        val again = (if (recorded) records.of(agent.id, chat) else null)?.let { reopened(agent, SessionId(it), parameters, operations, replay != null) }
+        operations.replaying = null
+        if (replay != null && again == null) throw AssistantTurnException("The agent could not load this chat")
         val session = again ?: try {
             agent.client.newSession(parameters) { _, _ -> operations }.also { AcpSettings.startAsking(agent.id, it) }
         } catch (refused: JsonRpcException) {
@@ -178,15 +187,27 @@ internal class AcpAgents(
         }
     }
 
-    /** [id] taken up again: resumed where [agent] can, else loaded, which replays it; null where it can neither, or refuses. */
-    private suspend fun reopened(agent: Running, id: SessionId, parameters: SessionCreationParameters, operations: ChatOperations): ClientSession? = try {
+    /** [id] taken up again: resumed where [agent] can, else — or to be [replayed] — loaded, which replays it; null where it cannot, or refuses. */
+    private suspend fun reopened(agent: Running, id: SessionId, parameters: SessionCreationParameters, operations: ChatOperations, replayed: Boolean): ClientSession? = try {
         when {
-            agent.capabilities.sessionCapabilities.resume != null -> agent.client.resumeSession(id, parameters) { _, _ -> operations }
+            !replayed && agent.capabilities.sessionCapabilities.resume != null -> agent.client.resumeSession(id, parameters) { _, _ -> operations }
             agent.capabilities.loadSession -> agent.client.loadSession(id, parameters) { _, _ -> operations }
             else -> null
         }
     } catch (refused: JsonRpcException) {
         null
+    }
+
+    /**
+     * [agent]'s sessions in [cwd] that none of its chats holds, as it lists them — started for it, unless
+     * it said it lists none when it last ran.
+     */
+    suspend fun listed(agent: String, cwd: String): List<SessionInfo> {
+        if (said[agent]?.let { it.list == null } == true) return emptyList()
+        return use(agent) { running ->
+            val held = running.sessions.values.map { it.session.sessionId.value }.toSet()
+            if (running.capabilities.sessionCapabilities.list == null) emptyList() else running.client.listSessions(cwd).toList().filterNot { it.sessionId.value in held }
+        }
     }
 
     /** [chat]'s session with [id], while its agent runs. */
@@ -206,7 +227,7 @@ internal class AcpAgents(
      * said otherwise when it last ran. One it cannot delete stays in its own folders.
      */
     private suspend fun delete(agent: String, session: String) {
-        if (deletes[agent] == false) return
+        if (said[agent]?.let { it.delete == null } == true) return
         runCatching { use(agent) { if (it.capabilities.sessionCapabilities.delete != null) it.client.deleteSession(SessionId(session)) } }
     }
 
@@ -235,7 +256,7 @@ internal class AcpAgents(
             val said = programs.tail(id, LOG_LINES).lastOrNull { it.isNotBlank() }
             throw AssistantTurnException("The agent did not start: ${said ?: failed.message ?: failed.javaClass.simpleName}", failed)
         }
-        deletes[id] = info.capabilities.sessionCapabilities.delete != null
+        said[id] = info.capabilities.sessionCapabilities
         return Running(id, program, client, info.authMethods.mapNotNull(::signInOf), info.capabilities)
     }
 
