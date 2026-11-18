@@ -187,8 +187,8 @@ internal class AssistantTurns(
             page.listed(workspace)
             page.refresh(workspace, session)
             events.show(THINKING)
-            // iCode's tools and the user's servers, served to the agent: they ask as the assistant's do in Ask first (owner's choice, 2026-11-18).
-            val offered = gate(tools.forAgent(place, session, events.step), place) { AssistantPermission.AskFirst }
+            // iCode's tools and the user's servers, served to the agent: they ask as the assistant's do from Ask first, raised as the chat allowed (owner's choice, 2026-11-18).
+            val offered = gate(tools.forAgent(place, session, events.step), place) { AssistantPermissions.effective(AssistantPermission.AskFirst, chats.allowedInWorkspace(workspace, session), workspace != null) }
             answering.answer(agent.id, chat, place, history, message, events, aloud, offered) { call, options -> questions.choose(workspace, session, call, options) }
         }
 
