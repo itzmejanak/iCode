@@ -20,7 +20,8 @@ class AgentSettingsTest {
         assertEquals(mapOf("mode" to "read-only"), AgentSettings.ASKING["codex-acp"])
         assertEquals(mapOf("mode" to "default"), AgentSettings.ASKING["gemini"])
         assertEquals(mapOf("auto_approve" to "false"), AgentSettings.ASKING["cline"])
-        assertNull("Unchecked agents start as they start", AgentSettings.ASKING["opencode"])
+        assertEquals("OpenCode's Build asks where no permission is set", mapOf("mode" to "build"), AgentSettings.ASKING["opencode"])
+        assertNull("Unchecked agents start as they start", AgentSettings.ASKING["factory-droid"])
 
         assertEquals("Changes files and runs commands without asking you", AgentSettings.warning("claude-acp", "mode", "bypassPermissions"))
         assertEquals("Decides itself what is safe, and may act without asking you", AgentSettings.warning("codex-acp", "mode", "agent"))
@@ -28,7 +29,8 @@ class AgentSettingsTest {
         assertEquals("Changes files and runs commands without asking you", AgentSettings.warning("cline", "auto_approve", "true"))
         assertNull(AgentSettings.warning("claude-acp", "mode", "default"))
         assertNull(AgentSettings.warning("cline", "auto_approve", "false"))
-        assertNull("No warning until an agent is checked", AgentSettings.warning("opencode", "mode", "build"))
+        assertNull("OpenCode's own modes all ask by default", AgentSettings.warning("opencode", "mode", "plan"))
+        assertNull("No warning until an agent is checked", AgentSettings.warning("factory-droid", "mode", "auto"))
     }
 
     @Test fun `progress counts what is done of the whole list, and there is none without a list`() {

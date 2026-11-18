@@ -54,6 +54,7 @@ object AgentSettings {
         "codex-acp" to mapOf(MODE to "read-only"),
         "gemini" to mapOf(MODE to "default"),
         "cline" to mapOf("auto_approve" to "false"),
+        "opencode" to mapOf(MODE to "build"),
     )
 
     private const val EDITS = "Changes files without asking you"

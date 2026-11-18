@@ -14,6 +14,11 @@ class AgentProgramsTest {
         assertEquals(listOf("/root/.local/share/icode/agents/codex-acp/2.7.0/node_modules/.bin/codex", "resume", "t-1"), AgentPrograms.command("codex-acp", codex, "t-1"))
     }
 
+    @Test fun `OpenCode is its own program, and takes up the chat's session by the ID it gave it`() {
+        assertEquals(listOf("/a/opencode", "--session", "ses_1"), AgentPrograms.command("opencode", listOf("/a/opencode", "acp"), "ses_1"))
+        assertEquals(true, AgentPrograms.resumes("opencode"))
+    }
+
     @Test fun `an agent that is its own program opens without its ACP arguments, afresh`() {
         assertEquals(listOf("/a/node_modules/.bin/gemini"), AgentPrograms.command("gemini", listOf("/a/node_modules/.bin/gemini", "--acp"), "s-1"))
         assertEquals(listOf("/a/node_modules/cline/bin/cline"), AgentPrograms.command("cline", listOf("/a/node_modules/cline/bin/cline", "--acp"), null))
