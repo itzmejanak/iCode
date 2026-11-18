@@ -156,6 +156,11 @@ kotlin {
     }
 }
 
+// Koog's Android clients bring slf4j-simple, which prints what the libraries log to System.err, and so to
+// logcat. SLF4J's no-op provider takes its place (below): what Koog, Ktor, and the MCP and ACP SDKs log,
+// chat content included, is dropped (docs/architecture.md). AcpLoggingTest fails if another provider comes.
+configurations.configureEach { exclude(group = "org.slf4j", module = "slf4j-simple") }
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.04.01")
     val soraBom = platform("io.github.rosemoe:editor-bom:$soraEditorVersion")
@@ -220,8 +225,10 @@ dependencies {
     // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client only.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
     // Coding agents in the chats (docs/assistant-and-mcp.md): the official Agent Client Protocol SDK, its stdio
-    // client only. Its logs go to SLF4J, which has no provider here, so none is written anywhere.
+    // client only. Its logs go to SLF4J, and from there nowhere.
     implementation("com.agentclientprotocol:acp:0.34.0")
+    // SLF4J's no-op provider, in place of Koog's slf4j-simple (above): every library's SLF4J logging is dropped.
+    runtimeOnly("org.slf4j:slf4j-nop:2.0.17")
     // JSON for the language servers' protocol (docs/editor-and-language-services.md): the version Koog and the MCP SDK
     // already resolve, declared because the language client uses it directly.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")

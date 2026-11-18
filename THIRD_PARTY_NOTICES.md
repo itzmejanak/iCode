@@ -32,7 +32,7 @@ This table names the principal direct dependencies. `app/build.gradle.kts` is th
 | Ktor and OkHttp | Gradle-managed | Apache-2.0 |
 | MCP Kotlin SDK client | 0.16.0 | Apache-2.0, with earlier contributions identified under MIT by the upstream project |
 | Agent Client Protocol Kotlin SDK (`acp`, with `acp-model`) | 0.34.0 | Apache-2.0, as declared by the locally resolved POMs |
-| kotlin-logging, through the ACP SDK | 7.0.0 | Apache-2.0, as declared by the locally resolved POM |
+| SLF4J no-op provider (`slf4j-nop`, with `slf4j-api`) | 2.0.17 | MIT, as its bundled `META-INF/LICENSE.txt` states |
 | JetBrains Markdown | 0.7.17 | Apache-2.0 |
 | Apache Commons Compress | 1.27.1 | Apache-2.0 |
 | XZ for Java | 1.10 | 0BSD |

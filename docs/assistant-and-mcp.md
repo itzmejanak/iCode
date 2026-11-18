@@ -312,7 +312,7 @@ A successful sign-in is remembered, and the agent is not checked again until it 
 
 **In the chat.** Agents' chats work at once, queue messages, and keep Undo's checkpoints as the built-in assistant's do. Agents take no message mid-turn, so Send now stops the agent's work and sends the message at once. Try again, Edit, and putting back the chat with Undo start the agent afresh: its next session is sent the chat as it stands. A deleted chat's sessions are not used again; what an agent keeps of them in its own folders stays until it is removed with everything.
 
-The agent's standard output is the protocol, which carries the chat, and is never logged. Its standard error goes to its own log in the runtime, `/tmp/icode-agents/<id>.log`, started afresh each time it starts. The ACP library logs through SLF4J, which has no provider in iCode, so nothing it would log is written anywhere.
+The agent's standard output is the protocol, which carries the chat, and is never logged. Its standard error goes to its own log in the runtime, `/tmp/icode-agents/<id>.log`, started afresh each time it starts. The ACP library logs through SLF4J, whose only provider in iCode drops everything, so nothing it would log is written anywhere, as for the assistant's other libraries.
 
 ## Security and privacy boundaries
 

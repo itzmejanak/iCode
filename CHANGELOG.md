@@ -41,6 +41,11 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 - Sharing a chat sends its whole transcript as a Markdown file instead of text cut off at 100,000
   characters.
 
+### Security
+- What the assistant's libraries log no longer reaches Android's system log. A logging library
+  that came with the model clients printed their messages there; it is replaced by one that
+  drops them.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
