@@ -5,6 +5,8 @@ import com.agentclientprotocol.common.ClientSessionOperations
 import com.agentclientprotocol.common.Event
 import com.agentclientprotocol.model.ContentBlock
 import com.agentclientprotocol.model.Cost
+import com.agentclientprotocol.model.CreateElicitationRequest
+import com.agentclientprotocol.model.CreateElicitationResponse
 import com.agentclientprotocol.model.PermissionOption
 import com.agentclientprotocol.model.PermissionOptionId
 import com.agentclientprotocol.model.PermissionOptionKind
@@ -156,6 +158,8 @@ internal class ChatOperations(
     /** The chat it serves: a new chat's until its first message names it ([AcpAgents.NEW_CHAT]). */
     @Volatile var chat: Pair<String?, String>,
     private val changed: (Pair<String?, String>) -> Unit,
+    /** The agent's question, put to the user ([AcpQuestions]). */
+    private val asked: suspend (CreateElicitationRequest) -> CreateElicitationResponse = { AcpQuestions.CANCELLED },
 ) : ClientSessionOperations {
     @Volatile var asking: (suspend (SessionUpdate.ToolCallUpdate, List<PermissionOption>) -> RequestPermissionResponse)? = null
 
@@ -173,6 +177,8 @@ internal class ChatOperations(
         asking?.invoke(toolCall, permissions) ?: RequestPermissionResponse(RequestPermissionOutcome.Cancelled)
 
     override suspend fun notify(notification: SessionUpdate, _meta: JsonElement?) = heard(notification)
+
+    override suspend fun createElicitation(request: CreateElicitationRequest): CreateElicitationResponse = asked(request)
 
     fun heard(update: SessionUpdate) {
         when (update) {

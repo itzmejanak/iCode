@@ -1,6 +1,8 @@
 package dev.icode.mobile.data.assistant.acp
 
 import android.content.Context
+import com.agentclientprotocol.model.CreateElicitationRequest
+import com.agentclientprotocol.model.CreateElicitationResponse
 import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.data.agents.AgentReceipts
 import dev.icode.mobile.data.assistant.AgentAnswers
@@ -25,6 +27,8 @@ import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.CodingAgent
 import dev.icode.mobile.domain.CodingAgents
 import dev.icode.mobile.domain.InstalledAgent
+import dev.icode.mobile.domain.McpAnswer
+import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.domain.notices.AgentNotices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -54,10 +58,20 @@ internal class AgentChats(
     private val saveOpen: suspend () -> Unit,
     /** The page as it changes: the chat shown, and who answers it. */
     private val states: Flow<AssistantState>,
-    /** The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]); their sessions kept in the chats. */
-    agentsOf: (changed: (String, Pair<String?, String>) -> Unit, stopped: (String) -> Unit, records: AcpAgents.Records) -> AcpAgents,
+    /** The question card the MCP servers ask on, for the agents' questions too; none where there is no card. */
+    private val ask: (suspend ((Long) -> McpQuestion) -> McpAnswer)?,
+    /**
+     * The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]), their
+     * sessions kept in the chats, and their questions put to the user ([asked]).
+     */
+    agentsOf: (
+        changed: (String, Pair<String?, String>) -> Unit,
+        stopped: (String) -> Unit,
+        records: AcpAgents.Records,
+        asked: (suspend (String, CreateElicitationRequest) -> CreateElicitationResponse)?,
+    ) -> AcpAgents,
 ) : AgentAnswers {
-    private val agents = agentsOf(::offered, ::stopped, ChatRecords(chats))
+    private val agents = agentsOf(::offered, ::stopped, ChatRecords(chats), ask?.let { { agent, request -> asked(agent, request) } })
     private val turn = AcpTurn(agents)
 
     /** The chat shown, by its session — [AcpAgents.NEW_CHAT] for one not started — and the agent answering it, if one is. */
@@ -165,6 +179,14 @@ internal class AgentChats(
         page.state { state -> if (shownOf(state) == Shown(chat, agent)) state.copy(agentChat = offer) else state }
     }
 
+    /** [agent]'s question on the card, as an MCP server's is asked; one it cannot be shown as is cancelled. */
+    private suspend fun asked(agent: String, request: CreateElicitationRequest): CreateElicitationResponse {
+        val questions = ask ?: return AcpQuestions.CANCELLED
+        val question = AcpQuestions.questionOf(0, name(agent), request) ?: return AcpQuestions.CANCELLED
+        val answer = questions { id -> question.copy(id = id) }
+        return AcpQuestions.responseOf(answer, question)
+    }
+
     /** [agent] stopped: the chat shown no longer has what it offered, until it starts again. */
     private fun stopped(agent: String) = page.state { if (it.agentChat?.agent == agent) it.copy(agentChat = null) else it }
 
@@ -231,23 +253,23 @@ internal class AgentChats(
             scope: CoroutineScope,
             toolbox: AssistantToolbox,
             save: suspend (String) -> Boolean,
-        ): (AssistantPage, AssistantChats, (String?) -> AssistantWorkspace) -> AgentChats {
+        ): (AssistantPage, AssistantChats, (String?) -> AssistantWorkspace, (suspend ((Long) -> McpQuestion) -> McpAnswer)?) -> AgentChats {
             val layout = toolbox.execution.layout
             val receipts = AgentReceipts(layout.home)
             val preferences = AgentPreferences(context)
             val saveOpen: suspend () -> Unit = {
                 icode.mutations.withLock { icode.current.openDocuments.filter { it.dirty }.forEach { save(it.location) } }
             }
-            return { page, chats, placeOf ->
+            return { page, chats, placeOf, ask ->
                 AgentChats(
                     scope, page, chats, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen,
-                    icode.snapshot.map { it.assistant },
-                ) { changed, stopped, records ->
+                    icode.snapshot.map { it.assistant }, ask,
+                ) { changed, stopped, records, asked ->
                     AcpAgents(
                         scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),
                         login = { toolbox.execution.environment.of(GuestContext.Command).variables },
                         installed = receipts::installed, keys = preferences::keys, version = BuildConfig.VERSION_NAME,
-                        changed = changed, stopped = stopped, records = records,
+                        changed = changed, stopped = stopped, records = records, asked = asked,
                     )
                 }
             }

@@ -19,7 +19,9 @@ import dev.icode.mobile.domain.AgentIntent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.McpAnswer
 import dev.icode.mobile.domain.McpIntent
+import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.domain.ResumeAssistantChat
 import dev.icode.mobile.domain.UndoIntent
 import dev.icode.mobile.domain.notices.AssistantNotices
@@ -66,12 +68,12 @@ internal class AssistantCoordinator(
     /** Where the places' checkpoints are kept for Undo ([AssistantCheckpoints]); none in tests that need none. */
     checkpoints: File? = null,
     /** The coding agents in the chats, made over the page and the chats (docs/assistant-and-mcp.md); none in tests that need none. */
-    agentChatsOf: ((AssistantPage, AssistantChats, (String?) -> AssistantWorkspace) -> AgentChats)? = null,
+    agentChatsOf: ((AssistantPage, AssistantChats, (String?) -> AssistantWorkspace, (suspend ((Long) -> McpQuestion) -> McpAnswer)?) -> AgentChats)? = null,
 ) {
     private val checkpointing = checkpoints?.let(::AssistantCheckpoints)
     private val page = AssistantPage(stateHolder, scope, chats)
     private val placeOf = { workspace: String? -> AssistantWorkspace(workspace?.let(::File), paths) }
-    private val agentChats = agentChatsOf?.invoke(page, chats, placeOf)
+    private val agentChats = agentChatsOf?.invoke(page, chats, placeOf, mcp?.let { servers -> servers::ask })
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val questions = AssistantQuestions(page)

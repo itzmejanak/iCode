@@ -74,6 +74,9 @@ internal class FakeAgents : StdioPrograms {
     @Volatile var options: List<SessionConfigOption> = emptyList()
     @Volatile var commands: List<AvailableCommand> = emptyList()
 
+    /** What the client said it can do, as it connected. */
+    @Volatile var client: ClientInfo? = null
+
     /** Whether it says it loads a session again, and each it loaded. */
     @Volatile var loads = false
     val loaded = CopyOnWriteArrayList<String>()
@@ -126,7 +129,10 @@ internal class FakeAgents : StdioPrograms {
     override fun tail(id: String, lines: Int): List<String> = listOf("fake agent's stderr")
 
     private fun support() = object : AgentSupport {
-        override suspend fun initialize(clientInfo: ClientInfo) = AgentInfo(capabilities = AgentCapabilities(loadSession = loads), authMethods = methods)
+        override suspend fun initialize(clientInfo: ClientInfo): AgentInfo {
+            client = clientInfo
+            return AgentInfo(capabilities = AgentCapabilities(loadSession = loads), authMethods = methods)
+        }
 
         override suspend fun loadSession(sessionId: SessionId, sessionParameters: SessionCreationParameters): AgentSession {
             loaded += sessionId.value

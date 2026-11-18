@@ -36,6 +36,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   to-do list, the jump-to-latest button shows its progress, such as 2/5, with the list a tap away.
 - A chat iCode was closed in while it worked says so and offers Continue, which picks the work up
   where it stopped. An agent that has stopped picks up its own session again where it can.
+- A coding agent's questions show on the same card as an MCP server's: a short form, or a page
+  the agent wants opened, answered or declined there.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

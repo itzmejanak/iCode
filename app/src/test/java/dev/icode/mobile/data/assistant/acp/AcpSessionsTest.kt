@@ -1,9 +1,19 @@
 package dev.icode.mobile.data.assistant.acp
 
+import com.agentclientprotocol.model.CreateElicitationRequest
+import com.agentclientprotocol.model.ElicitationScope
+import com.agentclientprotocol.model.SessionId
 import com.agentclientprotocol.annotations.UnstableApi
 import com.agentclientprotocol.common.Event
 import com.agentclientprotocol.model.AvailableCommand
 import com.agentclientprotocol.model.AvailableCommandInput
+import com.agentclientprotocol.model.CreateElicitationResponse
+import com.agentclientprotocol.model.ElicitationAction
+import com.agentclientprotocol.model.ElicitationContentValue
+import com.agentclientprotocol.model.ElicitationMode
+import com.agentclientprotocol.model.ElicitationPropertySchema
+import com.agentclientprotocol.model.ElicitationSchema
+import com.agentclientprotocol.model.EnumOption
 import com.agentclientprotocol.model.PlanEntry
 import com.agentclientprotocol.model.PlanEntryPriority
 import com.agentclientprotocol.model.PlanEntryStatus
@@ -27,6 +37,9 @@ import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.InstalledAgent
+import dev.icode.mobile.domain.McpAnswer
+import dev.icode.mobile.domain.McpField
+import dev.icode.mobile.domain.McpQuestion
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -113,6 +126,53 @@ class AcpSessionsTest {
         assertTrue(fake.loaded.isEmpty())
         assertTrue(fake.prompts.last().startsWith("The conversation so far in this chat"))
         assertEquals(2, fake.sessions.size)
+    }
+
+    @Test fun `an agent's question is asked as the card asks it, and the answer goes back as its fields' types`() = runBlocking {
+        val shown = CopyOnWriteArrayList<McpQuestion>()
+        val questioning = AcpAgents(
+            scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3",
+            asked = { agent, request ->
+                val question = AcpQuestions.questionOf(7, agent, request)!!
+                shown += question
+                AcpQuestions.responseOf(McpAnswer(7, McpAnswer.Action.Accept, mapOf("colour" to "blue", "count" to "3", "sure" to "true")), question)
+            },
+        )
+        var answer: CreateElicitationResponse? = null
+        fake.answer = { client ->
+            val form = ElicitationSchema(
+                properties = mapOf(
+                    "colour" to ElicitationPropertySchema.StringProperty(title = "Colour", oneOf = listOf(EnumOption("blue", "Blue"), EnumOption("red", "Red"))),
+                    "count" to ElicitationPropertySchema.IntegerProperty(title = "How many"),
+                    "sure" to ElicitationPropertySchema.BooleanProperty(title = "Sure"),
+                ),
+                required = listOf("colour"),
+            )
+            // The fake agent's first session is "s1".
+            answer = client.createElicitation(CreateElicitationRequest(ElicitationScope.Session(SessionId("s1")), ElicitationMode.Form(form), "Pick one"))
+            emit(FakeAgents.ended())
+        }
+        withTimeout(20_000) { AcpTurn(questioning).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("Ask me"), Recorded()) { _, _ -> null } }
+        assertTrue("Questions are offered as forms and pages", fake.client!!.capabilities.elicitation?.let { it.supportsForm && it.supportsUrl } == true)
+        val question = shown.single()
+        assertEquals("Pick one", question.message)
+        assertEquals(
+            listOf(
+                McpField("colour", "Colour", "", McpField.Kind.Choice, true, listOf("blue" to "Blue", "red" to "Red")),
+                McpField("count", "How many", "", McpField.Kind.Integer, false),
+                McpField("sure", "Sure", "", McpField.Kind.Flag, false),
+            ),
+            question.fields,
+        )
+        assertEquals(
+            ElicitationAction.Accept(mapOf("colour" to ElicitationContentValue.StringValue("blue"), "count" to ElicitationContentValue.IntegerValue(3), "sure" to ElicitationContentValue.BooleanValue(true))),
+            answer!!.action,
+        )
+    }
+
+    @Test fun `an agent is not told it may ask where nothing can ask the user`() = runBlocking {
+        withTimeout(20_000) { AcpTurn(agents).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("Hi"), Recorded()) { _, _ -> null } }
+        assertEquals(null, fake.client!!.capabilities.elicitation)
     }
 
     /** The chats' record of each agent's session, in memory. */

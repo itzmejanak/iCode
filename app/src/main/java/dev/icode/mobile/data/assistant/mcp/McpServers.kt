@@ -9,8 +9,10 @@ import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.McpAnswer
 import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.McpLog
+import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.domain.McpRules
 import dev.icode.mobile.domain.McpServer
 import dev.icode.mobile.domain.McpServerState
@@ -52,6 +54,9 @@ internal class McpServers(
     private val activeRoot: () -> String?,
 ) {
     private val questions = McpQuestions { question -> stateHolder.update { it.copy(mcp = it.mcp.copy(question = question)) } }
+
+    /** A coding agent's question, on the servers' card, after any of theirs asked before it (docs/assistant-and-mcp.md). */
+    suspend fun ask(make: (Long) -> McpQuestion): McpAnswer = questions.ask(make)
     private val connections = McpConnections(scope, store, local, remote, workspaces, signIn, questions, runtimeInstalled) { publish() }
     private val intents = Channel<McpIntent>(Channel.UNLIMITED)
     private val changes = Mutex()

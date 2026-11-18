@@ -7,6 +7,12 @@ import com.agentclientprotocol.common.SessionCreationParameters
 import com.agentclientprotocol.model.AgentCapabilities
 import com.agentclientprotocol.model.AuthMethod
 import com.agentclientprotocol.model.AuthMethodId
+import com.agentclientprotocol.model.ClientCapabilities
+import com.agentclientprotocol.model.CreateElicitationRequest
+import com.agentclientprotocol.model.CreateElicitationResponse
+import com.agentclientprotocol.model.ElicitationCapabilities
+import com.agentclientprotocol.model.ElicitationFormCapabilities
+import com.agentclientprotocol.model.ElicitationUrlCapabilities
 import com.agentclientprotocol.model.Implementation
 import com.agentclientprotocol.model.SessionId
 import com.agentclientprotocol.protocol.JsonRpcException
@@ -58,6 +64,8 @@ internal class AcpAgents(
     private val stopped: (agent: String) -> Unit = {},
     /** Where each chat's session with each agent is kept, to be taken up again once the agent has stopped. */
     private val records: Records = Records.None,
+    /** An agent's question, put to the user; none where nothing can ask one, and agents are not told they may. */
+    private val asked: (suspend (agent: String, CreateElicitationRequest) -> CreateElicitationResponse)? = null,
 ) {
     /** Each chat's session with each agent, by its ID, as the chat keeps it. */
     interface Records {
@@ -149,7 +157,7 @@ internal class AcpAgents(
      * else a new one, started in the agent's asking values. A session taken up has had the chat so far.
      */
     private suspend fun open(agent: Running, chat: Pair<String?, String>, cwd: String): Held {
-        val operations = ChatOperations(agent.id, chat) { changed(agent.id, it) }
+        val operations = ChatOperations(agent.id, chat, { changed(agent.id, it) }) { request -> asked?.invoke(agent.id, request) ?: AcpQuestions.CANCELLED }
         val parameters = SessionCreationParameters(cwd, emptyList())
         // A new chat has no session to take up, nor a place in the chats' records.
         val recorded = chat.second != NEW_CHAT
@@ -204,7 +212,9 @@ internal class AcpAgents(
         val client = Client(protocol)
         protocol.start()
         val info = try {
-            withTimeout(START_MILLIS) { client.initialize(ClientInfo(implementation = Implementation("icode", version, "iCode"))) }
+            // Questions, as forms and as pages, only where the user can be asked them.
+            val questions = asked?.let { ElicitationCapabilities(ElicitationFormCapabilities(), ElicitationUrlCapabilities()) }
+            withTimeout(START_MILLIS) { client.initialize(ClientInfo(capabilities = ClientCapabilities(elicitation = questions), implementation = Implementation("icode", version, "iCode"))) }
         } catch (failed: Exception) {
             program.stop()
             val said = programs.tail(id, LOG_LINES).lastOrNull { it.isNotBlank() }
