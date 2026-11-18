@@ -117,12 +117,13 @@ internal class AgentChats(
         history: List<AssistantMessage>,
         message: AssistantMessage.User,
         events: AssistantEvents,
+        aloud: Boolean,
         approve: suspend (AssistantCall, List<AssistantOption>) -> String?,
     ) {
         saveOpen()
         said(id)
         try {
-            turn.answer(id, chat, place, history, message, events, approve)
+            turn.answer(id, chat, place, history, message, events, aloud, approve)
         } catch (needed: AcpAgents.SignInNeeded) {
             page.state { it.copy(signIns = it.signIns + (id to needed.methods)) }
             throw AssistantTurnException("Sign in to ${name(id)} first, then send it again")

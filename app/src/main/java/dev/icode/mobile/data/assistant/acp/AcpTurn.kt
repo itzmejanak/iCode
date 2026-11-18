@@ -15,6 +15,7 @@ import com.agentclientprotocol.model.RequestPermissionResponse
 import com.agentclientprotocol.model.SessionUpdate
 import com.agentclientprotocol.model.StopReason
 import dev.icode.mobile.data.assistant.AssistantEvents
+import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.domain.AgentCommand
@@ -43,8 +44,9 @@ internal class AcpTurn(private val agents: AcpAgents) {
     private val costs = ConcurrentHashMap<Pair<String?, String>, Cost>()
 
     /**
-     * [message], after [history], answered by [agent] in [chat], in [place]. [approve] asks the user a
-     * call's permission with the agent's options and gives the one chosen, or null when none is.
+     * [message], after [history], answered by [agent] in [chat], in [place]; read to the user when [aloud].
+     * [approve] asks the user a call's permission with the agent's options and gives the one chosen, or
+     * null when none is.
      */
     suspend fun answer(
         agent: String,
@@ -53,6 +55,7 @@ internal class AcpTurn(private val agents: AcpAgents) {
         history: List<AssistantMessage>,
         message: AssistantMessage.User,
         events: AssistantEvents,
+        aloud: Boolean = false,
         approve: suspend (AssistantCall, List<AssistantOption>) -> String?,
     ) = agents.use(agent) { running ->
         // Another answerer wrote since this agent last did: its session missed that, so it starts afresh.
@@ -65,7 +68,7 @@ internal class AcpTurn(private val agents: AcpAgents) {
         operations.asking = { update, options -> ask(update, options, approve) }
         var stopped: StopReason? = null
         try {
-            session.prompt(listOf(ContentBlock.Text(prompt(if (first) history else emptyList(), message)))).collect { event ->
+            session.prompt(listOf(ContentBlock.Text(prompt(if (first) history else emptyList(), message, aloud)))).collect { event ->
                 when (event) {
                     is Event.SessionUpdateEvent -> {
                         replies.on(event.update)
@@ -121,9 +124,10 @@ internal class AcpTurn(private val agents: AcpAgents) {
     companion object {
         /**
          * What the agent is sent: in a new session, the conversation so far first, as a transcript; then the
-         * message, with its text files. A picture or a document is named, not sent.
+         * message, with its text files — and, for an answer read aloud, how to say it, as the built-in
+         * assistant is told. A picture or a document is named, not sent.
          */
-        fun prompt(history: List<AssistantMessage>, message: AssistantMessage.User): String = buildString {
+        fun prompt(history: List<AssistantMessage>, message: AssistantMessage.User, aloud: Boolean = false): String = buildString {
             if (history.isNotEmpty()) {
                 appendLine("The conversation so far in this chat, for context:")
                 appendLine()
@@ -132,6 +136,11 @@ internal class AcpTurn(private val agents: AcpAgents) {
                 appendLine()
             }
             append(message.text)
+            if (aloud) {
+                appendLine()
+                appendLine()
+                append(AssistantInstructions.READ_ALOUD)
+            }
             message.attachments.forEach { file ->
                 appendLine()
                 appendLine()

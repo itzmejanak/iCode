@@ -12,7 +12,8 @@ internal interface AgentAnswers {
 
     /**
      * [message], after [history], answered by the agent [id] in [chat], in [place]: reported to [events];
-     * [approve] asks the user a call's permission with the agent's own options and gives the one chosen.
+     * read to the user when [aloud], so the agent is told to answer as it would say it. [approve] asks the
+     * user a call's permission with the agent's own options and gives the one chosen.
      */
     suspend fun answer(
         id: String,
@@ -21,6 +22,7 @@ internal interface AgentAnswers {
         history: List<AssistantMessage>,
         message: AssistantMessage.User,
         events: AssistantEvents,
+        aloud: Boolean,
         approve: suspend (AssistantCall, List<AssistantOption>) -> String?,
     )
 

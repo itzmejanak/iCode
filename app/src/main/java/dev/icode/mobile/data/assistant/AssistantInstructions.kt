@@ -213,8 +213,8 @@ internal object AssistantInstructions {
         - An act in an app may wait for the user's approval. Say in a sentence what you did when you are done.
     """.trimIndent()
 
-    /** A turn read aloud (docs/voice-and-phone-control.md): heard sentence by sentence, as it is written. */
-    private val READ_ALOUD = """
+    /** A turn read aloud (docs/voice-and-phone-control.md): heard sentence by sentence, as it is written; a coding agent is told so too. */
+    val READ_ALOUD = """
         ## Read aloud
         This answer is read aloud to the user, sentence by sentence as you write it; they may not be looking at the screen.
         - Answer in one to three short sentences, as you would say them. Lead with the answer or the outcome.

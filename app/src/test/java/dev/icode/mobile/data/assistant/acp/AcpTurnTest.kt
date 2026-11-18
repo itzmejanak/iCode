@@ -111,7 +111,7 @@ class AcpTurnTest {
         history: List<AssistantMessage> = emptyList(),
         chat: Pair<String?, String> = CHAT,
         approve: suspend (AssistantCall, List<AssistantOption>) -> String? = { _, _ -> null },
-    ) = withTimeout(20_000) { turn.answer(AGENT, chat, place, history, AssistantMessage.User(text), events, approve) }
+    ) = withTimeout(20_000) { turn.answer(AGENT, chat, place, history, AssistantMessage.User(text), events, approve = approve) }
 
     @Test fun `the agent starts in the runtime with its command, the login's variables, its own and its keys`() = runBlocking {
         keys[AGENT] = mapOf("FAKE_KEY" to "k-123")
@@ -306,6 +306,14 @@ class AcpTurnTest {
             "Look\n\nAttached file src/App.kt:\n```\nfun main() {}\n```\n\nAttached shot.png: pictures and documents are not sent to agents.",
             AcpTurn.prompt(emptyList(), message),
         )
+    }
+
+    @Test fun `a message read aloud tells the agent to answer as it would say it, as the built-in assistant is told`() = runBlocking {
+        val spoken = AssistantMessage.User("What changed?")
+        assertEquals("What changed?\n\n" + dev.icode.mobile.data.assistant.AssistantInstructions.READ_ALOUD, AcpTurn.prompt(emptyList(), spoken, aloud = true))
+        assertEquals("What changed?", AcpTurn.prompt(emptyList(), spoken))
+        withTimeout(20_000) { AcpTurn(agents).answer(AGENT, CHAT, place, emptyList(), spoken, Recorded(), aloud = true) { _, _ -> null } }
+        assertTrue(fake.prompts.single().contains("## Read aloud"))
     }
 
     private companion object {

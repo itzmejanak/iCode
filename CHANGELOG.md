@@ -42,6 +42,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   agent's own copy of the conversation, where the agent can delete it.
 - Find Agent Chats in the chat list shows conversations started with Claude Agent, Codex, or OpenCode
   outside iCode in that place, by date. Opening one brings in everything said so far as a chat.
+- Coding agents answer from the bubble and by voice. A message sent aloud asks the agent for a short
+  answer that reads well, as the built-in assistant is asked.
 - An agent chat's menu opens the agent's own program in the chat's terminal tab. Claude Agent,
   Codex, and OpenCode carry on the chat's own conversation there, and the chat picks up what was done.
 

@@ -187,7 +187,7 @@ internal class AssistantTurns(
             page.listed(workspace)
             page.refresh(workspace, session)
             events.show(THINKING)
-            answering.answer(agent.id, chat, place, history, message, events) { call, options -> questions.choose(workspace, session, call, options) }
+            answering.answer(agent.id, chat, place, history, message, events, aloud) { call, options -> questions.choose(workspace, session, call, options) }
         }
 
         /** [asked] added to the chat, with the checkpoint Undo goes back to. */
