@@ -98,20 +98,25 @@ internal class AgentInstalls(
         onProgress(ToolSetupProgress("Installing ${agent.name} with npm", cancellable = true))
         val (exit, said) = npm(listOf("npm", "install", "--prefix", receipts.guest(folder), "--no-audit", "--no-fund", "--loglevel=error", "${source.name}@${source.version}"))
         if (exit != 0) throw IOException("npm could not install ${agent.name}: ${said.lineSequence().map(String::trim).lastOrNull(String::isNotEmpty) ?: "exit $exit"}")
-        val program = bin(folder, source.name)?.let { File(folder, "node_modules/.bin/$it") }
-        if (program == null || !program.exists()) throw IOException("${source.name} names no program to run")
-        return program
+        return program(folder, source.name) ?: throw IOException("${source.name} names no program to run")
     }
 
-    /** The program npm runs for [name], as `npm exec` picks it: its only one, or the one named as the package is. */
-    private fun bin(folder: File, name: String): String? {
+    /**
+     * The program npm runs for [name], as `npm exec` picks it — its only one, or the one named as the
+     * package is — where npm linked it, else where the package keeps it: npm links neither of two packages
+     * that name the same program, as Cline and its build for the phone both do.
+     */
+    private fun program(folder: File, name: String): File? {
         val bin = JSONObject(File(folder, "node_modules/$name/package.json").readText()).opt("bin")
         val plain = name.substringAfterLast('/')
-        return when (bin) {
-            is String -> plain
-            is JSONObject -> bin.keys().asSequence().toList().let { names -> names.singleOrNull() ?: names.firstOrNull { it == plain } }
+        val (command, path) = when (bin) {
+            is String -> plain to bin
+            is JSONObject -> bin.keys().asSequence().toList().let { names -> names.singleOrNull() ?: names.firstOrNull { it == plain } }?.let { it to bin.getString(it) }
             else -> null
-        }
+        } ?: return null
+        val linked = File(folder, "node_modules/.bin/$command")
+        if (linked.exists()) return linked
+        return inside(folder, "node_modules/$name/${path.removePrefix("./")}").takeIf { it.isFile }?.also { it.setExecutable(true) }
     }
 
     /** [path], the registry's `./name`, in [folder]; never outside it. */

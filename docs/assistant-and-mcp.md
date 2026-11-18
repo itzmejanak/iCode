@@ -277,7 +277,7 @@ The list comes from the ACP registry's published file, `https://cdn.agentclientp
 An agent installs from its newest release in the registry, into the Linux runtime:
 
 - **A build.** The registry's Linux ARM64 build is used when it carries a SHA-256. It is downloaded, checked against that digest, unpacked (zip, tar.gz, or tar.bz2, or used as is when it is the program itself), and its program made runnable. A build without a digest is never installed. Its download size is shown before Install where the server states it.
-- **An npm package.** Otherwise the registry's npm package is installed at its exact version with `npm install --prefix`, after Node.js is installed from Runtime Tools if it is not already. Its size is shown once it is installed: npm finds its dependencies only as it installs.
+- **An npm package.** Otherwise the registry's npm package is installed at its exact version with `npm install --prefix`, after Node.js is installed from Runtime Tools if it is not already. The program it runs is the one npm links, else the one the package names: npm links neither of two packages that name the same program, as Cline and its build for phones do. Its size is shown once it is installed: npm finds its dependencies only as it installs.
 
 Each release goes in its own folder, `~/.local/share/icode/agents/<id>/<version>`, and a receipt in `~/.icode/agents/<id>.json` records its version, the command and variables it starts with, and the space it takes. The receipt is written last; the release it replaces stays until then and is removed after. A failed or cancelled install leaves nothing behind. Downloads and npm runs can be cancelled; getting Node.js ready and unpacking cannot. Several agents can install at once. Installing needs the Linux runtime.
 

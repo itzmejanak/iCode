@@ -122,6 +122,22 @@ class AgentInstallsTest {
         assertEquals(mapOf("NO_UPDATE" to "1"), installed.env)
     }
 
+    @Test fun `a program npm did not link, as when two packages name it, runs from where its package keeps it`() {
+        // Cline and its build for the phone both name `cline`: npm links neither.
+        npm = { argv ->
+            val prefix = File(home, argv[argv.indexOf("--prefix") + 1].removePrefix("/root/"))
+            File(prefix, "node_modules/cline").apply { mkdirs() }.resolve("package.json").writeText("""{"bin": {"cline": "./bin/cline"}}""")
+            File(prefix, "node_modules/cline/bin").apply { mkdirs() }.resolve("cline").writeText("#!/usr/bin/env node\n")
+            File(prefix, "node_modules/.bin").mkdirs()
+            0 to ""
+        }
+        val cline = CodingAgent("cline", "Cline", "3.0.74", "", null, "Apache-2.0", "https://example.com/LICENSE", AgentSource.Npm("cline", "3.0.74", listOf("--acp"), emptyMap()))
+        val installed = install(cline)
+        val prefix = "/root/.local/share/icode/agents/cline/3.0.74"
+        assertEquals(listOf("$prefix/node_modules/cline/bin/cline", "--acp"), installed.command)
+        assertTrue(File(folder("cline"), "3.0.74/node_modules/cline/bin/cline").canExecute())
+    }
+
     @Test fun `without Node js, or when npm fails, nothing is installed and its words are said`() {
         nodeSays = "Install the Linux runtime first"
         assertEquals("Install the Linux runtime first", assertThrows(IOException::class.java) { install(codex) }.message)
