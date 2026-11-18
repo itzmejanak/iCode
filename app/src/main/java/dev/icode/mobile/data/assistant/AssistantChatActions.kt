@@ -66,8 +66,9 @@ internal class AssistantChatActions(
         val workspace = page.current.workspace
         if (turns.runs(workspace, session)) return page.tell(AssistantNotices.stopFirst(NoticePlace(AssistantPlace.name(workspace), workspace)))
         forgetCheckpoints(workspace, chats.of(workspace, session).messages)
-        chats.delete(workspace, session)
+        // Its agents' sessions go first, while the chat still names them.
         turns.afresh(workspace, session)
+        chats.delete(workspace, session)
         scope.launch { forget(workspace, session) }
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
     }

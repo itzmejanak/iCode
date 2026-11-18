@@ -133,6 +133,19 @@ class AgentChatsTest {
         until { !fake.programs.first().ended.isActive }
     }
 
+    @Test fun `a chat's sessions iCode stops using are deleted by the agent, and the chat no longer names them`() {
+        fake.deletes = true
+        fake.loads = true
+        chats.append("/workspaces/app", "c1", dev.icode.mobile.domain.AssistantMessage.User("Fix it"))
+        chats.agentSession("/workspaces/app", "c1", CLAUDE, "s-9")
+        agentChats.start()
+        stateHolder.update { it.copy(assistant = it.assistant.copy(opened = true, workspace = "/workspaces/app", session = "c1", agent = CLAUDE)) }
+        until { "s-9" in fake.loaded }
+        agentChats.forget("/workspaces/app" to "c1")
+        until { "s-9" in fake.deleted }
+        assertEquals(emptyMap<String, String>(), chats.of("/workspaces/app", "c1").agentSessions)
+    }
+
     private companion object {
         const val CLAUDE = "claude-acp"
     }

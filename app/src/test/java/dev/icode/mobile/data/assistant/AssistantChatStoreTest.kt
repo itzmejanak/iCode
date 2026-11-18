@@ -150,7 +150,7 @@ class AssistantChatStoreTest {
         chats.agentSession("/w/app", "older", "codex-acp", "s-1")
         assertEquals(listOf("newer", "older"), store.sessions("/w/app").map { it.id })
         assertEquals(mapOf("codex-acp" to "s-1"), AssistantChatStore(folder).load("/w/app", "older").agentSessions)
-        chats.dropAgentSessions("/w/app", "older")
+        assertEquals(mapOf("codex-acp" to "s-1"), chats.dropAgentSessions("/w/app", "older"))
         assertTrue(AssistantChatStore(folder).load("/w/app", "older").agentSessions.isEmpty())
     }
 

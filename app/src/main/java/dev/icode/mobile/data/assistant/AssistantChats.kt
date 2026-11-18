@@ -146,9 +146,11 @@ internal class AssistantChats(
         if (of(workspace, session).agentSessions[agent] != id) change(workspace, session, touch = false) { it.copy(agentSessions = it.agentSessions + (agent to id)) }
     }
 
-    /** The agents' sessions for the chat no longer follow it: the next starts afresh from the chat as it stands. */
-    fun dropAgentSessions(workspace: String?, session: String) {
-        if (of(workspace, session).agentSessions.isNotEmpty()) change(workspace, session, touch = false) { it.copy(agentSessions = emptyMap()) }
+    /** The agents' sessions for the chat no longer follow it: the next starts afresh from the chat as it stands. Those it had. */
+    fun dropAgentSessions(workspace: String?, session: String): Map<String, String> = synchronized(lock) {
+        of(workspace, session).agentSessions.also { kept ->
+            if (kept.isNotEmpty()) change(workspace, session, touch = false) { it.copy(agentSessions = emptyMap()) }
+        }
     }
 
     fun delete(workspace: String?, session: String) {

@@ -15,11 +15,14 @@ import com.agentclientprotocol.model.AuthMethodId
 import com.agentclientprotocol.model.AuthenticateResponse
 import com.agentclientprotocol.model.AvailableCommand
 import com.agentclientprotocol.model.ContentBlock
+import com.agentclientprotocol.model.DeleteSessionResponse
 import com.agentclientprotocol.model.PromptResponse
 import com.agentclientprotocol.model.SessionConfigId
 import com.agentclientprotocol.model.SessionConfigOption
 import com.agentclientprotocol.model.SessionConfigOptionValue
+import com.agentclientprotocol.model.SessionCapabilities
 import com.agentclientprotocol.model.SessionConfigValueId
+import com.agentclientprotocol.model.SessionDeleteCapabilities
 import com.agentclientprotocol.model.SessionId
 import com.agentclientprotocol.model.SessionMode
 import com.agentclientprotocol.model.SessionModeId
@@ -81,6 +84,10 @@ internal class FakeAgents : StdioPrograms {
     @Volatile var loads = false
     val loaded = CopyOnWriteArrayList<String>()
 
+    /** Whether it says it deletes sessions, and each it deleted. */
+    @Volatile var deletes = false
+    val deleted = CopyOnWriteArrayList<String>()
+
     /** Each mode and option set, as the client asked: "mode" to "default", "auto_approve" to "false". */
     val sets = CopyOnWriteArrayList<Pair<String, String>>()
 
@@ -131,7 +138,13 @@ internal class FakeAgents : StdioPrograms {
     private fun support() = object : AgentSupport {
         override suspend fun initialize(clientInfo: ClientInfo): AgentInfo {
             client = clientInfo
-            return AgentInfo(capabilities = AgentCapabilities(loadSession = loads), authMethods = methods)
+            val sessions = SessionCapabilities(delete = if (deletes) SessionDeleteCapabilities() else null)
+            return AgentInfo(capabilities = AgentCapabilities(loadSession = loads, sessionCapabilities = sessions), authMethods = methods)
+        }
+
+        override suspend fun deleteSession(sessionId: SessionId, _meta: JsonElement?): DeleteSessionResponse {
+            deleted += sessionId.value
+            return DeleteSessionResponse()
         }
 
         override suspend fun loadSession(sessionId: SessionId, sessionParameters: SessionCreationParameters): AgentSession {

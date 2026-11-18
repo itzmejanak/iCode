@@ -128,6 +128,31 @@ class AcpSessionsTest {
         assertEquals(2, fake.sessions.size)
     }
 
+    @Test fun `the sessions a chat no longer uses are deleted by an agent that deletes sessions, started again for it`() = runBlocking {
+        fake.deletes = true
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("One"), Recorded()) { _, _ -> null } }
+        val id = records.ids.getValue(OTHER to CHAT)
+        first.restart(OTHER)
+        first.forget(CHAT)
+        withTimeout(20_000) { while (fake.deleted.isEmpty()) delay(5) }
+        assertEquals(listOf(id), fake.deleted.toList())
+        assertTrue(records.ids.isEmpty())
+        assertEquals("Started again to delete it", 2, fake.programs.size)
+    }
+
+    @Test fun `an agent that does not delete sessions is not asked to, nor started again for it`() = runBlocking {
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("One"), Recorded()) { _, _ -> null } }
+        first.restart(OTHER)
+        first.forget(CHAT)
+        delay(300)
+        assertTrue(fake.deleted.isEmpty())
+        assertEquals(1, fake.programs.size)
+    }
+
     @Test fun `an agent's question is asked as the card asks it, and the answer goes back as its fields' types`() = runBlocking {
         val shown = CopyOnWriteArrayList<McpQuestion>()
         val questioning = AcpAgents(
@@ -185,8 +210,10 @@ class AcpSessionsTest {
             ids[agent to chat] = id
         }
 
-        override fun drop(chat: Pair<String?, String>) {
-            ids.keys.removeAll { it.second == chat }
+        override fun drop(chat: Pair<String?, String>): Map<String, String> {
+            val dropped = ids.filterKeys { it.second == chat }
+            ids.keys.removeAll(dropped.keys)
+            return dropped.mapKeys { it.key.first }
         }
     }
 

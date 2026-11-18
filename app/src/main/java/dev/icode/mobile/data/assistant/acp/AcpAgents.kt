@@ -73,15 +73,15 @@ internal class AcpAgents(
 
         fun keep(agent: String, chat: Pair<String?, String>, id: String)
 
-        /** [chat]'s sessions, with every agent, no longer follow it. */
-        fun drop(chat: Pair<String?, String>)
+        /** [chat]'s sessions, with every agent, no longer follow it: those it had, by agent. */
+        fun drop(chat: Pair<String?, String>): Map<String, String>
 
         object None : Records {
             override fun of(agent: String, chat: Pair<String?, String>): String? = null
 
             override fun keep(agent: String, chat: Pair<String?, String>, id: String) = Unit
 
-            override fun drop(chat: Pair<String?, String>) = Unit
+            override fun drop(chat: Pair<String?, String>) = emptyMap<String, String>()
         }
     }
 
@@ -104,6 +104,9 @@ internal class AcpAgents(
     /** Held while an agent starts or stops: [running] changes only under it. */
     private val lock = Mutex()
     private val running = ConcurrentHashMap<String, Running>()
+
+    /** Whether each agent said it deletes sessions, as it last started. */
+    private val deletes = ConcurrentHashMap<String, Boolean>()
 
     /** [block] with [id]'s connection, started if it is not running; it idles from the last use on. */
     suspend fun <T> use(id: String, block: suspend (Running) -> T): T {
@@ -189,10 +192,22 @@ internal class AcpAgents(
     /** [chat]'s session with [id], while its agent runs. */
     fun held(id: String, chat: Pair<String?, String>): Held? = running[id]?.sessions?.get(chat)
 
-    /** [chat]'s sessions forgotten: its next message starts each agent afresh, from the chat as it stands. */
+    /**
+     * [chat]'s sessions forgotten: its next message starts each agent afresh, from the chat as it stands.
+     * iCode uses them no more, so each agent that deletes sessions deletes them (owner's choice, 2026-11-18).
+     */
     fun forget(chat: Pair<String?, String>) {
         running.values.forEach { it.sessions.remove(chat) }
-        records.drop(chat)
+        records.drop(chat).forEach { (agent, session) -> scope.launch { delete(agent, session) } }
+    }
+
+    /**
+     * [agent]'s [session] deleted where the agent says it deletes sessions — started for it, unless it
+     * said otherwise when it last ran. One it cannot delete stays in its own folders.
+     */
+    private suspend fun delete(agent: String, session: String) {
+        if (deletes[agent] == false) return
+        runCatching { use(agent) { if (it.capabilities.sessionCapabilities.delete != null) it.client.deleteSession(SessionId(session)) } }
     }
 
     /** [id] signs in the [method] way, by itself. */
@@ -220,6 +235,7 @@ internal class AcpAgents(
             val said = programs.tail(id, LOG_LINES).lastOrNull { it.isNotBlank() }
             throw AssistantTurnException("The agent did not start: ${said ?: failed.message ?: failed.javaClass.simpleName}", failed)
         }
+        deletes[id] = info.capabilities.sessionCapabilities.delete != null
         return Running(id, program, client, info.authMethods.mapNotNull(::signInOf), info.capabilities)
     }
 
