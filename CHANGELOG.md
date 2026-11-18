@@ -47,7 +47,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 - Updating a coding agent while it works in a chat downloads at once and switches to the new release
   when its work ends, instead of replacing the program under it.
 - A chat too long for a coding agent to take in whole goes to it as a summary of the older part,
-  written by your chat model, and the newest part in full.
+  written by your chat model, and the newest part in full. With no chat model set up, the newest
+  part goes alone and the agent is told the rest was left out.
 - Coding agents can use iCode's own tools — Build & Run, code navigation and problems, phone control —
   and your MCP servers, through iCode: they ask you first as the assistant does, and your servers'
   keys never reach the agent.
