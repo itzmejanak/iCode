@@ -304,14 +304,14 @@ class AcpTurnTest {
         )
         assertEquals(
             "Look\n\nAttached file src/App.kt:\n```\nfun main() {}\n```\n\nAttached shot.png: pictures and documents are not sent to agents.",
-            AcpTurn.prompt(emptyList(), message),
+            AcpTurn.prompt(null, message),
         )
     }
 
     @Test fun `a message read aloud tells the agent to answer as it would say it, as the built-in assistant is told`() = runBlocking {
         val spoken = AssistantMessage.User("What changed?")
-        assertEquals("What changed?\n\n" + dev.icode.mobile.data.assistant.AssistantInstructions.READ_ALOUD, AcpTurn.prompt(emptyList(), spoken, aloud = true))
-        assertEquals("What changed?", AcpTurn.prompt(emptyList(), spoken))
+        assertEquals("What changed?\n\n" + dev.icode.mobile.data.assistant.AssistantInstructions.READ_ALOUD, AcpTurn.prompt(null, spoken, aloud = true))
+        assertEquals("What changed?", AcpTurn.prompt(null, spoken))
         withTimeout(20_000) { AcpTurn(agents).answer(AGENT, CHAT, place, emptyList(), spoken, Recorded(), aloud = true) { _, _ -> null } }
         assertTrue(fake.prompts.single().contains("## Read aloud"))
     }

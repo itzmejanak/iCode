@@ -8,15 +8,16 @@ import org.json.JSONObject
 
 /**
  * What iCode keeps about the coding agents in the chats (docs/assistant-and-mcp.md): the agent chosen
- * last, which new chats start with; the untested ones already said so; and the keys entered for an
- * agent, encrypted by a key of the Android Keystore, given only to its process and never shown again.
+ * last, which new chats start with; the untested ones already said so; each agent's context window, as
+ * it last reported it; and the keys entered for an agent, encrypted by a key of the Android Keystore,
+ * given only to its process and never shown again.
  */
 internal class AgentPreferences(
     private val preferences: SharedPreferences,
     private val encrypt: (String) -> String,
     /** Null when this device can no longer decrypt it: the keys read as missing. */
     private val decrypt: (String) -> String?,
-) {
+) : AcpTurn.Windows {
     constructor(context: Context, cipher: KeystoreCipher = KeystoreCipher(KEY_ALIAS)) : this(
         context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE),
         cipher::encrypt,
@@ -31,6 +32,12 @@ internal class AgentPreferences(
     fun untestedSaid(): Set<String> = preferences.getStringSet(KEY_UNTESTED, emptySet()).orEmpty()
 
     fun said(id: String) = preferences.commitOrFail("Unable to save the agent's note") { putStringSet(KEY_UNTESTED, untestedSaid() + id) }
+
+    override fun of(agent: String): Long? = preferences.getLong(KEY_WINDOW + agent, 0).takeIf { it > 0 }
+
+    override fun keep(agent: String, tokens: Long) {
+        if (of(agent) != tokens) preferences.commitOrFail("Unable to save the agent's window") { putLong(KEY_WINDOW + agent, tokens) }
+    }
 
     /** [id]'s keys, by variable. */
     fun keys(id: String): Map<String, String> {
@@ -53,5 +60,6 @@ internal class AgentPreferences(
         const val KEY_LAST = "last"
         const val KEY_UNTESTED = "untested-said"
         const val KEY_KEYS = "keys."
+        const val KEY_WINDOW = "window."
     }
 }

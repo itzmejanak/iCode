@@ -228,6 +228,24 @@ class AcpSessionsTest {
         assertTrue(fake.deleted.isEmpty())
     }
 
+    @Test fun `the window an agent reports is kept, so the next new session can tell what fits`() = runBlocking {
+        val kept = java.util.concurrent.ConcurrentHashMap<String, Long>()
+        val windows = object : AcpTurn.Windows {
+            override fun of(agent: String) = kept[agent]
+
+            override fun keep(agent: String, tokens: Long) {
+                kept[agent] = tokens
+            }
+        }
+        fake.answer = {
+            emit(Event.SessionUpdateEvent(SessionUpdate.UsageUpdate(1_200, 200_000)))
+            emit(Event.SessionUpdateEvent(FakeAgents.chunk("Done.")))
+            emit(FakeAgents.ended())
+        }
+        withTimeout(20_000) { AcpTurn(agents, windows).answer(CLAUDE, CHAT, place, emptyList(), AssistantMessage.User("Hi"), Recorded()) { _, _ -> null } }
+        assertEquals(200_000L, kept[CLAUDE])
+    }
+
     @Test fun `an agent's question is asked as the card asks it, and the answer goes back as its fields' types`() = runBlocking {
         val shown = CopyOnWriteArrayList<McpQuestion>()
         val questioning = AcpAgents(

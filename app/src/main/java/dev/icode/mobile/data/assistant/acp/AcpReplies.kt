@@ -48,6 +48,10 @@ internal class AcpReplies(private val events: AssistantEvents, private val relat
     /** The session's cost as last reported, for the next prompt to start from. */
     val lastCost: Cost? get() = cost
 
+    /** The agent's context window, in tokens, as it last reported it; null until it does. */
+    var window: Long? = null
+        private set
+
     fun on(update: SessionUpdate) {
         when (update) {
             is SessionUpdate.AgentMessageChunk -> {
@@ -63,6 +67,7 @@ internal class AcpReplies(private val events: AssistantEvents, private val relat
             is SessionUpdate.PlanUpdate -> events.planned(AcpSettings.planOf(update.entries))
             is SessionUpdate.UsageUpdate -> {
                 events.used(update.used)
+                update.size.takeIf { it > 0 }?.let { window = it }
                 update.cost?.let { cost = it }
             }
             else -> Unit

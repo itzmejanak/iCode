@@ -63,6 +63,8 @@ internal class AgentChats(
     private val ask: (suspend ((Long) -> McpQuestion) -> McpAnswer)?,
     /** Each installed agent's version, as it changes: an update put in place, or a removal. */
     private val releases: Flow<Map<String, String>> = emptyFlow(),
+    /** Older messages summarized by the chat's model, for an agent a whole chat would not fit ([AcpHandover]). */
+    private val summarise: suspend (List<AssistantMessage>) -> String? = { null },
     /**
      * The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]), their
      * sessions kept in the chats, and their questions put to the user ([asked]).
@@ -75,7 +77,7 @@ internal class AgentChats(
     ) -> AcpAgents,
 ) : AgentAnswers {
     private val agents = agentsOf(::offered, ::stopped, ChatRecords(chats), ask?.let { { agent, request -> asked(agent, request) } })
-    private val turn = AcpTurn(agents)
+    private val turn = AcpTurn(agents, preferences, summarise)
     private val outside = OutsideSessions(scope, page, chats, agents, placeOf, installed, runInTab, ::name)
 
     /** The chat shown, by its session — [AcpAgents.NEW_CHAT] for one not started — and the agent answering it, if one is. */
@@ -247,15 +249,6 @@ internal class AgentChats(
         page.state { it.copy(untestedSaid = it.untestedSaid + id) }
     }
 
-    /** Each agent's session for a chat, kept with the chat in its list (docs/assistant-and-mcp.md). */
-    private class ChatRecords(private val chats: AssistantChats) : AcpAgents.Records {
-        override fun of(agent: String, chat: Pair<String?, String>) = chats.of(chat.first, chat.second).agentSessions[agent]
-
-        override fun keep(agent: String, chat: Pair<String?, String>, id: String) = chats.agentSession(chat.first, chat.second, agent, id)
-
-        override fun drop(chat: Pair<String?, String>) = chats.dropAgentSessions(chat.first, chat.second)
-    }
-
     companion object {
         /** The tab a sign-in runs in from a new chat, which has no tab of its own yet. */
         private const val SIGN_IN_TAB = "agent-sign-in"
@@ -273,17 +266,17 @@ internal class AgentChats(
             scope: CoroutineScope,
             toolbox: AssistantToolbox,
             save: suspend (String) -> Boolean,
-        ): (AssistantPage, AssistantChats, (String?) -> AssistantWorkspace, (suspend ((Long) -> McpQuestion) -> McpAnswer)?) -> AgentChats {
+        ): (AssistantPage, AssistantChats, (String?) -> AssistantWorkspace, (suspend ((Long) -> McpQuestion) -> McpAnswer)?, suspend (List<AssistantMessage>) -> String?) -> AgentChats {
             val layout = toolbox.execution.layout
             val receipts = AgentReceipts(layout.home)
             val preferences = AgentPreferences(context)
             val saveOpen: suspend () -> Unit = {
                 icode.mutations.withLock { icode.current.openDocuments.filter { it.dirty }.forEach { save(it.location) } }
             }
-            return { page, chats, placeOf, ask ->
+            return { page, chats, placeOf, ask, summarise ->
                 AgentChats(
                     scope, page, chats, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen,
-                    icode.snapshot.map { it.assistant }, ask, icode.snapshot.map { snapshot -> snapshot.agents.installed.mapValues { it.value.version } }.distinctUntilChanged(),
+                    icode.snapshot.map { it.assistant }, ask, icode.snapshot.map { snapshot -> snapshot.agents.installed.mapValues { it.value.version } }.distinctUntilChanged(), summarise,
                 ) { changed, stopped, records, asked ->
                     AcpAgents(
                         scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),

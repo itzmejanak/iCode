@@ -46,6 +46,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   answer that reads well, as the built-in assistant is asked.
 - Updating a coding agent while it works in a chat downloads at once and switches to the new release
   when its work ends, instead of replacing the program under it.
+- A chat too long for a coding agent to take in whole goes to it as a summary of the older part,
+  written by your chat model, and the newest part in full.
 - An agent chat's menu opens the agent's own program in the chat's terminal tab. Claude Agent,
   Codex, and OpenCode carry on the chat's own conversation there, and the chat picks up what was done.
 

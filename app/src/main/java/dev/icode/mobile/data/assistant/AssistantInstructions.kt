@@ -30,6 +30,9 @@ internal object AssistantInstructions {
             "workspace does not show — ask with ask_user rather than guessing or asking in your answer, then go on with their reply. " +
             "Ask only what you need, together in one call. Never use it for permission: iCode asks before changes and commands itself."
 
+    /** Who writes the summary a coding agent is sent of a chat too long for it ([dev.icode.mobile.data.assistant.acp.AcpHandover]). */
+    const val HANDOVER = "You summarize a chat between a user and a coding assistant, for another coding assistant to continue it."
+
     /** What the model is asked for when a chat is compacted. */
     const val COMPACT_REQUEST =
         "Summarize this conversation so far, with any earlier summary of it, for yourself to continue it from " +
