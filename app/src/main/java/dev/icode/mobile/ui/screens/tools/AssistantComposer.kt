@@ -144,7 +144,7 @@ internal fun AssistantComposer(
                     IconButton(onClick = onAttach, enabled = attached.size < AssistantRules.MAX_ATTACHMENTS) {
                         Icon(Icons.Outlined.Add, contentDescription = "Attach files", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
-                    if (agent == null) IcodeSelect(
+                    if (agent != null) AgentChips(agent.id, state.agentChat, Modifier.weight(1f, fill = false)) else IcodeSelect(
                         options = AssistantMode.entries,
                         selected = settings.mode,
                         optionLabel = { it.label },
@@ -208,8 +208,8 @@ internal fun AssistantComposer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-and-mcp.md).
-                Choice(
+                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-and-mcp.md); an agent asks by its own.
+                if (agent == null) Choice(
                     state.permission.label, "Permissions", AssistantPermission.entries, state.permission, AssistantPermission::label,
                     { permissionLine(it, state.workspace?.let(AssistantPlace::name)) },
                     icon = true,

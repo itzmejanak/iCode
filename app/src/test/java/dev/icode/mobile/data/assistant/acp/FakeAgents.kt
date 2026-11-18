@@ -12,9 +12,19 @@ import com.agentclientprotocol.common.SessionCreationParameters
 import com.agentclientprotocol.model.AuthMethod
 import com.agentclientprotocol.model.AuthMethodId
 import com.agentclientprotocol.model.AuthenticateResponse
+import com.agentclientprotocol.model.AvailableCommand
 import com.agentclientprotocol.model.ContentBlock
 import com.agentclientprotocol.model.PromptResponse
+import com.agentclientprotocol.model.SessionConfigId
+import com.agentclientprotocol.model.SessionConfigOption
+import com.agentclientprotocol.model.SessionConfigOptionValue
+import com.agentclientprotocol.model.SessionConfigValueId
 import com.agentclientprotocol.model.SessionId
+import com.agentclientprotocol.model.SessionMode
+import com.agentclientprotocol.model.SessionModeId
+import com.agentclientprotocol.model.SessionUpdate
+import com.agentclientprotocol.model.SetSessionConfigOptionResponse
+import com.agentclientprotocol.model.SetSessionModeResponse
 import com.agentclientprotocol.model.StopReason
 import com.agentclientprotocol.protocol.JsonRpcException
 import com.agentclientprotocol.protocol.Protocol
@@ -23,6 +33,7 @@ import com.agentclientprotocol.transport.StdioTransport
 import dev.icode.mobile.data.language.jsonrpc.BytePipe
 import dev.icode.mobile.data.runtime.StdioProgram
 import dev.icode.mobile.data.runtime.StdioPrograms
+import dev.icode.mobile.domain.AgentSettings
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
@@ -55,6 +66,15 @@ internal class FakeAgents : StdioPrograms {
     /** The ways it offers to be signed in, and whether it is: a new session asks for it until then. */
     @Volatile var methods: List<AuthMethod> = emptyList()
     @Volatile var signedIn = true
+
+    /** The modes each new session offers and the one it starts in; its options; the commands it says once made. */
+    @Volatile var modes: List<SessionMode> = emptyList()
+    @Volatile var startMode: String? = null
+    @Volatile var options: List<SessionConfigOption> = emptyList()
+    @Volatile var commands: List<AvailableCommand> = emptyList()
+
+    /** Each mode and option set, as the client asked: "mode" to "default", "auto_approve" to "false". */
+    val sets = CopyOnWriteArrayList<Pair<String, String>>()
 
     /** What each prompt was sent, as text; the folder each session was made in; each session cancelled. */
     val prompts = CopyOnWriteArrayList<String>()
@@ -112,8 +132,44 @@ internal class FakeAgents : StdioPrograms {
             if (!signedIn) throw JsonRpcException(JsonRpcErrorCode.AUTH_REQUIRED.code, "Authentication required")
             sessions += sessionParameters.cwd
             val id = SessionId("s${ids.incrementAndGet()}")
+            var mode = startMode ?: modes.firstOrNull()?.id?.value.orEmpty()
+            var settings = options
             return object : AgentSession {
                 override val sessionId = id
+
+                override val availableModes: List<SessionMode> get() = modes
+
+                override val defaultMode: SessionModeId get() = SessionModeId(mode)
+
+                override suspend fun setMode(modeId: SessionModeId, _meta: JsonElement?): SetSessionModeResponse {
+                    sets += AgentSettings.MODE to modeId.value
+                    mode = modeId.value
+                    return SetSessionModeResponse()
+                }
+
+                override val configOptions: List<SessionConfigOption> get() = settings
+
+                override suspend fun setConfigOption(configId: SessionConfigId, value: SessionConfigOptionValue, _meta: JsonElement?): SetSessionConfigOptionResponse {
+                    val given = when (value) {
+                        is SessionConfigOptionValue.StringValue -> value.value
+                        is SessionConfigOptionValue.BoolValue -> value.value.toString()
+                        else -> error("Unknown value")
+                    }
+                    sets += configId.value to given
+                    settings = settings.map { option ->
+                        when {
+                            option.id != configId -> option
+                            option is SessionConfigOption.Select -> option.copy(currentValue = SessionConfigValueId(given))
+                            option is SessionConfigOption.BooleanOption -> option.copy(currentValue = given.toBoolean())
+                            else -> option
+                        }
+                    }
+                    return SetSessionConfigOptionResponse(settings)
+                }
+
+                override suspend fun postInitialize() {
+                    if (commands.isNotEmpty()) currentCoroutineContext().client.notify(SessionUpdate.AvailableCommandsUpdate(commands))
+                }
 
                 override suspend fun prompt(content: List<ContentBlock>, _meta: JsonElement?): Flow<Event> {
                     prompts += content.filterIsInstance<ContentBlock.Text>().joinToString("") { it.text }
@@ -128,7 +184,7 @@ internal class FakeAgents : StdioPrograms {
     }
 
     companion object {
-        fun chunk(text: String) = com.agentclientprotocol.model.SessionUpdate.AgentMessageChunk(ContentBlock.Text(text))
+        fun chunk(text: String) = SessionUpdate.AgentMessageChunk(ContentBlock.Text(text))
 
         fun ended(reason: StopReason = StopReason.END_TURN) = Event.PromptResponseEvent(PromptResponse(reason))
     }

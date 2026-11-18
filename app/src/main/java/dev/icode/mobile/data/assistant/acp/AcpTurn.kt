@@ -15,6 +15,7 @@ import com.agentclientprotocol.model.StopReason
 import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
+import dev.icode.mobile.domain.AgentCommand
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
@@ -54,17 +55,20 @@ internal class AcpTurn(private val agents: AcpAgents) {
     ) = agents.use(agent) { running ->
         // Another answerer wrote since this agent last did: its session missed that, so it starts afresh.
         if (history.lastOrNull { it is AssistantMessage.Reply }.let { it as? AssistantMessage.Reply }?.by != AssistantAgent(agent)) forget(chat)
-        val (session, made) = agents.session(running, chat, place.guestPath, ChatOperations())
-        if (made) costs.remove(chat)
+        val (session, first) = agents.session(running, chat, place.guestPath)
+        if (first) costs.remove(chat)
         val replies = AcpReplies(events) { path -> path.removePrefix(place.guestPath + "/").takeIf { it != path } }
         replies.began(costs[chat])
         val operations = session.operations as ChatOperations
         operations.asking = { update, options -> ask(update, options, approve) }
         var stopped: StopReason? = null
         try {
-            session.prompt(listOf(ContentBlock.Text(prompt(if (made) history else emptyList(), message)))).collect { event ->
+            session.prompt(listOf(ContentBlock.Text(prompt(if (first) history else emptyList(), message)))).collect { event ->
                 when (event) {
-                    is Event.SessionUpdateEvent -> replies.on(event.update)
+                    is Event.SessionUpdateEvent -> {
+                        replies.on(event.update)
+                        operations.heard(event.update)
+                    }
                     is Event.PromptResponseEvent -> stopped = event.response.stopReason
                 }
             }
@@ -142,12 +146,41 @@ internal class AcpTurn(private val agents: AcpAgents) {
     }
 }
 
-/** What a chat's session does for the agent: its permission requests go to the turn in hand, and none is answered without one. */
-internal class ChatOperations : ClientSessionOperations {
+/**
+ * What a chat's session does for the agent: its permission requests go to the turn in hand, and none is
+ * answered without one; its commands are kept as it says them, and [changed] is told of them and of its
+ * settings changing, in a turn or between turns.
+ */
+internal class ChatOperations(
+    val agent: String,
+    /** The chat it serves: a new chat's until its first message names it ([AcpAgents.NEW_CHAT]). */
+    @Volatile var chat: Pair<String?, String>,
+    private val changed: (Pair<String?, String>) -> Unit,
+) : ClientSessionOperations {
     @Volatile var asking: (suspend (SessionUpdate.ToolCallUpdate, List<PermissionOption>) -> RequestPermissionResponse)? = null
+
+    /**
+     * The mode iCode set, until the agent says another: the protocol's answer to setting one carries none,
+     * and the SDK records a mode only as the agent reports it.
+     */
+    @Volatile var mode: String? = null
+
+    /** The commands the agent offers in this session, as it last said them. */
+    @Volatile var commands: List<AgentCommand> = emptyList()
+        private set
 
     override suspend fun requestPermissions(toolCall: SessionUpdate.ToolCallUpdate, permissions: List<PermissionOption>, _meta: JsonElement?) =
         asking?.invoke(toolCall, permissions) ?: RequestPermissionResponse(RequestPermissionOutcome.Cancelled)
 
-    override suspend fun notify(notification: SessionUpdate, _meta: JsonElement?) = Unit
+    override suspend fun notify(notification: SessionUpdate, _meta: JsonElement?) = heard(notification)
+
+    fun heard(update: SessionUpdate) {
+        when (update) {
+            is SessionUpdate.AvailableCommandsUpdate -> commands = AcpSettings.commandsOf(update.availableCommands)
+            is SessionUpdate.CurrentModeUpdate -> mode = null
+            is SessionUpdate.ConfigOptionUpdate -> Unit
+            else -> return
+        }
+        changed(chat)
+    }
 }

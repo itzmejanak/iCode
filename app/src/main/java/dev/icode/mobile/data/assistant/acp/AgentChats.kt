@@ -14,31 +14,35 @@ import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.GuestStdio
 import dev.icode.mobile.data.runtime.shellQuote
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.domain.AgentChat
 import dev.icode.mobile.domain.AgentChatIntent
 import dev.icode.mobile.domain.AgentSignInWay
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantOption
+import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.CodingAgent
 import dev.icode.mobile.domain.CodingAgents
 import dev.icode.mobile.domain.InstalledAgent
 import dev.icode.mobile.domain.notices.AgentNotices
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The coding agents in the chats (docs/assistant-and-mcp.md): the one a chat is answered by, chosen
- * in the model sheet; its sign-in, checked once — its ways shown in the chat until it is signed in;
- * the one-line note an untested agent gets the first time; and each message to one, sent once every
- * open file's unsaved changes are saved, so the agent works on the user's latest.
+ * The coding agents in the chats (docs/assistant-and-mcp.md): the one a chat is answered by, chosen in
+ * the model sheet; started as a chat it answers opens, so its settings and commands show before the
+ * first message, and its sign-in ways until it is signed in; the one-line note an untested agent gets
+ * the first time; and each message to one, sent once every open file's unsaved changes are saved.
  */
 internal class AgentChats(
     private val scope: CoroutineScope,
     private val page: AssistantPage,
     private val chats: AssistantChats,
-    private val agents: AcpAgents,
     private val preferences: AgentPreferences,
     private val catalogue: () -> List<CodingAgent>,
     private val installed: () -> Map<String, InstalledAgent>,
@@ -48,11 +52,22 @@ internal class AgentChats(
     private val runInTab: suspend (workspace: String?, chat: String, command: String) -> Unit,
     /** Every open file with unsaved changes saved. */
     private val saveOpen: suspend () -> Unit,
+    /** The page as it changes: the chat shown, and who answers it. */
+    private val states: Flow<AssistantState>,
+    /** The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]). */
+    agentsOf: (changed: (String, Pair<String?, String>) -> Unit, stopped: (String) -> Unit) -> AcpAgents,
 ) : AgentAnswers {
+    private val agents = agentsOf(::offered, ::stopped)
     private val turn = AcpTurn(agents)
 
-    /** What is kept, on the page from the start: the agent new chats start with, and the notes already given. */
-    fun start() = page.state { it.copy(agent = preferences.last, untestedSaid = preferences.untestedSaid()) }
+    /** The chat shown, by its session — [AcpAgents.NEW_CHAT] for one not started — and the agent answering it, if one is. */
+    private data class Shown(val chat: Pair<String?, String>, val agent: String?)
+
+    /** What is kept, on the page from the start; then each chat an agent answers starts it as it is shown. */
+    fun start() {
+        page.state { it.copy(agent = preferences.last, untestedSaid = preferences.untestedSaid()) }
+        scope.launch { states.map(::shownOf).distinctUntilChanged().collect(::shown) }
+    }
 
     fun handle(intent: AgentChatIntent) {
         when (intent) {
@@ -62,9 +77,10 @@ internal class AgentChats(
                 runCatching { preferences.saveKeys(intent.agent, intent.values) }.onFailure { return@launch page.tell(AgentNotices.notSignedIn(name(intent.agent), "Unable to keep the keys")) }
                 // An agent reads its keys as it starts.
                 agents.restart(intent.agent)
-                check(intent.agent)
+                prepareShown()
             }
-            is AgentChatIntent.SignedIn -> scope.launch { check(intent.agent) }
+            is AgentChatIntent.SignedIn -> scope.launch { prepareShown() }
+            is AgentChatIntent.Set -> set(intent)
         }
     }
 
@@ -90,15 +106,17 @@ internal class AgentChats(
         try {
             turn.answer(id, chat, place, history, message, events, approve)
         } catch (needed: AcpAgents.SignInNeeded) {
-            preferences.signedIn(id, false)
             page.state { it.copy(signIns = it.signIns + (id to needed.methods)) }
             throw AssistantTurnException("Sign in to ${name(id)} first, then send it again")
+        } finally {
+            // Its session may be new, started again by this message: what it offers shows.
+            offered(id, chat)
         }
     }
 
     override fun forget(chat: Pair<String?, String>) = turn.forget(chat)
 
-    /** The chat shown answered by [id] from now on, and new chats too; its sign-in checked unless it was. */
+    /** The chat shown answered by [id] from now on, and new chats too; it starts for the chat as it is shown. */
     private fun choose(id: String) {
         val shown = page.current
         if (shown.opened && shown.session != null) {
@@ -107,20 +125,57 @@ internal class AgentChats(
         }
         runCatching { preferences.last = id }
         page.state { it.copy(agent = id) }
-        if (id in installed() && id !in preferences.signedIn()) scope.launch { check(id) }
     }
 
-    /** [id] started once to learn whether it asks to be signed in: its ways shown until it is. */
-    private suspend fun check(id: String) {
-        runCatching { agents.use(id) { agents.check(it, placeOf(page.current.workspace).guestPath) } }
+    private fun shownOf(state: AssistantState) = Shown(
+        state.workspace to (state.session ?: AcpAgents.NEW_CHAT),
+        (state.answering as? AssistantAgent)?.id?.takeIf { state.opened },
+    )
+
+    /** The chat [shown]: what its agent offers it on the page, and the agent started for it if it is not. */
+    private fun shown(shown: Shown) {
+        val agent = shown.agent ?: return page.state { it.copy(agentChat = null) }
+        offered(agent, shown.chat)
+        // Started apart, so another chat shown meanwhile is not kept waiting on it.
+        if (agent in installed()) scope.launch { prepare(agent, shown.chat) }
+    }
+
+    private suspend fun prepareShown() {
+        val shown = shownOf(page.current)
+        shown.agent?.let { prepare(it, shown.chat) }
+    }
+
+    /** [agent] started for [chat], its session made: the sign-in it asks for shown until it is signed in. */
+    private suspend fun prepare(agent: String, chat: Pair<String?, String>) {
+        runCatching { agents.use(agent) { agents.prepare(it, chat, placeOf(chat.first).guestPath) } }
             .onSuccess {
-                runCatching { preferences.signedIn(id, true) }
-                page.state { it.copy(signIns = it.signIns - id) }
+                page.state { it.copy(signIns = it.signIns - agent) }
+                offered(agent, chat)
             }
             .onFailure { failure ->
-                if (failure is AcpAgents.SignInNeeded) page.state { it.copy(signIns = it.signIns + (id to failure.methods)) }
-                else page.tell(AgentNotices.notStarted(name(id), failure.message ?: failure.javaClass.simpleName))
+                if (failure is AcpAgents.SignInNeeded) page.state { it.copy(signIns = it.signIns + (agent to failure.methods)) }
+                else page.tell(AgentNotices.notStarted(name(agent), failure.message ?: failure.javaClass.simpleName))
             }
+    }
+
+    /** What [agent] offers [chat] now, on the page while it is the chat shown. */
+    private fun offered(agent: String, chat: Pair<String?, String>) {
+        val held = agents.held(agent, chat)
+        val offer = held?.let { AgentChat(agent, AcpSettings.of(it.session), it.operations.commands) }
+        page.state { state -> if (shownOf(state) == Shown(chat, agent)) state.copy(agentChat = offer) else state }
+    }
+
+    /** [agent] stopped: the chat shown no longer has what it offered, until it starts again. */
+    private fun stopped(agent: String) = page.state { if (it.agentChat?.agent == agent) it.copy(agentChat = null) else it }
+
+    private fun set(intent: AgentChatIntent.Set) {
+        val chat = shownOf(page.current).chat
+        val held = agents.held(intent.agent, chat) ?: return
+        scope.launch {
+            runCatching { AcpSettings.set(held.session, intent.setting, intent.value) }
+                .onSuccess { offered(intent.agent, chat) }
+                .onFailure { page.tell(AgentNotices.notSet(name(intent.agent), it.message ?: it.javaClass.simpleName)) }
+        }
     }
 
     private fun signIn(agent: String, method: String) {
@@ -128,7 +183,7 @@ internal class AgentChats(
         scope.launch {
             when (way) {
                 AgentSignInWay.ByAgent -> runCatching { agents.authenticate(agent, method) }
-                    .onSuccess { check(agent) }
+                    .onSuccess { prepareShown() }
                     .onFailure { page.tell(AgentNotices.notSignedIn(name(agent), it.message ?: it.javaClass.simpleName)) }
                 is AgentSignInWay.InTerminal -> {
                     val command = installed()[agent]?.command ?: return@launch
@@ -171,16 +226,21 @@ internal class AgentChats(
             val layout = toolbox.execution.layout
             val receipts = AgentReceipts(layout.home)
             val preferences = AgentPreferences(context)
-            val agents = AcpAgents(
-                scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),
-                login = { toolbox.execution.environment.of(GuestContext.Command).variables },
-                installed = receipts::installed, keys = preferences::keys, version = BuildConfig.VERSION_NAME,
-            )
             val saveOpen: suspend () -> Unit = {
                 icode.mutations.withLock { icode.current.openDocuments.filter { it.dirty }.forEach { save(it.location) } }
             }
             return { page, chats, placeOf ->
-                AgentChats(scope, page, chats, agents, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen)
+                AgentChats(
+                    scope, page, chats, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen,
+                    icode.snapshot.map { it.assistant },
+                ) { changed, stopped ->
+                    AcpAgents(
+                        scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),
+                        login = { toolbox.execution.environment.of(GuestContext.Command).variables },
+                        installed = receipts::installed, keys = preferences::keys, version = BuildConfig.VERSION_NAME,
+                        changed = changed, stopped = stopped,
+                    )
+                }
             }
         }
     }

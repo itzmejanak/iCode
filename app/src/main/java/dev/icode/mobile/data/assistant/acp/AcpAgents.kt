@@ -3,7 +3,6 @@ package dev.icode.mobile.data.assistant.acp
 import com.agentclientprotocol.client.Client
 import com.agentclientprotocol.client.ClientInfo
 import com.agentclientprotocol.client.ClientSession
-import com.agentclientprotocol.common.ClientSessionOperations
 import com.agentclientprotocol.common.SessionCreationParameters
 import com.agentclientprotocol.model.AuthMethod
 import com.agentclientprotocol.model.AuthMethodId
@@ -35,9 +34,10 @@ import kotlinx.io.buffered
 
 /**
  * The agents running for the chats (docs/assistant-and-mcp.md): one process per agent, started in
- * the runtime with the first message or sign-in check, its sessions — one per chat — sharing its
- * connection, and stopped once no chat has used it for [idleMillis]. Its standard output is the
- * protocol and is never logged; its standard error goes to its own log.
+ * the runtime as a chat it answers opens or sends, its sessions — one per chat — sharing its
+ * connection, and stopped once no chat has used it for [idleMillis]. Every session starts in the
+ * agent's asking values ([AcpSettings.startAsking]). Its standard output is the protocol and is never
+ * logged; its standard error goes to its own log.
  */
 internal class AcpAgents(
     private val scope: CoroutineScope,
@@ -50,12 +50,25 @@ internal class AcpAgents(
     /** iCode's version, as the agent is told who connects. */
     private val version: String,
     private val idleMillis: Long = IDLE_MILLIS,
+    /** What a chat's session offers changed: its commands, its settings. */
+    private val changed: (agent: String, chat: Pair<String?, String>) -> Unit = { _, _ -> },
+    /** An agent stopped: its sessions are gone. */
+    private val stopped: (agent: String) -> Unit = {},
 ) {
     /** An agent's process and its connection: what it said of itself, and a session per chat. */
-    class Running(val program: StdioProgram, val client: Client, val methods: List<AgentSignIn>) {
-        val sessions = ConcurrentHashMap<Pair<String?, String>, ClientSession>()
+    class Running(val id: String, val program: StdioProgram, val client: Client, val methods: List<AgentSignIn>) {
+        val sessions = ConcurrentHashMap<Pair<String?, String>, Held>()
+
+        /** Held while a session is made or handed to a chat: one chat never gets two. */
+        val opening = Mutex()
         var users = 0
         var stopping: Job? = null
+    }
+
+    /** A chat's session, and whether a message has gone in it: the first carries the chat so far. */
+    class Held(val session: ClientSession) {
+        @Volatile var prompted = false
+        val operations: ChatOperations get() = session.operations as ChatOperations
     }
 
     /** Held while an agent starts or stops: [running] changes only under it. */
@@ -65,7 +78,8 @@ internal class AcpAgents(
     /** [block] with [id]'s connection, started if it is not running; it idles from the last use on. */
     suspend fun <T> use(id: String, block: suspend (Running) -> T): T {
         val agent = lock.withLock {
-            running[id]?.takeIf { it.program.ended.isActive } ?: start(id).also { running[id] = it }
+            // One that ended by itself has lost its sessions with it.
+            running[id]?.takeIf { it.program.ended.isActive } ?: start(id).also { if (running.put(id, it) != null) stopped(id) }
         }.also { it.users++; it.stopping?.cancel() }
         try {
             return block(agent)
@@ -78,28 +92,49 @@ internal class AcpAgents(
     }
 
     /**
-     * [chat]'s session with [agent], made in [cwd] — the chat's place in the runtime — when it has none.
-     * Throws [SignInNeeded] when the agent asks to be signed in first.
+     * [chat]'s session with [agent] for a message, made in [cwd] — the chat's place in the runtime — when it
+     * has none; a new chat takes the one made for it while it was empty. True when no message has gone in
+     * it yet. Throws [SignInNeeded] when the agent asks to be signed in first.
      */
-    suspend fun session(agent: Running, chat: Pair<String?, String>, cwd: String, operations: ClientSessionOperations): Pair<ClientSession, Boolean> {
-        agent.sessions[chat]?.let { return it to false }
-        return open(agent, cwd, operations).also { agent.sessions[chat] = it } to true
+    suspend fun session(agent: Running, chat: Pair<String?, String>, cwd: String): Pair<ClientSession, Boolean> {
+        val held = prepare(agent, chat, cwd)
+        val first = !held.prompted
+        held.prompted = true
+        return held.session to first
     }
 
     /**
-     * Whether [agent] takes a chat in [cwd] now: the sign-in check, in a session no chat keeps. Throws
-     * [SignInNeeded] when it asks to be signed in first.
+     * [chat]'s session with [agent], made in [cwd] if it has none, for its settings and commands to show
+     * before a message goes: [NEW_CHAT] names a chat not started yet. Throws [SignInNeeded] when the agent
+     * asks to be signed in first.
      */
-    suspend fun check(agent: Running, cwd: String) {
-        open(agent, cwd, ChatOperations())
+    suspend fun prepare(agent: Running, chat: Pair<String?, String>, cwd: String): Held = agent.opening.withLock {
+        agent.sessions[chat] ?: adopted(agent, chat) ?: open(agent, chat, cwd)
     }
 
-    private suspend fun open(agent: Running, cwd: String, operations: ClientSessionOperations): ClientSession = try {
-        agent.client.newSession(SessionCreationParameters(cwd, emptyList())) { _, _ -> operations }
-    } catch (refused: JsonRpcException) {
-        if (refused.code == JsonRpcErrorCode.AUTH_REQUIRED.code) throw SignInNeeded(agent.methods)
-        throw AssistantTurnException("The agent refused the chat: ${refused.message}", refused)
+    /** The session made for a new chat in [chat]'s workspace, now [chat]'s: no message has gone in it, so the chat so far goes with its first. */
+    private fun adopted(agent: Running, chat: Pair<String?, String>): Held? {
+        if (chat.second == NEW_CHAT) return null
+        val held = agent.sessions.remove(chat.first to NEW_CHAT) ?: return null
+        held.operations.chat = chat
+        agent.sessions[chat] = held
+        return held
     }
+
+    private suspend fun open(agent: Running, chat: Pair<String?, String>, cwd: String): Held {
+        val operations = ChatOperations(agent.id, chat) { changed(agent.id, it) }
+        val session = try {
+            agent.client.newSession(SessionCreationParameters(cwd, emptyList())) { _, _ -> operations }
+        } catch (refused: JsonRpcException) {
+            if (refused.code == JsonRpcErrorCode.AUTH_REQUIRED.code) throw SignInNeeded(agent.methods)
+            throw AssistantTurnException("The agent refused the chat: ${refused.message}", refused)
+        }
+        AcpSettings.startAsking(agent.id, session)
+        return Held(session).also { agent.sessions[chat] = it }
+    }
+
+    /** [chat]'s session with [id], while its agent runs. */
+    fun held(id: String, chat: Pair<String?, String>): Held? = running[id]?.sessions?.get(chat)
 
     /** [chat]'s sessions forgotten: its next message starts each agent afresh, from the chat as it stands. */
     fun forget(chat: Pair<String?, String>) = running.values.forEach { it.sessions.remove(chat) }
@@ -108,7 +143,10 @@ internal class AcpAgents(
     suspend fun authenticate(id: String, method: String) = use(id) { it.client.authenticate(AuthMethodId(method)) }
 
     /** [id] stopped now, if it runs: keys it is given change only as it starts again. */
-    suspend fun restart(id: String) = lock.withLock { running.remove(id) }?.program?.stop()
+    suspend fun restart(id: String) {
+        lock.withLock { running.remove(id) }?.program?.stop() ?: return
+        stopped(id)
+    }
 
     private suspend fun start(id: String): Running {
         val agent = installed()[id] ?: throw AssistantTurnException("This agent is not installed: install it in Settings › Assistant › Coding Agents")
@@ -124,7 +162,7 @@ internal class AcpAgents(
             val said = programs.tail(id, LOG_LINES).lastOrNull { it.isNotBlank() }
             throw AssistantTurnException("The agent did not start: ${said ?: failed.message ?: failed.javaClass.simpleName}", failed)
         }
-        return Running(program, client, info.authMethods.mapNotNull(::signInOf))
+        return Running(id, program, client, info.authMethods.mapNotNull(::signInOf))
     }
 
     private suspend fun stop(id: String, agent: Running) {
@@ -133,12 +171,16 @@ internal class AcpAgents(
             running.remove(id)
         }
         agent.program.stop()
+        stopped(id)
     }
 
     /** One that asks to be signed in first, and the ways it offers. */
     class SignInNeeded(val methods: List<AgentSignIn>) : Exception("The agent asks to be signed in")
 
     companion object {
+        /** The chat a new chat's session is kept for until its first message names it. */
+        const val NEW_CHAT = ""
+
         /** An agent no chat has used for this long stops (owner's choice, 2026-11-17). */
         const val IDLE_MILLIS = 10 * 60 * 1000L
 

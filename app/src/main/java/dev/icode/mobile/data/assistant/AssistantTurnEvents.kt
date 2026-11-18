@@ -1,7 +1,8 @@
 package dev.icode.mobile.data.assistant
 
-import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AgentPlanStep
 import dev.icode.mobile.domain.AssistantAnswerer
+import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
@@ -81,6 +82,8 @@ internal class AssistantTurnEvents(
     }
 
     /** Its model does not see after all: the rest of the turn sends no picture. */
+    override fun planned(steps: List<AgentPlanStep>) = update { it.copy(plan = steps) }
+
     override fun picturesRefused() {
         step.seesPictures = false
         (chosen as? AssistantChoice)?.let(seesNoPictures)

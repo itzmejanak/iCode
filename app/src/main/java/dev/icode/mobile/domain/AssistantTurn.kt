@@ -30,6 +30,8 @@ data class AssistantTurn(
     val pause: AssistantPause? = null,
     /** The model's questions, waiting for the user's reply (docs/assistant-and-mcp.md). */
     val clarification: AssistantClarification? = null,
+    /** An agent's to-do list as it last said it: its progress shows on the jump-to-latest button. */
+    val plan: List<AgentPlanStep> = emptyList(),
 ) {
     /** It waits for the user: an approval, a pause, or the model's questions. */
     val asking: Boolean get() = approval != null || pause != null || clarification != null

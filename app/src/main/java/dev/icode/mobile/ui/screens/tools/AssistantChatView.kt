@@ -35,7 +35,6 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IndeterminateProgressTrack
-import dev.icode.mobile.designsystem.JumpToLatestButton
 import dev.icode.mobile.designsystem.LocalCodeTextScale
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PinchToScaleText
@@ -156,10 +155,11 @@ internal fun AssistantChatView(
                         }
                     }
                 }
-                JumpToLatestButton(
-                    visible = !following,
-                    contentDescription = "Jump to the latest",
-                    onClick = {
+                JumpOrPlan(
+                    plan = state.turn?.plan.orEmpty(),
+                    following = following,
+                    scrolling = list.isScrollInProgress && !gliding,
+                    onJump = {
                         following = true
                         scope.launch {
                             gliding = true

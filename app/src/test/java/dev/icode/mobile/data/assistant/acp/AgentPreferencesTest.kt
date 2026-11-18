@@ -21,13 +21,10 @@ class AgentPreferencesTest {
         assertNull(preferences.last)
     }
 
-    @Test fun `sign-ins and the notes already given are kept per agent`() {
-        preferences.signedIn("codex-acp", true)
-        preferences.signedIn("gemini", true)
-        preferences.signedIn("gemini", false)
-        assertEquals(setOf("codex-acp"), preferences.signedIn())
+    @Test fun `the notes already given are kept per agent`() {
         preferences.said("opencode")
-        assertEquals(setOf("opencode"), preferences.untestedSaid())
+        preferences.said("cline")
+        assertEquals(setOf("opencode", "cline"), preferences.untestedSaid())
     }
 
     @Test fun `keys are kept encrypted, merged, and an emptied one is taken out`() {
@@ -44,13 +41,11 @@ class AgentPreferencesTest {
         assertTrue(preferences.keys("gemini").isEmpty())
     }
 
-    @Test fun `an agent forgotten loses its keys and its sign-in, and others keep theirs`() {
+    @Test fun `an agent forgotten loses its keys, and others keep theirs`() {
         preferences.saveKeys("gemini", mapOf("GEMINI_API_KEY" to "secret-1"))
         preferences.saveKeys("cline", mapOf("CLINE_KEY" to "secret-2"))
-        preferences.signedIn("gemini", true)
         preferences.forget("gemini")
         assertTrue(preferences.keys("gemini").isEmpty())
-        assertTrue(preferences.signedIn().isEmpty())
         assertEquals(mapOf("CLINE_KEY" to "secret-2"), preferences.keys("cline"))
     }
 }

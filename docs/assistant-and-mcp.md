@@ -288,23 +288,41 @@ Remove asks each time. **Keep sign-in and settings** removes the agent's program
 | Cline | `~/.cline` |
 | Factory Droid | `~/.factory` |
 
-A folder an environment variable moves elsewhere is not followed. Delete everything also forgets the keys entered in iCode for that agent and that it was signed in.
+A folder an environment variable moves elsewhere is not followed. Delete everything also forgets the keys entered in iCode for that agent.
 
 ### Agents in chats
 
-The model sheet has two tabs, Models and Agents. The Agents tab lists the offered agents with their marks, and Untested on each not yet verified on phones. Choosing an installed agent sets the chat shown to it, and new chats start with it until a model is chosen. Choosing one that is not installed opens Coding Agents. The composer's chip shows the agent's mark and name; iCode's modes do not apply to agents, so their chip is not shown.
+The model sheet has two tabs, Models and Agents. The Agents tab lists the offered agents with their marks, and Untested on each not yet verified on phones. Choosing an installed agent sets the chat shown to it, and new chats start with it until a model is chosen. Choosing one that is not installed opens Coding Agents. The composer's chip shows the agent's mark and name. iCode's modes and Permissions do not apply to agents, so their chips are not shown; the agent's own settings are.
 
-**Signing in.** When an agent is chosen and is not yet known to be signed in, iCode starts it and opens a session it does not keep, to learn whether the agent asks to be signed in first. If it does, a card above the message box shows every way the agent offers, and Send waits until one succeeds:
+**Starting.** Opening a chat answered by an agent, a new one included, starts the agent and opens the chat's session with it, so its settings and commands show before the first message. A new chat's session becomes the chat's with its first message, settings chosen meanwhile kept.
+
+**Signing in.** If the agent asks to be signed in first, a card above the message box shows every way it offers, and Send waits until one succeeds:
 
 - **By the agent.** A button asks the agent to sign in by itself.
 - **In the terminal.** A button runs the agent's own sign-in command, with the variables it names, in the chat's terminal tab, or a tab of its own for a chat not started yet. **Signed in? Check again** asks the agent once more.
 - **With keys.** Fields for the variables the agent names, hidden where it marks them secret, with a link to get a key where it gives one. Keys are encrypted with an Android Keystore key, given only to that agent's process as variables, never shown again, and the agent restarts to read them.
 
-A successful sign-in is remembered, and the agent is not checked again until it asks again: a message it refuses for sign-in shows the card and says to sign in first, then send again.
+A message the agent refuses for sign-in shows the card again and says to sign in first, then send again.
+
+**Settings.** The agent's mode, model, and thinking show as chips under the message box, with its own names for them and their values. Every chat starts in the agent's mode that asks before changes, whatever the agent would pick itself; a value that lets it act without asking says so in amber where it is chosen. These are checked against each agent's published package or source; an agent not checked yet starts as it starts, and its values carry no warning:
+
+| Agent | Every chat starts in | Said to act without asking |
+|---|---|---|
+| Claude Agent | Manual (`default`); it would pick Auto | Accept edits, Auto, Bypass permissions |
+| Codex | Read-only; it would pick Auto review | Workspace access, Auto review, Full access |
+| Gemini CLI | Default | Auto Edit, YOLO |
+| Cline | Auto-approve tools off | Auto-approve tools on |
+| OpenCode, Factory Droid | as they start | not checked yet |
+
+A mode iCode sets is shown until the agent reports another; the protocol's answer to setting one carries none.
+
+**Commands.** Typing `/` opens a list over the message box with the agent's commands, narrowed as the name is typed; a tap writes the command in, and it is sent as the message's text. With `/` alone, the list also shows the agent's other settings: a switch flips with a tap, and a choice opens its values in the same list.
+
+**To-do list.** While an agent keeps a to-do list, the jump-to-latest button shows how far it has come, such as 2/5, and a tap opens the list in the same kind of list as `/`. Scrolling brings back the arrow for a few seconds, then the progress again. Without a list, the button is the arrow, shown once the chat is scrolled up.
 
 **The first message.** An untested agent gets one short note above the message box, until its first message: that it is not tested on phones yet and may not start.
 
-**Sending.** Every open file with unsaved changes is saved before a message goes to an agent, so it works on the user's latest. One process serves each agent for every chat, started in the Linux runtime with the login's variables, the variables its receipt records, and its keys, and stopped after 10 minutes no chat uses it. Each chat has its own session with the agent, made in the chat's place: the workspace's folder in the runtime, or the runtime's home for a chat in no workspace. A new session is first sent the conversation so far, as a transcript, then the message; a chat whose last reply another model or agent wrote gets a new session, so the agent has all of it. Text files go with the message; pictures and documents are named, not sent. An agent that does not say it is ready within two minutes is reported with the last line it wrote to its error output.
+**Sending.** Every open file with unsaved changes is saved before a message goes to an agent, so it works on the user's latest. One process serves each agent for every chat, started in the Linux runtime with the login's variables, the variables its receipt records, and its keys, and stopped after 10 minutes no chat uses it; its chips and commands go with it until the chat is opened again or a message is sent. Each chat has its own session with the agent, made in the chat's place: the workspace's folder in the runtime, or the runtime's home for a chat in no workspace. A new session is first sent the conversation so far, as a transcript, then the message; a chat whose last reply another model or agent wrote gets a new session, so the agent has all of it. Text files go with the message; pictures and documents are named, not sent. An agent that does not say it is ready within two minutes is reported with the last line it wrote to its error output.
 
 **Replies.** The agent's words stream into a reply and its thinking into reasoning. Each of its tool calls is a step: edits, deletes, and moves are changes, with the lines they changed; commands keep what they printed; everything else is a read. When the agent reports what its session cost, a small line under the reply shows what that message added, in the agent's currency. An agent ending its turn by refusing, or at its own length or step limit, is said in plain words.
 

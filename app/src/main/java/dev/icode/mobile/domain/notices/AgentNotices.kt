@@ -20,6 +20,9 @@ object AgentNotices {
 
     fun notSignedIn(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't sign in to $name", output = words)
 
+    /** A setting the agent refused to change, with why. */
+    fun notSet(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "$name kept its setting", output = words)
+
     fun needsRuntime() = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Install the Linux runtime first", detail = "Coding agents run in it.")
 
     /**

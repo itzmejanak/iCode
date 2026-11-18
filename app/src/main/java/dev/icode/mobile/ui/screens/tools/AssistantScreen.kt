@@ -180,22 +180,26 @@ fun AssistantScreen(actions: NavigationActions) {
                         agent.id !in CodingAgents.VERIFIED && agent.id !in state.untestedSaid -> UntestedNote(agent, edges)
                     }
                 }
-                AssistantComposer(
-                    state = state,
-                    draft = draft,
-                    onDraft = { draft = it },
-                    attached = attached,
-                    onDetach = { file -> attached = attached - file },
-                    onAttach = { sheet = AssistantSheet.Attach },
-                    onModels = { sheet = AssistantSheet.Models },
-                    onSend = {
-                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached))
-                        draft = ""
-                        attached = emptyList()
-                    },
-                    // The open workspace's tree, a step forward: Back is the chat again.
-                    onWorkspace = { actions.navigate(Route.WorkspaceExplorer) },
-                )
+                // The agent's "/" list opens over the composer as "/" is typed.
+                Box {
+                    AssistantComposer(
+                        state = state,
+                        draft = draft,
+                        onDraft = { draft = it },
+                        attached = attached,
+                        onDetach = { file -> attached = attached - file },
+                        onAttach = { sheet = AssistantSheet.Attach },
+                        onModels = { sheet = AssistantSheet.Models },
+                        onSend = {
+                            gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached))
+                            draft = ""
+                            attached = emptyList()
+                        },
+                        // The open workspace's tree, a step forward: Back is the chat again.
+                        onWorkspace = { actions.navigate(Route.WorkspaceExplorer) },
+                    )
+                    AgentCommandList(state.agentChat, draft) { draft = it }
+                }
             }
         }
         sheet?.let { open ->

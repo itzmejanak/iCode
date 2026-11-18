@@ -112,6 +112,10 @@ object IcodeSizes {
     /** How far above the screen's bottom the floating + (56 dp) and the margin around it reach: what sits above it clears it by this. */
     val FabClearance = 88.dp
     val MenuWidth = 200.dp
+    /** A popup list's width at most ([IcodePopupList]): a command and its line, on a phone with room to spare. */
+    val PopupListWidth = 300.dp
+    /** A popup list's height at most: past it, the list scrolls. */
+    val PopupListHeight = 280.dp
     /** An option panel's tile ([IcodeOptionTile]): wide enough for "Detailed" in caption type, and its pill. */
     val OptionTile = 54.dp
     val DotMd = 12.dp

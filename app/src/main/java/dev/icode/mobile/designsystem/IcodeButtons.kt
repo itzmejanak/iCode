@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
@@ -36,12 +37,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -315,16 +318,22 @@ private fun KeyChipSurface(
 
 /**
  * ↓ over what scrolls, at its end: back to the latest — the terminal's output, the chat's reply.
- * Shown, fading in and out, only while [visible]: the user scrolled back from the end.
+ * Shown, fading in and out, only while [visible]: the user scrolled back from the end. With a
+ * [label] — an agent's progress, "2/5" — the same pill shows it in place of the arrow.
  */
 @Composable
-fun JumpToLatestButton(visible: Boolean, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun JumpToLatestButton(visible: Boolean, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, label: String? = null) {
     AnimatedVisibility(visible = visible, modifier = modifier, enter = fadeIn(), exit = fadeOut()) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(IcodeSizes.TouchTarget).background(IcodeColors.SurfaceElevated, IcodeShapes.Pill),
+        Box(
+            Modifier.heightIn(min = IcodeSizes.TouchTarget).widthIn(min = IcodeSizes.TouchTarget)
+                .background(IcodeColors.SurfaceElevated, IcodeShapes.Pill).clip(IcodeShapes.Pill)
+                .clickable(onClickLabel = contentDescription, role = Role.Button, onClick = onClick)
+                .semantics { this.contentDescription = contentDescription }
+                .padding(horizontal = IcodeSpacing.Space2),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.ArrowDownward, contentDescription = contentDescription, tint = IcodeColors.Green)
+            if (label == null) Icon(Icons.Outlined.ArrowDownward, contentDescription = null, tint = IcodeColors.Green)
+            else Text(label, style = IcodeType.Caption.copy(color = IcodeColors.Green, fontWeight = FontWeight.SemiBold), maxLines = 1)
         }
     }
 }

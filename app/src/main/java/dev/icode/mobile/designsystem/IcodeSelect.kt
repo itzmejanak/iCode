@@ -49,6 +49,8 @@ fun <T> IcodeSelect(
     optionDescription: ((T) -> String?)? = null,
     chipIcon: ImageVector? = null,
     chipRole: String? = null,
+    /** A line said in amber under an option that needs one: what it lets happen. */
+    optionWarning: ((T) -> String?)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val dismiss = { expanded = false }
@@ -74,7 +76,7 @@ fun <T> IcodeSelect(
                             Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "Choose", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                         }
                     }
-                    SelectMenu(expanded, dismiss, options, selected, optionLabel, onSelect, optionDescription)
+                    SelectMenu(expanded, dismiss, options, selected, optionLabel, onSelect, optionDescription, optionWarning)
                 }
             }
         }
@@ -95,7 +97,7 @@ fun <T> IcodeSelect(
                     Text(optionLabel(selected), style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                 }
-                SelectMenu(expanded, dismiss, options, selected, optionLabel, onSelect, optionDescription)
+                SelectMenu(expanded, dismiss, options, selected, optionLabel, onSelect, optionDescription, optionWarning)
             }
         }
     }
@@ -110,6 +112,7 @@ private fun <T> SelectMenu(
     optionLabel: (T) -> String,
     onSelect: (T) -> Unit,
     optionDescription: ((T) -> String?)?,
+    optionWarning: ((T) -> String?)?,
 ) {
     IcodeDropdownMenu(expanded, onDismiss) {
         options.forEach { option ->
@@ -121,6 +124,7 @@ private fun <T> SelectMenu(
                             style = IcodeType.Body.copy(color = if (option == selected) IcodeColors.Accent else IcodeColors.TextPrimary),
                         )
                         optionDescription?.invoke(option)?.let { Text(it, style = IcodeType.Caption) }
+                        optionWarning?.invoke(option)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Amber)) }
                     }
                 },
                 trailingIcon = {

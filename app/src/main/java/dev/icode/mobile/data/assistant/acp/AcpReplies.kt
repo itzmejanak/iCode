@@ -60,6 +60,7 @@ internal class AcpReplies(private val events: AssistantEvents, private val relat
             }
             is SessionUpdate.ToolCall -> begin(update)
             is SessionUpdate.ToolCallUpdate -> open[update.toolCallId.value]?.let { asked -> settle(merged(asked, update)) }
+            is SessionUpdate.PlanUpdate -> events.planned(AcpSettings.planOf(update.entries))
             is SessionUpdate.UsageUpdate -> {
                 events.used(update.used)
                 update.cost?.let { cost = it }

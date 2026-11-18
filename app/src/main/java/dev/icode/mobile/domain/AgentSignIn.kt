@@ -33,4 +33,7 @@ sealed interface AgentChatIntent : ICodeIntent.AssistantIntent {
 
     /** Signed in outside iCode's asking — in a terminal tab: [agent] is asked again. */
     data class SignedIn(val agent: String) : AgentChatIntent
+
+    /** The chat shown's [setting] of [agent] set to [value]: one of its values, or "true" or "false". */
+    data class Set(val agent: String, val setting: String, val value: String) : AgentChatIntent
 }

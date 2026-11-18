@@ -30,6 +30,10 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   replies, reasoning, and steps show as the assistant's do, with what each reply cost when the
   agent says so; its permission requests show its own choices. Open files are saved before each
   message, and Try again, Edit, and Undo start the agent afresh from the chat as it stands.
+- An agent chat shows the agent's mode, model, and thinking as chips, ready as the chat opens. Every
+  chat starts in the agent's mode that asks before changes, and modes that act without asking say
+  so. Typing / lists the agent's commands and other settings, and while the agent works through a
+  to-do list, the jump-to-latest button shows its progress, such as 2/5, with the list a tap away.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

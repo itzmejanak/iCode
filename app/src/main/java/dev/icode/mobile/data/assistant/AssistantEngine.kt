@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.domain.AgentPlanStep
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantCode
 import dev.icode.mobile.domain.AssistantEffort
@@ -114,6 +115,9 @@ internal interface AssistantEvents {
 
     /** The server refused a picture to a model iCode was told sees them: the turn went on without it. */
     fun picturesRefused() = Unit
+
+    /** An agent's to-do list, as it now stands. */
+    fun planned(steps: List<AgentPlanStep>) = Unit
 }
 
 /** A refusal the model reads as the tool's result: it can correct itself, ask, or explain. */
