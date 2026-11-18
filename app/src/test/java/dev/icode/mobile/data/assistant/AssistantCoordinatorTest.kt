@@ -780,7 +780,8 @@ class AssistantCoordinatorTest {
             events.replied(AssistantMessage.Reply("Re: ${turn.input?.text}"))
         }
         coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
-        until { state().turn != null }
+        // The first is with the model, its chat at work.
+        until { requests.size == 1 }
         coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
         coordinator.handle(ICodeIntent.SendAssistantMessage("third"))
         until { state().queued.size == 2 }
@@ -802,7 +803,8 @@ class AssistantCoordinatorTest {
             }
         }
         coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
-        until { state().turn != null }
+        // The first is with the model, its chat at work.
+        until { requests.size == 1 }
         coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
         coordinator.handle(ICodeIntent.SendAssistantMessage("third"))
         until { state().queued.size == 2 }
