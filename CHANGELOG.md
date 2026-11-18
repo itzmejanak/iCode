@@ -34,6 +34,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   chat starts in the agent's mode that asks before changes, and modes that act without asking say
   so. Typing / lists the agent's commands and other settings, and while the agent works through a
   to-do list, the jump-to-latest button shows its progress, such as 2/5, with the list a tap away.
+- A chat iCode was closed in while it worked says so and offers Continue, which picks the work up
+  where it stopped. An agent that has stopped picks up its own session again where it can.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

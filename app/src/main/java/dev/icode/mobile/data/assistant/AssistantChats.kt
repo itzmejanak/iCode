@@ -134,9 +134,22 @@ internal class AssistantChats(
         )
     }
 
-    /** Every call answered — what a turn leaves, however it ended. */
+    /** A turn begins in it: so it is saved, with its first message for a new chat, until the turn ends. */
+    fun working(workspace: String?, session: String) = change(workspace, session) { it.copy(working = true) }
+
+    /** Every call answered — what a turn leaves, however it ended — and no turn working in it. */
     fun close(workspace: String?, session: String) =
-        change(workspace, session) { it.copy(messages = AssistantRules.closed(it.messages)) }
+        change(workspace, session) { it.copy(messages = AssistantRules.closed(it.messages), working = false) }
+
+    /** [agent]'s session for the chat is [id]: taken up again once the agent has stopped. Opening a chat does not make it newer. */
+    fun agentSession(workspace: String?, session: String, agent: String, id: String) {
+        if (of(workspace, session).agentSessions[agent] != id) change(workspace, session, touch = false) { it.copy(agentSessions = it.agentSessions + (agent to id)) }
+    }
+
+    /** The agents' sessions for the chat no longer follow it: the next starts afresh from the chat as it stands. */
+    fun dropAgentSessions(workspace: String?, session: String) {
+        if (of(workspace, session).agentSessions.isNotEmpty()) change(workspace, session, touch = false) { it.copy(agentSessions = emptyMap()) }
+    }
 
     fun delete(workspace: String?, session: String) {
         synchronized(lock) {
@@ -187,9 +200,11 @@ internal class AssistantChats(
      * Saved under the lock, so two changes never reach the file in the other order; a chat with
      * nothing in it is never saved, so it is never listed.
      */
-    private fun change(workspace: String?, session: String, edit: (AssistantChat) -> AssistantChat) = synchronized(lock) {
+    private fun change(workspace: String?, session: String, touch: Boolean = true, edit: (AssistantChat) -> AssistantChat) = synchronized(lock) {
         val chat = edit(of(workspace, session)).also { loaded[Key(workspace, session)] = it }
-        if (chat.messages.isNotEmpty()) runCatching { store.save(workspace, session, chat, clock()) }.onFailure { warn("save", it) }
+        // Not [touch]ed, it keeps its place in the list: saved as of when it last changed.
+        val now = if (touch) clock() else store.sessions(workspace).firstOrNull { it.id == session }?.updatedAt ?: clock()
+        if (chat.messages.isNotEmpty()) runCatching { store.save(workspace, session, chat, now) }.onFailure { warn("save", it) }
     }
 
     /** Its type only: a chat's content never reaches the log. */

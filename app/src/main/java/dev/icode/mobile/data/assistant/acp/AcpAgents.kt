@@ -4,9 +4,11 @@ import com.agentclientprotocol.client.Client
 import com.agentclientprotocol.client.ClientInfo
 import com.agentclientprotocol.client.ClientSession
 import com.agentclientprotocol.common.SessionCreationParameters
+import com.agentclientprotocol.model.AgentCapabilities
 import com.agentclientprotocol.model.AuthMethod
 import com.agentclientprotocol.model.AuthMethodId
 import com.agentclientprotocol.model.Implementation
+import com.agentclientprotocol.model.SessionId
 import com.agentclientprotocol.protocol.JsonRpcException
 import com.agentclientprotocol.protocol.Protocol
 import com.agentclientprotocol.rpc.JsonRpcErrorCode
@@ -54,9 +56,29 @@ internal class AcpAgents(
     private val changed: (agent: String, chat: Pair<String?, String>) -> Unit = { _, _ -> },
     /** An agent stopped: its sessions are gone. */
     private val stopped: (agent: String) -> Unit = {},
+    /** Where each chat's session with each agent is kept, to be taken up again once the agent has stopped. */
+    private val records: Records = Records.None,
 ) {
+    /** Each chat's session with each agent, by its ID, as the chat keeps it. */
+    interface Records {
+        fun of(agent: String, chat: Pair<String?, String>): String?
+
+        fun keep(agent: String, chat: Pair<String?, String>, id: String)
+
+        /** [chat]'s sessions, with every agent, no longer follow it. */
+        fun drop(chat: Pair<String?, String>)
+
+        object None : Records {
+            override fun of(agent: String, chat: Pair<String?, String>): String? = null
+
+            override fun keep(agent: String, chat: Pair<String?, String>, id: String) = Unit
+
+            override fun drop(chat: Pair<String?, String>) = Unit
+        }
+    }
+
     /** An agent's process and its connection: what it said of itself, and a session per chat. */
-    class Running(val id: String, val program: StdioProgram, val client: Client, val methods: List<AgentSignIn>) {
+    class Running(val id: String, val program: StdioProgram, val client: Client, val methods: List<AgentSignIn>, val capabilities: AgentCapabilities) {
         val sessions = ConcurrentHashMap<Pair<String?, String>, Held>()
 
         /** Held while a session is made or handed to a chat: one chat never gets two. */
@@ -118,26 +140,52 @@ internal class AcpAgents(
         val held = agent.sessions.remove(chat.first to NEW_CHAT) ?: return null
         held.operations.chat = chat
         agent.sessions[chat] = held
+        records.keep(agent.id, chat, held.session.sessionId.value)
         return held
     }
 
+    /**
+     * [chat]'s session: the one it had with [agent] before it stopped, taken up again where the agent can,
+     * else a new one, started in the agent's asking values. A session taken up has had the chat so far.
+     */
     private suspend fun open(agent: Running, chat: Pair<String?, String>, cwd: String): Held {
         val operations = ChatOperations(agent.id, chat) { changed(agent.id, it) }
-        val session = try {
-            agent.client.newSession(SessionCreationParameters(cwd, emptyList())) { _, _ -> operations }
+        val parameters = SessionCreationParameters(cwd, emptyList())
+        // A new chat has no session to take up, nor a place in the chats' records.
+        val recorded = chat.second != NEW_CHAT
+        val again = (if (recorded) records.of(agent.id, chat) else null)?.let { reopened(agent, SessionId(it), parameters, operations) }
+        val session = again ?: try {
+            agent.client.newSession(parameters) { _, _ -> operations }.also { AcpSettings.startAsking(agent.id, it) }
         } catch (refused: JsonRpcException) {
             if (refused.code == JsonRpcErrorCode.AUTH_REQUIRED.code) throw SignInNeeded(agent.methods)
             throw AssistantTurnException("The agent refused the chat: ${refused.message}", refused)
         }
-        AcpSettings.startAsking(agent.id, session)
-        return Held(session).also { agent.sessions[chat] = it }
+        if (recorded) records.keep(agent.id, chat, session.sessionId.value)
+        return Held(session).also {
+            it.prompted = again != null
+            agent.sessions[chat] = it
+        }
+    }
+
+    /** [id] taken up again: resumed where [agent] can, else loaded, which replays it; null where it can neither, or refuses. */
+    private suspend fun reopened(agent: Running, id: SessionId, parameters: SessionCreationParameters, operations: ChatOperations): ClientSession? = try {
+        when {
+            agent.capabilities.sessionCapabilities.resume != null -> agent.client.resumeSession(id, parameters) { _, _ -> operations }
+            agent.capabilities.loadSession -> agent.client.loadSession(id, parameters) { _, _ -> operations }
+            else -> null
+        }
+    } catch (refused: JsonRpcException) {
+        null
     }
 
     /** [chat]'s session with [id], while its agent runs. */
     fun held(id: String, chat: Pair<String?, String>): Held? = running[id]?.sessions?.get(chat)
 
     /** [chat]'s sessions forgotten: its next message starts each agent afresh, from the chat as it stands. */
-    fun forget(chat: Pair<String?, String>) = running.values.forEach { it.sessions.remove(chat) }
+    fun forget(chat: Pair<String?, String>) {
+        running.values.forEach { it.sessions.remove(chat) }
+        records.drop(chat)
+    }
 
     /** [id] signs in the [method] way, by itself. */
     suspend fun authenticate(id: String, method: String) = use(id) { it.client.authenticate(AuthMethodId(method)) }
@@ -162,7 +210,7 @@ internal class AcpAgents(
             val said = programs.tail(id, LOG_LINES).lastOrNull { it.isNotBlank() }
             throw AssistantTurnException("The agent did not start: ${said ?: failed.message ?: failed.javaClass.simpleName}", failed)
         }
-        return Running(id, program, client, info.authMethods.mapNotNull(::signInOf))
+        return Running(id, program, client, info.authMethods.mapNotNull(::signInOf), info.capabilities)
     }
 
     private suspend fun stop(id: String, agent: Running) {

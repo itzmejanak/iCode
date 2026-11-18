@@ -24,8 +24,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -46,6 +46,7 @@ import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantQueued
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ResumeAssistantChat
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.launch
@@ -138,6 +139,14 @@ internal fun AssistantChatView(
                                 onOpen = { onOpen(row.key, null) },
                                 onHold = { onHold(row.key) },
                             )
+                        }
+                        // iCode was closed while it worked: said, and Continue takes the work up again.
+                        if (state.interrupted && state.turn == null) {
+                            item(key = "interrupted") {
+                                NoticeCard(IcodeTone.Warning, Modifier.fillMaxWidth(), title = "iCode was closed while this was working", icon = Icons.Outlined.ErrorOutline) {
+                                    SecondaryButton("Continue", { gateway.dispatch(ResumeAssistantChat) })
+                                }
+                            }
                         }
                         state.failure?.let { failure ->
                             item(key = "failure") {

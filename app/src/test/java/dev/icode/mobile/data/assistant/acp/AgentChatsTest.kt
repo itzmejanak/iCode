@@ -51,8 +51,8 @@ class AgentChatsTest {
             runInTab = { _, _, _ -> },
             saveOpen = { saved.incrementAndGet() },
             states = stateHolder.snapshot.map { it.assistant },
-        ) { changed, stopped ->
-            AcpAgents(scope, fake, { emptyMap() }, { mapOf(CLAUDE to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", changed = changed, stopped = stopped)
+        ) { changed, stopped, records ->
+            AcpAgents(scope, fake, { emptyMap() }, { mapOf(CLAUDE to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", changed = changed, stopped = stopped, records = records)
         }
     }
 

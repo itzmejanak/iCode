@@ -5,6 +5,9 @@ package dev.icode.mobile.domain
  * many chats at work at once as the user starts. What it waits on — an approval, a pause, the
  * model's questions — is its own.
  */
+/** Continue, on a chat iCode was closed while it worked: the work is taken up again (docs/assistant-and-mcp.md). */
+data object ResumeAssistantChat : ICodeIntent.AssistantIntent
+
 data class AssistantTurn(
     /** Its workspace's location; null for a chat in none, which works in `$HOME` (docs/design-and-navigation.md). */
     val workspace: String?,

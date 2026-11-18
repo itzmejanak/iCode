@@ -168,6 +168,12 @@ Approvals, pauses, and unanswered structured questions are live turn state. Comp
 
 The turn runs in a process-scoped coroutine rather than a screen-owned job. iCode uses foreground work and notifications while work continues away from the assistant page, including notices when an answer is needed. Android can still kill the process; foreground execution improves survival but does not guarantee it. The canonical lifecycle acceptance scope is in the [assistant roadmap](roadmap.md#built-in-assistant-providers-and-tool-lifecycle).
 
+### Continue
+
+**Status: Done**
+
+A chat is kept as working, in its list, from the start of a turn until it ends however it ends. A chat still so when iCode opens it again was cut off: iCode was closed while it worked, by Android or by the user. It says "iCode was closed while this was working" with Continue, for models' and agents' chats alike. Continue sends the chat's answerer a message asking it to go on where it left off; the message is not shown in the chat (owner's choice, 2026-11-18). The work it does is the chat's last message's, so Undo on that message covers it. Sending another message instead also clears the note.
+
 ### Retry
 
 **Status: Done**
@@ -327,6 +333,8 @@ A mode iCode sets is shown until the agent reports another; the protocol's answe
 **Replies.** The agent's words stream into a reply and its thinking into reasoning. Each of its tool calls is a step: edits, deletes, and moves are changes, with the lines they changed; commands keep what they printed; everything else is a read. When the agent reports what its session cost, a small line under the reply shows what that message added, in the agent's currency. An agent ending its turn by refusing, or at its own length or step limit, is said in plain words.
 
 **Permissions.** A permission request shows the agent's own answers, in its words, refusals first, and waits for the user: iCode never answers one. It asks each time, in every mode. Where only Allow and Deny are shown, as in the bubble, they stand for the agent's answers for this time only. Stop cancels the agent's work; what it wrote is kept.
+
+**Sessions taken up again.** The chat's list keeps each agent's session ID for it. Once the agent has stopped — after 10 idle minutes, or because iCode was closed — the chat's next message or Continue takes that session up again, resumed where the agent offers it and else loaded, which the agent replays and iCode ignores; a session taken up is sent only what is new. Where the agent can do neither, or refuses, a new session is made and sent the chat so far. A session started anew begins in the asking mode; one taken up keeps the mode it had. Try again, Edit, putting back the chat with Undo, deleting the chat, and an agent answering after another answerer wrote in the chat drop the kept IDs.
 
 **In the chat.** Agents' chats work at once, queue messages, and keep Undo's checkpoints as the built-in assistant's do. Agents take no message mid-turn, so Send now stops the agent's work and sends the message at once. Try again, Edit, and putting back the chat with Undo start the agent afresh: its next session is sent the chat as it stands. A deleted chat's sessions are not used again; what an agent keeps of them in its own folders stays until it is removed with everything.
 

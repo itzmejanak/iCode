@@ -12,8 +12,8 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
-import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantCommitMessage
+import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
@@ -30,15 +30,16 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantTurnEnd
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
-import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.ICodeEffect
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ResumeAssistantChat
 import dev.icode.mobile.domain.Said
-import dev.icode.mobile.domain.said
+import dev.icode.mobile.domain.TextEncoding
 import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.said
 import java.io.File
 import java.util.Collections
 import java.util.concurrent.CopyOnWriteArrayList
@@ -1016,6 +1017,35 @@ class AssistantCoordinatorTest {
         assertEquals("", requests.single().input!!.text)
         assertEquals("IMG_2.jpg", requests.single().input!!.attachments.single().name)
         assertEquals("IMG_2.jpg", state().sessions.single().title)
+    }
+
+    @Test fun `a turn's chat is kept as working while it runs, and no longer once it ends`() {
+        var whileWorking: Boolean? = null
+        script = { _, events ->
+            whileWorking = AssistantChatStore(chatsFolder).load(app, state().session!!).working
+            events.replied(AssistantMessage.Reply("Hi."))
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Hello"))
+        until { requests.size == 1 && !state().running }
+        assertEquals(true, whileWorking)
+        assertFalse(AssistantChatStore(chatsFolder).load(app, state().session!!).working)
+        assertFalse(state().interrupted)
+    }
+
+    @Test fun `a chat iCode was closed in while it worked says so, and Continue takes it up with a message it does not show`() {
+        val asked = AssistantMessage.User("Fix the build")
+        AssistantChatStore(chatsFolder).save(app, "cut", AssistantChat(listOf(asked), answerer = gpt5, working = true), now = 1)
+        coordinator.handle(ICodeIntent.OpenAssistantSession(app, "cut"))
+        until { state().session == "cut" }
+        assertTrue(state().interrupted)
+        script = { _, events -> events.replied(AssistantMessage.Reply("Fixed.")) }
+        coordinator.handle(ResumeAssistantChat)
+        until { requests.size == 1 && !state().running }
+        assertEquals(AssistantRules.GO_ON, requests.single().input?.text)
+        assertEquals(listOf<AssistantMessage>(asked), requests.single().history)
+        assertEquals(listOf(asked, AssistantMessage.Reply("Fixed.", by = gpt5)), state().messages)
+        assertFalse(state().interrupted)
+        assertFalse(AssistantChatStore(chatsFolder).load(app, "cut").working)
     }
 
     @Test fun `Try Again sends a message that failed before any reply once more, not twice`() {

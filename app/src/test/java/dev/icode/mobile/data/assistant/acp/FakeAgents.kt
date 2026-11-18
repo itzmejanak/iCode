@@ -9,6 +9,7 @@ import com.agentclientprotocol.client.ClientInfo
 import com.agentclientprotocol.common.ClientSessionOperations
 import com.agentclientprotocol.common.Event
 import com.agentclientprotocol.common.SessionCreationParameters
+import com.agentclientprotocol.model.AgentCapabilities
 import com.agentclientprotocol.model.AuthMethod
 import com.agentclientprotocol.model.AuthMethodId
 import com.agentclientprotocol.model.AuthenticateResponse
@@ -73,6 +74,10 @@ internal class FakeAgents : StdioPrograms {
     @Volatile var options: List<SessionConfigOption> = emptyList()
     @Volatile var commands: List<AvailableCommand> = emptyList()
 
+    /** Whether it says it loads a session again, and each it loaded. */
+    @Volatile var loads = false
+    val loaded = CopyOnWriteArrayList<String>()
+
     /** Each mode and option set, as the client asked: "mode" to "default", "auto_approve" to "false". */
     val sets = CopyOnWriteArrayList<Pair<String, String>>()
 
@@ -121,7 +126,12 @@ internal class FakeAgents : StdioPrograms {
     override fun tail(id: String, lines: Int): List<String> = listOf("fake agent's stderr")
 
     private fun support() = object : AgentSupport {
-        override suspend fun initialize(clientInfo: ClientInfo) = AgentInfo(authMethods = methods)
+        override suspend fun initialize(clientInfo: ClientInfo) = AgentInfo(capabilities = AgentCapabilities(loadSession = loads), authMethods = methods)
+
+        override suspend fun loadSession(sessionId: SessionId, sessionParameters: SessionCreationParameters): AgentSession {
+            loaded += sessionId.value
+            return session(sessionId, sessionParameters)
+        }
 
         override suspend fun authenticate(methodId: AuthMethodId, _meta: JsonElement?): AuthenticateResponse {
             signedIn = true
@@ -131,7 +141,10 @@ internal class FakeAgents : StdioPrograms {
         override suspend fun createSession(sessionParameters: SessionCreationParameters): AgentSession {
             if (!signedIn) throw JsonRpcException(JsonRpcErrorCode.AUTH_REQUIRED.code, "Authentication required")
             sessions += sessionParameters.cwd
-            val id = SessionId("s${ids.incrementAndGet()}")
+            return session(SessionId("s${ids.incrementAndGet()}"), sessionParameters)
+        }
+
+        private fun session(id: SessionId, sessionParameters: SessionCreationParameters): AgentSession {
             var mode = startMode ?: modes.firstOrNull()?.id?.value.orEmpty()
             var settings = options
             return object : AgentSession {

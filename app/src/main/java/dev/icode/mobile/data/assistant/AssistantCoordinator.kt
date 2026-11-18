@@ -20,6 +20,7 @@ import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
+import dev.icode.mobile.domain.ResumeAssistantChat
 import dev.icode.mobile.domain.UndoIntent
 import dev.icode.mobile.domain.notices.AssistantNotices
 import java.io.File
@@ -124,6 +125,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.AnswerAssistant -> questions.answer(intent.workspace, intent.session, intent.callId, intent.answer, intent.option)
             is ICodeIntent.ReplyAssistant -> questions.reply(intent.workspace, intent.session, intent.callId, intent.reply)
             is ICodeIntent.ContinueAssistant -> questions.resume(intent.workspace, intent.session)
+            ResumeAssistantChat -> actions.resume()
             ICodeIntent.CompactAssistantChat -> actions.compact()
             ICodeIntent.OpenAssistantTerminal -> openTerminal()
             ICodeIntent.RetryAssistantMessage -> actions.retry()

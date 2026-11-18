@@ -2,10 +2,10 @@ package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
-import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMessage
@@ -135,6 +135,23 @@ class AssistantChatStoreTest {
         )
         store.save("/w/app", "s1", saved, now = 1)
         assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
+    }
+
+    @Test fun `a chat a turn worked in when iCode closed comes back so, with each agent's session for it`() {
+        val saved = AssistantChat(listOf(AssistantMessage.User("Fix it")), answerer = AssistantAgent("codex-acp"), working = true, agentSessions = mapOf("codex-acp" to "s-42"))
+        store.save("/w/app", "s1", saved, now = 1)
+        assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
+    }
+
+    @Test fun `keeping an agent's session for a chat leaves it where it was in the list`() {
+        val chats = AssistantChats(store, clock = { 50 })
+        store.save("/w/app", "older", AssistantChat(listOf(AssistantMessage.User("One"))), now = 1)
+        store.save("/w/app", "newer", AssistantChat(listOf(AssistantMessage.User("Two"))), now = 2)
+        chats.agentSession("/w/app", "older", "codex-acp", "s-1")
+        assertEquals(listOf("newer", "older"), store.sessions("/w/app").map { it.id })
+        assertEquals(mapOf("codex-acp" to "s-1"), AssistantChatStore(folder).load("/w/app", "older").agentSessions)
+        chats.dropAgentSessions("/w/app", "older")
+        assertTrue(AssistantChatStore(folder).load("/w/app", "older").agentSessions.isEmpty())
     }
 
     @Test fun `a chat answered by a coding agent comes back with it, and each reply with what it cost`() {

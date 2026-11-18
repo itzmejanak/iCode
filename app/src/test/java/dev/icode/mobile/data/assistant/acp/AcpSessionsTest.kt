@@ -22,6 +22,7 @@ import dev.icode.mobile.domain.AgentPlanStatus
 import dev.icode.mobile.domain.AgentPlanStep
 import dev.icode.mobile.domain.AgentSetting
 import dev.icode.mobile.domain.AgentValue
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantResult
@@ -86,6 +87,47 @@ class AcpSessionsTest {
         }
         withTimeout(20_000) { AcpTurn(agents).answer(CLAUDE, CHAT, place, emptyList(), AssistantMessage.User("Plan first"), Recorded()) { _, _ -> null } }
         assertEquals("plan", AcpSettings.of(agents.held(CLAUDE, CHAT)!!.session).single().current)
+    }
+
+    @Test fun `once the agent has stopped, the chat takes its session up again where the agent can, and sends only what is new`() = runBlocking {
+        fake.loads = true
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("One"), Recorded()) { _, _ -> null } }
+        val id = records.ids.getValue(OTHER to CHAT)
+        first.restart(OTHER)
+        val history = listOf(AssistantMessage.User("One"), AssistantMessage.Reply("Done.", by = AssistantAgent(OTHER)))
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, history, AssistantMessage.User("Two"), Recorded()) { _, _ -> null } }
+        assertEquals(listOf(id), fake.loaded)
+        assertEquals("Two", fake.prompts.last())
+        assertEquals("One session made, then taken up again", 1, fake.sessions.size)
+    }
+
+    @Test fun `an agent that cannot take a session up again starts a new one, sent the chat so far`() = runBlocking {
+        val records = Kept()
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", records = records)
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("One"), Recorded()) { _, _ -> null } }
+        first.restart(OTHER)
+        val history = listOf(AssistantMessage.User("One"), AssistantMessage.Reply("Done.", by = AssistantAgent(OTHER)))
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, history, AssistantMessage.User("Two"), Recorded()) { _, _ -> null } }
+        assertTrue(fake.loaded.isEmpty())
+        assertTrue(fake.prompts.last().startsWith("The conversation so far in this chat"))
+        assertEquals(2, fake.sessions.size)
+    }
+
+    /** The chats' record of each agent's session, in memory. */
+    private class Kept : AcpAgents.Records {
+        val ids = java.util.concurrent.ConcurrentHashMap<Pair<String, Pair<String?, String>>, String>()
+
+        override fun of(agent: String, chat: Pair<String?, String>) = ids[agent to chat]
+
+        override fun keep(agent: String, chat: Pair<String?, String>, id: String) {
+            ids[agent to chat] = id
+        }
+
+        override fun drop(chat: Pair<String?, String>) {
+            ids.keys.removeAll { it.second == chat }
+        }
     }
 
     @Test fun `an agent iCode has not checked starts as it starts`() = runBlocking {

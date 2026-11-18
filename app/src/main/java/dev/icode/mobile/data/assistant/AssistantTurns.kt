@@ -85,6 +85,13 @@ internal class AssistantTurns(
         talk(setup, message)
     }
 
+    /** A chat iCode was closed while it worked, taken up again: a message asks to go on, shown nowhere (owner's choice, 2026-11-18). */
+    fun resume(workspace: String?, session: String) = launch(workspace, session) {
+        val asked = AssistantMessage.User(AssistantRules.GO_ON)
+        answeringAgent()?.let { return@launch agentTalk(it, asked, shown = false) }
+        talk(setup(), asked, shown = false)
+    }
+
     fun compact(workspace: String?, session: String) = launch(workspace, session) {
         compact(setup(), AssistantRules.forModel(chats.of(workspace, session).messages))
     }
@@ -115,8 +122,8 @@ internal class AssistantTurns(
             takePhone = { working.takePhone(chat) },
         )
 
-        /** The last checkpoint it took, and where: kept again as the turn leaves the files. */
-        var kept: Pair<String, AssistantWorkspace>? = null
+        /** Its checkpoints for Undo: before each message, and as it leaves the files. */
+        val marks = AssistantTurnCheckpoints(checkpoints, events::show)
         /** This chat's mode now: the setting, raised by its own answers. */
         fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session), workspace != null)
 
@@ -128,6 +135,7 @@ internal class AssistantTurns(
                 page.state {
                     it.copy(turns = it.turns + AssistantTurn(workspace, name, session, THINKING, aloud = aloud), failure = if (shows(it.opened, it.workspace, it.session)) null else it.failure)
                 }
+                chats.working(workspace, session)
                 work()
             } catch (cancelled: CancellationException) {
                 stopped = true // By the user, with its workspace, or with the backend: what was said and done stays.
@@ -140,7 +148,7 @@ internal class AssistantTurns(
             } finally {
                 withContext(NonCancellable) {
                     chats.close(workspace, session)
-                    kept?.let { (id, place) -> checkpoints?.ended(place, id) }
+                    marks.ended()
                     questions.clear(workspace, session)
                     page.listed(workspace)
                     page.refresh(workspace, session)
@@ -159,13 +167,6 @@ internal class AssistantTurns(
             talk(setup, AssistantMessage.User(input, files(setup, locations)))
         }
 
-        /** [place]'s files now, kept for Undo: the checkpoint's ID, or null when none is kept. */
-        private fun checkpoint(place: AssistantWorkspace): String? {
-            val owner = checkpoints ?: return null
-            events.show(KEEPING)
-            return owner.take(place)?.also { kept = it to place }
-        }
-
         /** The files at [locations], read for [setup]'s model: kept in the chat's folder where they are pictures or PDFs. */
         private suspend fun files(setup: AssistantSetup, locations: List<String>) = attachments.read(setup.place, locations, setup.model, ::keep)
 
@@ -175,29 +176,30 @@ internal class AssistantTurns(
         fun answeringAgent(): AssistantAgent? =
             (chats.of(workspace, session).answerer ?: page.current.agent?.let(::AssistantAgent)) as? AssistantAgent
 
-        /** [asked] added to the chat, and answered by [agent], in the chat's place. */
-        suspend fun agentTalk(agent: AssistantAgent, asked: AssistantMessage.User) {
+        /** [asked] added to the chat — unless not [shown] — and answered by [agent], in the chat's place. */
+        suspend fun agentTalk(agent: AssistantAgent, asked: AssistantMessage.User, shown: Boolean = true) {
             val answering = agents ?: throw AssistantTurnException("Coding agents do not answer here")
             val place = place()
             events.chosen = agent.also { chats.choose(workspace, session, it) }
             events.update { it.copy(by = agent) }
             val history = chats.of(workspace, session).messages
-            val message = asked.copy(checkpoint = asked.checkpoint?.also { kept = it to place } ?: checkpoint(place))
-            chats.append(workspace, session, message)
+            val message = if (shown) said(asked, place) else asked.also { marks.goingOn(history, place) }
             page.listed(workspace)
             page.refresh(workspace, session)
             events.show(THINKING)
             answering.answer(agent.id, chat, place, history, message, events) { call, options -> questions.choose(workspace, session, call, options) }
         }
 
-        /** [asked] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
-        suspend fun talk(setup: AssistantSetup, asked: AssistantMessage.User) {
+        /** [asked] added to the chat, with the checkpoint Undo goes back to. */
+        private fun said(asked: AssistantMessage.User, place: AssistantWorkspace) = marks.before(asked, place).also { chats.append(workspace, session, it) }
+
+        /** [asked] added to the chat — unless not [shown] — and answered; retries transient rate-limit / connection with backoff, provider-agnostic. */
+        suspend fun talk(setup: AssistantSetup, asked: AssistantMessage.User, shown: Boolean = true) {
             events.chosen = setup.choice.also { chats.choose(workspace, session, it) }
             events.update { it.copy(by = setup.choice) }
             val before = chats.of(workspace, session)
-            // Undo goes back to the files as they were before it; one sent again keeps its own, and how this turn leaves them.
-            val message = asked.copy(checkpoint = asked.checkpoint?.also { kept = it to setup.place } ?: checkpoint(setup.place))
-            chats.append(workspace, session, message)
+            // The message the turn works on: the one said, or for one not shown, the chat's last.
+            val message = if (shown) said(asked, setup.place) else marks.goingOn(before.messages, setup.place) ?: asked
             page.listed(workspace)
             page.refresh(workspace, session)
             if (AssistantRules.nearFull(before.contextTokens, setup.model.contextWindow)) compact(setup, AssistantRules.forModel(before.messages))
@@ -235,7 +237,8 @@ internal class AssistantTurns(
 
             /** On from the chat as saved: its steps so far, after [message], and nothing new said. */
             fun goOn() = request(AssistantRules.forModel(chats.of(workspace, session).messages, message), input = null)
-            var next = request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1)), message)
+            var next = if (shown) request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1)), message)
+            else request(AssistantRules.forModel(chats.of(workspace, session).messages, message), asked)
             // As many steps as it takes: no limit, and no asking whether to go on.
             while (true) {
                 val end = runWithRetry { attempt ->
@@ -254,7 +257,7 @@ internal class AssistantTurns(
                 }
                 val steered = queue.steered(chat)
                 next = if (steered == null) goOn() else {
-                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }), checkpoint(setup.place))
+                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }), marks.take(setup.place))
                     chats.append(workspace, session, said)
                     page.refresh(workspace, session)
                     request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1), message), said)
@@ -287,7 +290,6 @@ internal class AssistantTurns(
         const val TAG = "Assistant"
         const val THINKING = AssistantTurnEvents.THINKING
         const val COMPACTING = "Compacting the chat…"
-        const val KEEPING = "Keeping a checkpoint…"
 
         /** The phone tools' names start so: a turn offered one is told how to act on the phone. */
         const val PHONE_TOOLS = "phone_"

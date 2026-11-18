@@ -110,6 +110,9 @@ object AssistantRules {
         return AssistantHistory(summary, listOfNotNull(answering?.takeIf { recent.firstOrNull() !is AssistantMessage.User }) + recent)
     }
 
+    /** What Continue sends, shown nowhere, after iCode was closed while a chat worked (docs/assistant-and-mcp.md). */
+    const val GO_ON = "iCode was closed while you were working on this. Continue where you left off."
+
     /** The most messages one request sends after its compaction: a chat longer than this is sent its newest. */
     const val MODEL_MESSAGES = 400
 

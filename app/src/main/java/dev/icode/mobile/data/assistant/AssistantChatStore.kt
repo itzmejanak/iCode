@@ -23,6 +23,10 @@ internal data class AssistantChat(
     val answerer: AssistantAnswerer? = null,
     /** The messages waiting while it works, kept in its entry in `index.json`. */
     val queued: List<AssistantQueued> = emptyList(),
+    /** A turn works in it: still so as iCode starts, iCode was closed while it worked. */
+    val working: Boolean = false,
+    /** Each agent's session for it, by agent: taken up again once the agent has stopped (docs/assistant-and-mcp.md). */
+    val agentSessions: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -53,7 +57,7 @@ internal class AssistantChatStore(private val folder: File) {
             file.isFile -> runCatching { read(file, codec(workspace)) }.onFailure { warn("read a chat", it) }.getOrDefault(emptyList())
             else -> legacy(workspace, session)
         }
-        AssistantChat(AssistantRules.closed(messages), listed?.tokens, listed?.by, listed?.queued.orEmpty())
+        AssistantChat(AssistantRules.closed(messages), listed?.tokens, listed?.by, listed?.queued.orEmpty(), listed?.working == true, listed?.agentSessions.orEmpty())
     }
 
     /** Saves [chat] as [session] of [workspace], updated at [now]: every message, in full. Its title, once given, stays. */
@@ -66,7 +70,8 @@ internal class AssistantChatStore(private val folder: File) {
         val before = written[file]?.takeIf { file.isFile && file.length() == it.ends.last() }
         written[file] = if (before == null) whole(file, workspace, session, title, chat.messages, codec) else tail(file, before, chat.messages, codec)
         legacyFile(workspace, session).delete()
-        writeIndex(workspace, listOf(Listed(AssistantSession(session, title, now), chat.contextTokens, chat.answerer, chat.queued)) + others.filter { it.session.id != session })
+        val entry = Listed(AssistantSession(session, title, now), chat.contextTokens, chat.answerer, chat.queued, chat.working, chat.agentSessions)
+        writeIndex(workspace, listOf(entry) + others.filter { it.session.id != session })
     }
 
     /**
@@ -170,7 +175,14 @@ internal class AssistantChatStore(private val folder: File) {
     private fun titled(first: AssistantMessage.User): String = first.text.ifBlank { first.attachments.joinToString(", ") { it.name } }
 
     /** A chat on the list, with the tokens of its last request and who answers it now. */
-    private class Listed(val session: AssistantSession, val tokens: Long?, val by: AssistantAnswerer? = null, val queued: List<AssistantQueued> = emptyList())
+    private class Listed(
+        val session: AssistantSession,
+        val tokens: Long?,
+        val by: AssistantAnswerer? = null,
+        val queued: List<AssistantQueued> = emptyList(),
+        val working: Boolean = false,
+        val agentSessions: Map<String, String> = emptyMap(),
+    )
 
     /** The list as saved, newest first; made again from the chats' files when it cannot be read. */
     private fun listed(workspace: String?): List<Listed> {
@@ -180,6 +192,8 @@ internal class AssistantChatStore(private val folder: File) {
                 Listed(
                     session(it), it.optLong("contextTokens", -1).takeIf { tokens -> tokens >= 0 }, AssistantChatCodec.answerer(it.optJSONObject("by")),
                     it.optJSONArray("queued")?.objects().orEmpty().map(AssistantChatCodec::queued),
+                    it.optBoolean("working"),
+                    it.optJSONObject("agentSessions")?.let { ids -> ids.keys().asSequence().associateWith(ids::getString) }.orEmpty(),
                 )
             }
         }.onFailure { warn("read a chat list", it) }.getOrElse { rebuilt(workspace) }.sortedByDescending { it.session.updatedAt }
@@ -208,7 +222,9 @@ internal class AssistantChatStore(private val folder: File) {
                     JSONObject().put("id", listed.session.id).put("title", listed.session.title).put("updatedAt", listed.session.updatedAt)
                         .apply { listed.tokens?.let { put("contextTokens", it) } }
                         .apply { listed.by?.let { put("by", AssistantChatCodec.answerer(it)) } }
-                        .apply { if (listed.queued.isNotEmpty()) put("queued", JSONArray(listed.queued.map(AssistantChatCodec::queued))) },
+                        .apply { if (listed.queued.isNotEmpty()) put("queued", JSONArray(listed.queued.map(AssistantChatCodec::queued))) }
+                        .apply { if (listed.working) put("working", true) }
+                        .apply { if (listed.agentSessions.isNotEmpty()) put("agentSessions", JSONObject(listed.agentSessions)) },
                 )
             }
         }

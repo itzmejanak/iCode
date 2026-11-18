@@ -45,6 +45,7 @@ internal class AssistantPage(
             it.copy(
                 opened = true, workspace = workspace, sessions = sessions, session = session, messages = chat.messages, queued = chat.queued,
                 contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed, failure = if (same) it.failure else null,
+                interrupted = session != null && chat.working && it.turnOf(workspace, session) == null,
                 tab = if (same) it.tab else null,
             )
         }
@@ -60,7 +61,10 @@ internal class AssistantPage(
         state {
             val now = if (recorded) it.changeTurn(workspace, session) { turn -> turn.copy(live = null) } else it
             if (!it.opened || it.workspace != workspace || it.session != session) now
-            else now.copy(messages = chat.messages, queued = chat.queued, contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed)
+            else now.copy(
+                messages = chat.messages, queued = chat.queued, contextTokens = chat.contextTokens, answerer = chat.answerer, allowedInWorkspace = allowed,
+                interrupted = chat.working && now.turnOf(workspace, session) == null,
+            )
         }
     }
 

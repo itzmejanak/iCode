@@ -39,6 +39,12 @@ internal class AssistantChatActions(
         turns.retry(workspace, session)
     }
 
+    /** The chat shown, which iCode was closed while it worked, taken up again. */
+    fun resume() {
+        val (workspace, session) = shown() ?: return
+        if (page.current.interrupted) turns.resume(workspace, session)
+    }
+
     /** The last message, unanswered, out of the chat for the user to edit; a chat left empty is a new one. */
     fun takeBack() {
         val (workspace, session) = shown() ?: return

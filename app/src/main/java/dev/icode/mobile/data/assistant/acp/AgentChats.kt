@@ -54,10 +54,10 @@ internal class AgentChats(
     private val saveOpen: suspend () -> Unit,
     /** The page as it changes: the chat shown, and who answers it. */
     private val states: Flow<AssistantState>,
-    /** The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]). */
-    agentsOf: (changed: (String, Pair<String?, String>) -> Unit, stopped: (String) -> Unit) -> AcpAgents,
+    /** The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]); their sessions kept in the chats. */
+    agentsOf: (changed: (String, Pair<String?, String>) -> Unit, stopped: (String) -> Unit, records: AcpAgents.Records) -> AcpAgents,
 ) : AgentAnswers {
-    private val agents = agentsOf(::offered, ::stopped)
+    private val agents = agentsOf(::offered, ::stopped, ChatRecords(chats))
     private val turn = AcpTurn(agents)
 
     /** The chat shown, by its session — [AcpAgents.NEW_CHAT] for one not started — and the agent answering it, if one is. */
@@ -205,6 +205,15 @@ internal class AgentChats(
         page.state { it.copy(untestedSaid = it.untestedSaid + id) }
     }
 
+    /** Each agent's session for a chat, kept with the chat in its list (docs/assistant-and-mcp.md). */
+    private class ChatRecords(private val chats: AssistantChats) : AcpAgents.Records {
+        override fun of(agent: String, chat: Pair<String?, String>) = chats.of(chat.first, chat.second).agentSessions[agent]
+
+        override fun keep(agent: String, chat: Pair<String?, String>, id: String) = chats.agentSession(chat.first, chat.second, agent, id)
+
+        override fun drop(chat: Pair<String?, String>) = chats.dropAgentSessions(chat.first, chat.second)
+    }
+
     companion object {
         /** The tab a sign-in runs in from a new chat, which has no tab of its own yet. */
         private const val SIGN_IN_TAB = "agent-sign-in"
@@ -233,12 +242,12 @@ internal class AgentChats(
                 AgentChats(
                     scope, page, chats, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen,
                     icode.snapshot.map { it.assistant },
-                ) { changed, stopped ->
+                ) { changed, stopped, records ->
                     AcpAgents(
                         scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),
                         login = { toolbox.execution.environment.of(GuestContext.Command).variables },
                         installed = receipts::installed, keys = preferences::keys, version = BuildConfig.VERSION_NAME,
-                        changed = changed, stopped = stopped,
+                        changed = changed, stopped = stopped, records = records,
                     )
                 }
             }

@@ -231,6 +231,8 @@ data class AssistantState(
     val untestedSaid: Set<String> = emptySet(),
     /** The coding agent chosen last, which new chats start with; null once a model is. */
     val agent: String? = null,
+    /** iCode was closed while the chat shown worked: it says so, and offers to continue (docs/assistant-and-mcp.md). */
+    val interrupted: Boolean = false,
     /** What the agent answering the chat shown offers it — settings and commands — once it has started for it. */
     val agentChat: AgentChat? = null,
     /** A commit message being written, or written and not yet in the commit field. */
