@@ -39,6 +39,7 @@ class CodingAgentsCoordinatorTest {
     private var runtime = true
     private var npmGate: CompletableDeferred<Unit>? = null
     private var npmFails = false
+    private val forgotten = CopyOnWriteArrayList<String>()
 
     private fun registry(codex: String) = """
         {"agents": [{"id": "codex-acp", "name": "Codex", "version": "$codex", "description": "ACP adapter for OpenAI's coding assistant",
@@ -60,6 +61,7 @@ class CodingAgentsCoordinatorTest {
                 }
             }),
             runtimeReady = { runtime },
+            forget = { forgotten += it },
         )
     }
 
@@ -158,5 +160,16 @@ class CodingAgentsCoordinatorTest {
         told("Codex removed")
         until { agents().work.isEmpty() }
         assertNull(agents().installed["codex-acp"])
+        assertTrue("Keeping sign-in and settings keeps its keys", forgotten.isEmpty())
+    }
+
+    @Test fun `an agent deleted with everything has its keys and sign-in forgotten`() {
+        checked()
+        coordinator.handle(AgentIntent.Install("codex-acp"))
+        installed("Codex 2.7.0 installed")
+        coordinator.handle(AgentIntent.Remove("codex-acp", everything = true))
+        told("Codex removed")
+        until { agents().work.isEmpty() }
+        assertEquals(listOf("codex-acp"), forgotten.toList())
     }
 }

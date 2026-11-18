@@ -19,6 +19,7 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantAnswerer
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantProviderKind
@@ -56,13 +57,16 @@ internal fun agentMark(id: String): ImageVector = when (id) {
 
 /**
  * Who answers, as the chat names them above their replies (docs/assistant-and-mcp.md): their mark and
- * name — a model by its ID, its provider's mark beside it; a model whose provider is gone, the plain one.
+ * name — a model by its ID, its provider's mark beside it; a model whose provider is gone, the plain one;
+ * an agent by its name.
  */
 @Composable
 internal fun AnswererName(by: AssistantAnswerer, modifier: Modifier = Modifier) {
     val providers = LocalICodeSnapshot.current.assistant.settings.providers
+    val agents = LocalICodeSnapshot.current.agents.catalogue
     val (mark, name) = when (by) {
         is AssistantChoice -> (providers.firstOrNull { it.id == by.provider }?.kind?.mark() ?: Icons.Outlined.Hub) to by.model
+        is AssistantAgent -> agentMark(by.id) to (agents.firstOrNull { it.id == by.id }?.name ?: by.id)
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         Icon(mark, contentDescription = null, tint = IcodeColors.TextPrimary, modifier = Modifier.size(IcodeSizes.IconSm))

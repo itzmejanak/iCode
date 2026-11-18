@@ -5,6 +5,7 @@ import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantClarification
 import dev.icode.mobile.domain.AssistantCode
+import dev.icode.mobile.domain.AssistantOption
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantQuestion
 import dev.icode.mobile.domain.AssistantReach
@@ -25,6 +26,7 @@ internal class AssistantQuestions(private val page: AssistantPage) {
     /** The answer a chat's question waits for, of the kind asked. */
     private class Waiting {
         var approval: CompletableDeferred<AssistantAnswer>? = null
+        var option: CompletableDeferred<String?>? = null
         var pause: CompletableDeferred<Unit>? = null
         var clarification: CompletableDeferred<AssistantReply>? = null
     }
@@ -42,6 +44,18 @@ internal class AssistantQuestions(private val page: AssistantPage) {
         workspace, session,
         hold = { approval = it },
         show = { it.copy(approval = AssistantApproval(call, detail, code, reach, always)) },
+        hide = { it.copy(approval = null) },
+        then = call.summary,
+    )
+
+    /**
+     * An agent's [call] asks the user's permission with the agent's own [options]: the one chosen, or
+     * null for none. It asks each time: the agent, not iCode, keeps what is allowed from now on.
+     */
+    suspend fun choose(workspace: String?, session: String, call: AssistantCall, options: List<AssistantOption>): String? = wait(
+        workspace, session,
+        hold = { option = it },
+        show = { it.copy(approval = AssistantApproval(call, call.summary, always = true, options = options)) },
         hide = { it.copy(approval = null) },
         then = call.summary,
     )
@@ -85,10 +99,16 @@ internal class AssistantQuestions(private val page: AssistantPage) {
         }
     }
 
-    /** The user's [answer] to the approval of [callId] in [session] of [workspace], if it is the one asked. */
-    fun answer(workspace: String?, session: String, callId: String, answer: AssistantAnswer) {
-        if (page.current.turnOf(workspace, session)?.approval?.call?.id != callId) return
-        synchronized(lock) { waiting[workspace to session]?.approval }?.complete(answer)
+    /**
+     * The user's [answer] to the approval of [callId] in [session] of [workspace], if it is the one asked.
+     * An agent's is answered with its own [option] chosen, or with the one [answer] stands for.
+     */
+    fun answer(workspace: String?, session: String, callId: String, answer: AssistantAnswer, option: String? = null) {
+        val approval = page.current.turnOf(workspace, session)?.approval?.takeIf { it.call.id == callId } ?: return
+        synchronized(lock) {
+            val waits = waiting[workspace to session] ?: return
+            waits.option?.complete(option ?: approval.optionFor(answer)) ?: waits.approval?.complete(answer)
+        }
     }
 
     /** The pause in [session] of [workspace] answered Continue (or Done): its turn goes on. */

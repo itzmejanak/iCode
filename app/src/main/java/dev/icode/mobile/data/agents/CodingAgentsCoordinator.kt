@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.agents
 
 import android.content.Context
+import dev.icode.mobile.data.assistant.acp.AgentPreferences
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
@@ -35,6 +36,8 @@ internal class CodingAgentsCoordinator(
     private val runtimeReady: () -> Boolean,
     /** The daily update check ([AgentUpdateWorker]), scheduled as iCode starts. */
     private val schedule: () -> Unit = {},
+    /** What iCode keeps for an agent deleted with everything: its keys and sign-in ([AgentPreferences.forget]). */
+    private val forget: (String) -> Unit = {},
 ) {
     /** Each agent's work in hand, by ID. */
     private val jobs = HashMap<String, Job>()
@@ -93,7 +96,10 @@ internal class CodingAgentsCoordinator(
     private fun remove(id: String, everything: Boolean) {
         val name = nameOf(id)
         run(id, AgentWork(AgentAction.Remove, ToolSetupProgress("Removing $name", cancellable = false))) {
-            runCatching { installs.remove(id, everything) }
+            runCatching {
+                installs.remove(id, everything)
+                if (everything) forget(id)
+            }
                 .onSuccess { stateHolder.tell(AgentNotices.removed(name)) }
                 .onFailure { stateHolder.tell(AgentNotices.notRemoved(name), TAG, it) }
         }
@@ -150,7 +156,7 @@ internal class CodingAgentsCoordinator(
             )
             return CodingAgentsCoordinator(
                 stateHolder, scope, AgentRegistry(AgentUpdateWorker.kept(context)), installs, { layout.isInstalled },
-                schedule = { AgentUpdateWorker.schedule(context) },
+                schedule = { AgentUpdateWorker.schedule(context) }, forget = AgentPreferences(context)::forget,
             )
         }
     }

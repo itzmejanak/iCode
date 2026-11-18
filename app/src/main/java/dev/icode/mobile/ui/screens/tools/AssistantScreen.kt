@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.screens.tools
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EditNote
@@ -26,24 +27,27 @@ import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.behindSheet
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
+import dev.icode.mobile.domain.CodingAgents
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.UndoIntent
+import dev.icode.mobile.domain.notices.AssistantNotices
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
-import dev.icode.mobile.domain.notices.AssistantNotices
 
 /**
  * What is drawn over the chat: its history, the model picker, what to attach, the processes it
@@ -167,6 +171,15 @@ fun AssistantScreen(actions: NavigationActions) {
             // Above the composer on every state of the page: a process outlives the chat that started it.
             if (snapshot.processes.isNotEmpty()) AssistantProcessesRow(snapshot.processes) { sheet = AssistantSheet.Processes }
             if (ready) {
+                // An agent answering: its sign-in first, or the first time an untested one is, its note (docs/assistant-and-mcp.md).
+                (state.answering as? AssistantAgent)?.let { chosen -> snapshot.agents.catalogue.firstOrNull { it.id == chosen.id } }?.let { agent ->
+                    val edges = Modifier.padding(horizontal = IcodeSpacing.Gutter)
+                    val ways = state.signIns[agent.id]
+                    when {
+                        ways != null -> AgentSignInCard(agent, ways, edges)
+                        agent.id !in CodingAgents.VERIFIED && agent.id !in state.untestedSaid -> UntestedNote(agent, edges)
+                    }
+                }
                 AssistantComposer(
                     state = state,
                     draft = draft,
@@ -191,7 +204,9 @@ fun AssistantScreen(actions: NavigationActions) {
                 val modifier = Modifier.align(Alignment.BottomCenter)
                 when (open) {
                     AssistantSheet.Chats -> AssistantChatsSheet(state, modifier, close)
-                    AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) })
+                    AssistantSheet.Models -> AssistantModelsSheet(
+                        state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) }, onAgents = { actions.navigate(Route.CodingAgents) },
+                    )
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
                     AssistantSheet.Terminal -> AssistantTerminalSheet(state.tab, modifier, close)

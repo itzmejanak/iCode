@@ -8,7 +8,7 @@ sealed interface AssistantEntry {
     data class Said(override val key: String, val text: String, val attachments: List<AssistantAttachment> = emptyList()) : AssistantEntry
 
     /** What the assistant answered, Markdown. */
-    data class Answer(override val key: String, val text: String) : AssistantEntry
+    data class Answer(override val key: String, val text: String, /** What an agent said it cost: "0.04 USD". */ val cost: String? = null) : AssistantEntry
 
     /** Who answers from here on: named above the first reply after something the user said, and where it changes. */
     data class Answerer(override val key: String, val by: AssistantAnswerer) : AssistantEntry

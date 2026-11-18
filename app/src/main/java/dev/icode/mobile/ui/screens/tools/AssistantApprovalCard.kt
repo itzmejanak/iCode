@@ -3,6 +3,8 @@ package dev.icode.mobile.ui.screens.tools
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -115,11 +117,27 @@ internal fun AssistantPauseCard(turn: AssistantTurn, pause: AssistantPause, modi
     }
 }
 
-/** Deny, Allow in, Allow, at the end of [modifier]'s width: the card's answers to [turn], and its step's sheet's. */
+/**
+ * Deny, Allow in, Allow, at the end of [modifier]'s width: the card's answers to [turn], and its step's
+ * sheet's. An agent's request has its own answers, in its words, refusals first (docs/assistant-and-mcp.md).
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ApprovalAnswers(turn: AssistantTurn, approval: AssistantApproval, workspace: String?, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     val answer = { it: AssistantAnswer -> gateway.dispatch(ICodeIntent.AnswerAssistant(turn.workspace, turn.session, approval.call.id, it)) }
+    if (approval.options.isNotEmpty()) {
+        FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+            approval.options.sortedBy { it.allows }.forEach { option ->
+                val choose = {
+                    val said = if (option.allows) AssistantAnswer.Allow else AssistantAnswer.Deny
+                    gateway.dispatch(ICodeIntent.AnswerAssistant(turn.workspace, turn.session, approval.call.id, said, option.id))
+                }
+                if (option.allows) PrimaryButton(option.label, choose, compact = true) else SecondaryButton(option.label, choose, compact = true)
+            }
+        }
+        return
+    }
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
         SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
         AssistantPermissions.allowIn(approval, workspace)?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }

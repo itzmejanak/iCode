@@ -48,6 +48,9 @@ internal class AssistantToolbox(
     /** [chat]'s own tab in the workspace at [location], or in none, opened if it has none. Throws [TerminalRuns.Refused]. */
     suspend fun openTab(location: String?, chat: String): String = terminal.tabOf(location, chatOf(location, chat), fresh = false)
 
+    /** [command] typed into [chat]'s own tab and run: an agent's own sign-in (docs/assistant-and-mcp.md). Throws [TerminalRuns.Refused]. */
+    suspend fun runInTab(location: String?, chat: String, command: String) = terminal.send(openTab(location, chat), command, listOf("enter"))
+
     private fun chatOf(location: String?, chat: String) = AssistantShell.chatOf(AssistantWorkspace(location?.let(::File), execution.layout.paths), chat)
 
     /**

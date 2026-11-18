@@ -165,7 +165,14 @@ sealed interface AssistantMessage {
      * its provider sends that: shown on the page, never sent back to the model. [by] is who wrote
      * it; null in a chat saved before replies kept that.
      */
-    data class Reply(val text: String, val calls: List<AssistantCall> = emptyList(), val reasoning: String = "", val by: AssistantAnswerer? = null) : AssistantMessage
+    data class Reply(
+        val text: String,
+        val calls: List<AssistantCall> = emptyList(),
+        val reasoning: String = "",
+        val by: AssistantAnswerer? = null,
+        /** What an agent said the reply cost, as it said it: "0.04 USD". */
+        val cost: String? = null,
+    ) : AssistantMessage
 
     /** The answers to the calls of the reply right before it. */
     data class Results(val results: List<AssistantResult>) : AssistantMessage
@@ -176,36 +183,6 @@ sealed interface AssistantMessage {
      */
     data class Compacted(val summary: String) : AssistantMessage
 }
-
-/** A call waiting for the user: a change, a command, or a reach outside the workspace. */
-data class AssistantApproval(
-    val call: AssistantCall,
-    /** What it will do, in full enough to judge: the command, or the file it changes. */
-    val detail: String,
-    /** The text a change writes, coloured on its page as its file is (docs/editor-and-language-services.md). */ val code: List<AssistantCode> = emptyList(),
-    /** What it reaches outside the chat's workspace; null when it asks as a change or a command only. */
-    val reach: AssistantReach? = null,
-    /** Asked each time, in every mode (docs/assistant-and-mcp.md): no "Allow in". */
-    val always: Boolean = false,
-)
-
-/**
- * A step only the user can take, on the phone (docs/voice-and-phone-control.md) — a password, a
- * payment: the turn waits between its steps until the user says [PROCEED]; Stop ends it.
- */
-data class AssistantPause(/** What the user is to do, under the card's [QUESTION]. */ val detail: String) {
-    companion object {
-        const val QUESTION = "Your turn"
-        const val PROCEED = "Done"
-    }
-}
-
-/**
- * The user's answer to an approval. [AllowInChat] opens, for this chat until iCode closes, the
- * [AssistantReach.roots] of an outside call, or the chat's workspace (Auto in workspace) for a
- * change or a command (docs/assistant-and-mcp.md).
- */
-enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
 /** One chat of a workspace, as its history lists it. */
 data class AssistantSession(val id: String, val title: String, val updatedAt: Long)
@@ -248,6 +225,12 @@ data class AssistantState(
     val undo: AssistantUndo? = null,
     /** The message an Undo of the chat took out, for the composer to take into its draft. */
     val takenBack: String? = null,
+    /** The agents that ask to be signed in before a chat answered by one can send, with how (docs/assistant-and-mcp.md). */
+    val signIns: Map<String, List<AgentSignIn>> = emptyMap(),
+    /** Untested agents already said so in a chat: each is said once (owner's choice, 2026-11-18). */
+    val untestedSaid: Set<String> = emptySet(),
+    /** The coding agent chosen last, which new chats start with; null once a model is. */
+    val agent: String? = null,
     /** A commit message being written, or written and not yet in the commit field. */
     val commitMessage: AssistantCommitMessage? = null,
 ) {
@@ -268,6 +251,9 @@ data class AssistantState(
 
     /** The model the chat shown answers with: its own while its provider still offers it, else what a new chat starts with. */
     val choice: AssistantChoice? get() = (answerer as? AssistantChoice)?.takeIf { settings.modelOf(it) != null } ?: settings.choice
+
+    /** Who answers the chat shown: its own, or for a new one the agent chosen last, else the model. */
+    val answering: AssistantAnswerer? get() = answerer ?: agent?.let(::AssistantAgent) ?: choice
     val model: AssistantModel? get() = settings.modelOf(choice)
 
     /** [session]'s turn in [workspace]; null while that chat does not work. */

@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantAnswerer
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
@@ -29,6 +30,7 @@ internal class AssistantChatCodec(private val folder: File) {
         is AssistantMessage.Reply -> JSONObject().put("role", "reply").put("text", message.text).apply {
             if (message.reasoning.isNotBlank()) put("reasoning", message.reasoning)
             message.by?.let { put("by", answerer(it)) }
+            message.cost?.let { put("cost", it) }
         }.put(
             "calls",
             JSONArray().apply {
@@ -78,6 +80,7 @@ internal class AssistantChatCodec(private val folder: File) {
             },
             json.optString("reasoning"),
             answerer(json.optJSONObject("by")),
+            json.optString("cost").ifEmpty { null },
         )
         "results" -> AssistantMessage.Results(
             json.getJSONArray("results").objects().map { result ->
@@ -96,12 +99,14 @@ internal class AssistantChatCodec(private val folder: File) {
         /** Who answers, as a chat file and the chat list keep it. */
         fun answerer(by: AssistantAnswerer): JSONObject = when (by) {
             is AssistantChoice -> JSONObject().put("provider", by.provider).put("model", by.model)
+            is AssistantAgent -> JSONObject().put("agent", by.id)
         }
 
         /** Who answers; null for none, or for one this build does not know. */
         fun answerer(json: JSONObject?): AssistantAnswerer? = when {
             json == null -> null
             json.has("provider") -> AssistantChoice(json.getString("provider"), json.getString("model"))
+            json.has("agent") -> AssistantAgent(json.getString("agent"))
             else -> null
         }
 

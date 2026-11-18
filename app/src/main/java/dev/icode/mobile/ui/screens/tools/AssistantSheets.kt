@@ -34,6 +34,7 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
@@ -140,12 +141,16 @@ internal fun AssistantModelsSheet(
     reset: String? = null,
     resetChosen: Boolean = false,
     onReset: (() -> Unit)? = null,
+    /** Coding Agents, where an agent not installed is: the chat's sheet only, with its Agents tab. */
+    onAgents: (() -> Unit)? = null,
 ) {
     val gateway = LocalICodeGateway.current
     val settings = state.settings
     val pick: (AssistantChoice) -> Unit = onChoose
         ?: { choice -> gateway.dispatch(ICodeIntent.ChooseAssistantModel(choice.provider, choice.model)) }
     var query by rememberSaveable { mutableStateOf("") }
+    // Models or Agents: the tab of who answers now (docs/assistant-and-mcp.md).
+    var agentsTab by rememberSaveable { mutableStateOf(state.answering is AssistantAgent) }
     val typed = query.trim()
     val count = settings.providers.sumOf { it.models.size }
     val groups = settings.providers
@@ -166,6 +171,10 @@ internal fun AssistantModelsSheet(
             )
         },
     ) {
+        if (onAgents != null) {
+            SegmentedControl(values = listOf(MODELS, AGENTS), active = if (agentsTab) AGENTS else MODELS, modifier = Modifier.fillMaxWidth()) { agentsTab = it == AGENTS }
+            if (agentsTab) return@IcodeBottomSheet AgentRows(state, onClose, onAgents)
+        }
         if (showEffort) {
             state.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
                 // How much it reasons before answering: the provider's levels for this model, or its default.
@@ -246,3 +255,6 @@ internal fun Hint(text: String) {
 
 /** Chats and models are searched once there are more than fit a sheet. */
 private const val SEARCH_FROM = 8
+
+private const val MODELS = "Models"
+private const val AGENTS = "Agents"

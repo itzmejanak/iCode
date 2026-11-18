@@ -24,8 +24,12 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 - Settings › Assistant › Coding Agents installs, updates, and removes Claude Agent, Codex, Gemini
   CLI, OpenCode, Cline, and Factory Droid from the ACP registry, installing Node.js first where an
   agent needs it. Updates are checked when the page opens and once a day, with Update All for
-  several; removing asks whether the agent's sign-in and settings stay. Agents do not answer in
-  chats yet.
+  several; removing asks whether the agent's sign-in and settings stay.
+- Coding agents answer chats: choose one in the model sheet's new Agents tab. A card in the chat
+  shows each way the agent signs in, by itself, in the terminal, or with keys kept encrypted. Its
+  replies, reasoning, and steps show as the assistant's do, with what each reply cost when the
+  agent says so; its permission requests show its own choices. Open files are saved before each
+  message, and Try again, Edit, and Undo start the agent afresh from the chat as it stands.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

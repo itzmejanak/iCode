@@ -3,6 +3,7 @@ package dev.icode.mobile.data.assistant
 import android.content.Context
 import android.os.Environment
 import dev.icode.mobile.data.agents.CodingAgentsCoordinator
+import dev.icode.mobile.data.assistant.acp.AgentChats
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.mcp.McpServers
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
@@ -13,6 +14,7 @@ import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
+import dev.icode.mobile.domain.AgentChatIntent
 import dev.icode.mobile.domain.AgentIntent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
@@ -62,9 +64,13 @@ internal class AssistantCoordinator(
     shares: File = File(System.getProperty("java.io.tmpdir"), "assistant-share"),
     /** Where the places' checkpoints are kept for Undo ([AssistantCheckpoints]); none in tests that need none. */
     checkpoints: File? = null,
+    /** The coding agents in the chats, made over the page and the chats (docs/assistant-and-mcp.md); none in tests that need none. */
+    agentChatsOf: ((AssistantPage, AssistantChats, (String?) -> AssistantWorkspace) -> AgentChats)? = null,
 ) {
     private val checkpointing = checkpoints?.let(::AssistantCheckpoints)
     private val page = AssistantPage(stateHolder, scope, chats)
+    private val placeOf = { workspace: String? -> AssistantWorkspace(workspace?.let(::File), paths) }
+    private val agentChats = agentChatsOf?.invoke(page, chats, placeOf)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val questions = AssistantQuestions(page)
@@ -72,10 +78,10 @@ internal class AssistantCoordinator(
     private val turns: AssistantTurns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
-        storageAccess, questions, queue, settings::seesNoPictures, checkpointing,
+        storageAccess, questions, queue, settings::seesNoPictures, checkpointing, agentChats,
     )
     private val actions = AssistantChatActions(
-        stateHolder, scope, page, chats, turns, AssistantShares(shares), checkpointing, { AssistantWorkspace(it?.let(::File), paths) }, forget,
+        stateHolder, scope, page, chats, turns, AssistantShares(shares), checkpointing, placeOf, forget,
     )
 
     /**
@@ -92,6 +98,7 @@ internal class AssistantCoordinator(
             page.state { it.copy(catalogue = catalogue) }
             mcp?.start()
             agents?.start()
+            agentChats?.start()
             for (intent in intents) apply(intent)
         }
     }
@@ -114,7 +121,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.SendQueuedAssistantMessage -> queue.sendNow(intent.id)
             is ICodeIntent.RemoveQueuedAssistantMessage -> queue.remove(intent.id)
             is ICodeIntent.StopAssistant -> turns.stop(intent.workspace, intent.session)
-            is ICodeIntent.AnswerAssistant -> questions.answer(intent.workspace, intent.session, intent.callId, intent.answer)
+            is ICodeIntent.AnswerAssistant -> questions.answer(intent.workspace, intent.session, intent.callId, intent.answer, intent.option)
             is ICodeIntent.ReplyAssistant -> questions.reply(intent.workspace, intent.session, intent.callId, intent.reply)
             is ICodeIntent.ContinueAssistant -> questions.resume(intent.workspace, intent.session)
             ICodeIntent.CompactAssistantChat -> actions.compact()
@@ -137,6 +144,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
             is McpIntent -> mcp?.handle(intent)
             is AgentIntent -> agents?.handle(intent)
+            is AgentChatIntent -> agentChats?.handle(intent)
         }
     }
 
@@ -201,6 +209,7 @@ internal class AssistantCoordinator(
      */
     private fun choose(choice: AssistantChoice) {
         settings.choose(choice)
+        agentChats?.modelChosen()
         val shown = page.current
         // Only a model its provider offers: one it does not list is not chosen, for the chat or for new ones.
         if (shown.opened && shown.session != null && shown.settings.modelOf(choice) != null) {
@@ -234,6 +243,8 @@ internal class AssistantCoordinator(
             paths: GuestPaths,
             git: CliGitService,
             packages: RuntimePackageInstaller,
+            /** An open file saved, as Save does: before a message goes to an agent. */
+            save: suspend (String) -> Boolean,
         ) = AssistantCoordinator(
             icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
@@ -254,6 +265,7 @@ internal class AssistantCoordinator(
             openTab = toolbox::openTab,
             shares = File(context.applicationContext.cacheDir, "assistant-share"),
             checkpoints = File(context.applicationContext.filesDir, "assistant/checkpoints"),
+            agentChatsOf = AgentChats.maker(context, icode, scope, toolbox, save),
         )
     }
 }

@@ -15,6 +15,11 @@ object AgentNotices {
 
     fun notRemoved(name: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't remove $name")
 
+    /** An agent that did not start, or did not answer iCode, with why. */
+    fun notStarted(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "$name didn't start", output = words)
+
+    fun notSignedIn(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't sign in to $name", output = words)
+
     fun needsRuntime() = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Install the Linux runtime first", detail = "Coding agents run in it.")
 
     /**

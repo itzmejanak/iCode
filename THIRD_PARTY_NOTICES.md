@@ -31,6 +31,8 @@ This table names the principal direct dependencies. `app/build.gradle.kts` is th
 | Koog | 1.3.0 | Apache-2.0 |
 | Ktor and OkHttp | Gradle-managed | Apache-2.0 |
 | MCP Kotlin SDK client | 0.16.0 | Apache-2.0, with earlier contributions identified under MIT by the upstream project |
+| Agent Client Protocol Kotlin SDK (`acp`, with `acp-model`) | 0.34.0 | Apache-2.0, as declared by the locally resolved POMs |
+| kotlin-logging, through the ACP SDK | 7.0.0 | Apache-2.0, as declared by the locally resolved POM |
 | JetBrains Markdown | 0.7.17 | Apache-2.0 |
 | Apache Commons Compress | 1.27.1 | Apache-2.0 |
 | XZ for Java | 1.10 | 0BSD |

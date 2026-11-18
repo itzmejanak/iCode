@@ -4,9 +4,11 @@ import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
@@ -52,6 +54,8 @@ internal class AssistantTurns(
     private val seesNoPictures: (AssistantChoice) -> Unit,
     /** The places' files before each message and as each turn leaves them, for Undo; none in tests that need none. */
     private val checkpoints: AssistantCheckpoints?,
+    /** The coding agents, which answer the chats set to one (docs/assistant-and-mcp.md); none in tests that need none. */
+    private val agents: AgentAnswers? = null,
 ) {
     /** The servers serve every chat: the last to end idles them. */
     private val working = AssistantWork(scope) { chat, last, goesOn ->
@@ -66,6 +70,12 @@ internal class AssistantTurns(
 
     /** The last message, unanswered, sent again with its files as they were. */
     fun retry(workspace: String?, session: String) = launch(workspace, session) {
+        answeringAgent()?.let { agent ->
+            val message = chats.withdraw(workspace, session) ?: return@launch
+            // Sent again, it starts the agent afresh, from the chat as it stands.
+            agents?.forget(chat)
+            return@launch agentTalk(agent, message)
+        }
         val setup = setup()
         val message = chats.withdraw(workspace, session) ?: return@launch
         AssistantRules.attachmentProblem(message.attachments.map { it.kind }, setup.model)?.let {
@@ -80,6 +90,9 @@ internal class AssistantTurns(
     }
 
     fun stop(workspace: String?, session: String) = working.stop(workspace to session)
+
+    /** [session]'s agents start afresh from the chat as it stands: its words changed under them. */
+    fun afresh(workspace: String?, session: String) = agents?.forget(workspace to session)
 
     /** Stops every turn in [workspace], and waits until their chats are saved; their waiting messages wait. */
     suspend fun stopIn(workspace: String) = working.stopIn(workspace)
@@ -138,20 +151,44 @@ internal class AssistantTurns(
         }
 
         suspend fun converse(input: String, locations: List<String>) {
+            answeringAgent()?.let { agent ->
+                val name = agents?.name(agent.id) ?: agent.id
+                return agentTalk(agent, AssistantMessage.User(input, attachments.read(place(), locations, AssistantModel(name, 0), ::keep)))
+            }
             val setup = setup()
             talk(setup, AssistantMessage.User(input, files(setup, locations)))
         }
 
-        /** [setup]'s place's files now, kept for Undo: the checkpoint's ID, or null when none is kept. */
-        private fun checkpoint(setup: AssistantSetup): String? {
+        /** [place]'s files now, kept for Undo: the checkpoint's ID, or null when none is kept. */
+        private fun checkpoint(place: AssistantWorkspace): String? {
             val owner = checkpoints ?: return null
             events.show(KEEPING)
-            return owner.take(setup.place)?.also { kept = it to setup.place }
+            return owner.take(place)?.also { kept = it to place }
         }
 
         /** The files at [locations], read for [setup]'s model: kept in the chat's folder where they are pictures or PDFs. */
-        private suspend fun files(setup: AssistantSetup, locations: List<String>) =
-            attachments.read(setup.place, locations, setup.model) { bytes, extension -> chats.keep(workspace, session, bytes, extension) }
+        private suspend fun files(setup: AssistantSetup, locations: List<String>) = attachments.read(setup.place, locations, setup.model, ::keep)
+
+        private fun keep(bytes: ByteArray, extension: String) = chats.keep(workspace, session, bytes, extension)
+
+        /** The agent this chat is answered by: its own, or a new chat's, the one chosen last; null for a model. */
+        fun answeringAgent(): AssistantAgent? =
+            (chats.of(workspace, session).answerer ?: page.current.agent?.let(::AssistantAgent)) as? AssistantAgent
+
+        /** [asked] added to the chat, and answered by [agent], in the chat's place. */
+        suspend fun agentTalk(agent: AssistantAgent, asked: AssistantMessage.User) {
+            val answering = agents ?: throw AssistantTurnException("Coding agents do not answer here")
+            val place = place()
+            events.chosen = agent.also { chats.choose(workspace, session, it) }
+            events.update { it.copy(by = agent) }
+            val history = chats.of(workspace, session).messages
+            val message = asked.copy(checkpoint = asked.checkpoint?.also { kept = it to place } ?: checkpoint(place))
+            chats.append(workspace, session, message)
+            page.listed(workspace)
+            page.refresh(workspace, session)
+            events.show(THINKING)
+            answering.answer(agent.id, chat, place, history, message, events) { call, options -> questions.choose(workspace, session, call, options) }
+        }
 
         /** [asked] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
         suspend fun talk(setup: AssistantSetup, asked: AssistantMessage.User) {
@@ -159,7 +196,7 @@ internal class AssistantTurns(
             events.update { it.copy(by = setup.choice) }
             val before = chats.of(workspace, session)
             // Undo goes back to the files as they were before it; one sent again keeps its own, and how this turn leaves them.
-            val message = asked.copy(checkpoint = asked.checkpoint?.also { kept = it to setup.place } ?: checkpoint(setup))
+            val message = asked.copy(checkpoint = asked.checkpoint?.also { kept = it to setup.place } ?: checkpoint(setup.place))
             chats.append(workspace, session, message)
             page.listed(workspace)
             page.refresh(workspace, session)
@@ -217,7 +254,7 @@ internal class AssistantTurns(
                 }
                 val steered = queue.steered(chat)
                 next = if (steered == null) goOn() else {
-                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }), checkpoint(setup))
+                    val said = AssistantMessage.User(steered.text, files(setup, steered.files.map { it.location }), checkpoint(setup.place))
                     chats.append(workspace, session, said)
                     page.refresh(workspace, session)
                     request(AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1), message), said)
@@ -235,9 +272,12 @@ internal class AssistantTurns(
                 page.refresh(workspace, session)
             }
 
-        fun setup() = AssistantSetup.of(settings(), chats.of(workspace, session).answerer, providers) {
+        fun setup() = AssistantSetup.of(settings(), chats.of(workspace, session).answerer, providers, ::place)
+
+        /** The chat's place: its workspace's folder, or the runtime's home for none. */
+        private fun place(): AssistantWorkspace {
             val folder = workspace?.let { runCatching { File(describe(it).location) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") } }
-            AssistantWorkspace(folder, paths, storageAccess)
+            return AssistantWorkspace(folder, paths, storageAccess)
         }
 
         private fun shows(opened: Boolean, shownWorkspace: String?, shownSession: String?) = opened && shownWorkspace == workspace && shownSession == session

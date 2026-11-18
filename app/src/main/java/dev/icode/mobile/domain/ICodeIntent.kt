@@ -239,7 +239,7 @@ sealed interface ICodeIntent {
     /** Stops [session]'s turn in [workspace]: the request, and a running command with everything it started. */
     data class StopAssistant(val workspace: String?, val session: String) : AssistantIntent
     /** The user's answer to the approval of the call [callId], in [session] of [workspace]. */
-    data class AnswerAssistant(val workspace: String?, val session: String, val callId: String, val answer: AssistantAnswer) : AssistantIntent
+    data class AnswerAssistant(val workspace: String?, val session: String, val callId: String, val answer: AssistantAnswer, val option: String? = null) : AssistantIntent
     /** The user's reply to the questions of the call [callId], in [session] of [workspace] (docs/assistant-and-mcp.md). */
     data class ReplyAssistant(val workspace: String?, val session: String, val callId: String, val reply: AssistantReply) : AssistantIntent
     /** The pause of [session]'s turn in [workspace] answered: it goes on (Continue, Done). Stop is [StopAssistant]. */

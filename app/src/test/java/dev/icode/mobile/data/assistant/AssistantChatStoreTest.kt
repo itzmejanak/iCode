@@ -5,6 +5,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMessage
@@ -131,6 +132,15 @@ class AssistantChatStoreTest {
         val saved = AssistantChat(
             listOf(AssistantMessage.User("Hi"), AssistantMessage.Reply("Hello", by = AssistantChoice("p1", "gpt-5"))),
             answerer = AssistantChoice("p1", "o3"),
+        )
+        store.save("/w/app", "s1", saved, now = 1)
+        assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))
+    }
+
+    @Test fun `a chat answered by a coding agent comes back with it, and each reply with what it cost`() {
+        val saved = AssistantChat(
+            listOf(AssistantMessage.User("Hi"), AssistantMessage.Reply("Hello", by = AssistantAgent("codex-acp"), cost = "0.04 USD")),
+            answerer = AssistantAgent("codex-acp"),
         )
         store.save("/w/app", "s1", saved, now = 1)
         assertEquals(saved, AssistantChatStore(folder).load("/w/app", "s1"))

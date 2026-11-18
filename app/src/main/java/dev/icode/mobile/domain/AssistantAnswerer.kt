@@ -8,3 +8,6 @@ sealed interface AssistantAnswerer
 
 /** A provider's model, answered by the built-in assistant. */
 data class AssistantChoice(val provider: String, val model: String) : AssistantAnswerer
+
+/** A coding agent, by its ID in the ACP registry ([CodingAgents.OFFERED]), answering through ACP. */
+data class AssistantAgent(val id: String) : AssistantAnswerer

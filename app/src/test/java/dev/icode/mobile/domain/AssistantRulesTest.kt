@@ -308,4 +308,17 @@ class AssistantRulesTest {
         assertTrue("sk-secret" !in save.toString())
         assertTrue("sk-secret" !in ICodeIntent.ListAssistantModels("", AssistantProviderKind.OpenAI, "", "sk-secret").toString())
     }
+
+    @Test fun `an agent's reply shows what it cost under it, and a reply of steps alone shows its cost too`() {
+        val call = AssistantCall("c1", "edit", "{}", "Edit App.kt", AssistantToolKind.Change)
+        val messages = listOf(
+            AssistantMessage.User("Fix it"),
+            AssistantMessage.Reply("", listOf(call)),
+            AssistantMessage.Results(listOf(AssistantResult("c1", "edit", "", failed = false))),
+            AssistantMessage.Reply("Fixed.", cost = "0.04 USD"),
+            AssistantMessage.Reply("", cost = "<0.01 USD"),
+        )
+        val answers = AssistantRules.entries(AssistantState(messages = messages)).filterIsInstance<AssistantEntry.Answer>()
+        assertEquals(listOf(AssistantEntry.Answer("m3", "Fixed.", "0.04 USD"), AssistantEntry.Answer("m4", "", "<0.01 USD")), answers)
+    }
 }

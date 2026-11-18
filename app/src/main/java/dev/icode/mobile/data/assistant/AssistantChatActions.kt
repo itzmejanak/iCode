@@ -45,6 +45,7 @@ internal class AssistantChatActions(
         if (turns.runs(workspace, session)) return
         val taken = chats.takeBack(workspace, session) ?: return
         forgetCheckpoints(workspace, listOf(taken))
+        turns.afresh(workspace, session)
         shownAgain(workspace, session)
     }
 
@@ -60,6 +61,7 @@ internal class AssistantChatActions(
         if (turns.runs(workspace, session)) return page.tell(AssistantNotices.stopFirst(NoticePlace(AssistantPlace.name(workspace), workspace)))
         forgetCheckpoints(workspace, chats.of(workspace, session).messages)
         chats.delete(workspace, session)
+        turns.afresh(workspace, session)
         scope.launch { forget(workspace, session) }
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
     }
@@ -104,6 +106,7 @@ internal class AssistantChatActions(
         }
         if (chat) {
             forgetCheckpoints(workspace, chats.cutBack(workspace, session, index))
+            turns.afresh(workspace, session)
             shownAgain(workspace, session)
             // Back in the composer, to send again as it is or changed.
             page.state { it.copy(takenBack = message.text) }

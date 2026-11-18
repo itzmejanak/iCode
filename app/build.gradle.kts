@@ -219,6 +219,9 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.5.2")
     // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client only.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
+    // Coding agents in the chats (docs/assistant-and-mcp.md): the official Agent Client Protocol SDK, its stdio
+    // client only. Its logs go to SLF4J, which has no provider here, so none is written anywhere.
+    implementation("com.agentclientprotocol:acp:0.34.0")
     // JSON for the language servers' protocol (docs/editor-and-language-services.md): the version Koog and the MCP SDK
     // already resolve, declared because the language client uses it directly.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")

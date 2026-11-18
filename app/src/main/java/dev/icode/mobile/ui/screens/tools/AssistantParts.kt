@@ -62,13 +62,15 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streami
     when (entry) {
         is AssistantEntry.Said -> SaidRow(entry, onHold)
         is AssistantEntry.Answer -> Column {
-            MarkdownAnswer(entry.text, streaming, MarkdownPlace.ofAnswer(LocalICodeSnapshot.current.assistant.workspace))
-            if (copyable) {
+            // A reply of steps alone has only what it cost.
+            if (entry.text.isNotBlank()) MarkdownAnswer(entry.text, streaming, MarkdownPlace.ofAnswer(LocalICodeSnapshot.current.assistant.workspace))
+            if (copyable && entry.text.isNotBlank()) {
                 Row {
                     CopyAnswer(entry.text)
                     PlayAnswer(entry.key, entry.text)
                 }
             }
+            entry.cost?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
         }
         is AssistantEntry.Answerer -> AnswererName(entry.by)
         is AssistantEntry.Reasoning -> AssistantReasoningRow(entry, onOpen)

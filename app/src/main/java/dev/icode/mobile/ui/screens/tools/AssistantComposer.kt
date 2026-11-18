@@ -43,8 +43,10 @@ import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMode
+import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
@@ -55,10 +57,11 @@ import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.CONTENT_URI
 import dev.icode.mobile.ui.HeardLine
 import dev.icode.mobile.ui.LocalICodeGateway
-import dev.icode.mobile.ui.mark
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.MicButton
 import dev.icode.mobile.ui.OnHeard
+import dev.icode.mobile.ui.agentMark
+import dev.icode.mobile.ui.mark
 
 /**
  * The composer, as VS Code's: the files going with the message, the message, and a toolbar — attach,
@@ -92,12 +95,14 @@ internal fun AssistantComposer(
         onDraft(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
         if (!state.replying || attached.isEmpty()) onSend()
     }
+    // An agent answering: named, its sign-in first; it reads no pictures (docs/assistant-and-mcp.md).
+    val agent = (state.answering as? AssistantAgent)?.let { chosen -> LocalICodeSnapshot.current.agents.catalogue.firstOrNull { it.id == chosen.id } }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
-    val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, state.model)
+    val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, agent?.let { AssistantModel(it.name, 0) } ?: state.model)
     // Words, files or both: a photo alone is a question too, and while the chat works it waits in the queue.
     // While the turn asks its questions, words alone reply.
     val canSend = if (state.replying) draft.isNotBlank() && attached.isEmpty()
-    else (draft.isNotBlank() || attached.isNotEmpty()) && unreadable == null
+    else (draft.isNotBlank() || attached.isNotEmpty()) && unreadable == null && agent?.id !in state.signIns
     Column(
         Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
@@ -139,7 +144,7 @@ internal fun AssistantComposer(
                     IconButton(onClick = onAttach, enabled = attached.size < AssistantRules.MAX_ATTACHMENTS) {
                         Icon(Icons.Outlined.Add, contentDescription = "Attach files", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
-                    IcodeSelect(
+                    if (agent == null) IcodeSelect(
                         options = AssistantMode.entries,
                         selected = settings.mode,
                         optionLabel = { it.label },
@@ -159,10 +164,10 @@ internal fun AssistantComposer(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro),
                     ) {
-                        state.settings.providerOf(state.choice)?.let { provider ->
-                            Icon(provider.kind.mark(), contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+                        (agent?.let { agentMark(it.id) } ?: state.settings.providerOf(state.choice)?.kind?.mark())?.let { mark ->
+                            Icon(mark, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
                         }
-                        Text(modelLabel(state).ifEmpty { "Choose model" }, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(agent?.name ?: modelLabel(state).ifEmpty { "Choose model" }, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     }
                 }

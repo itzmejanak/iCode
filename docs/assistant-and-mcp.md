@@ -13,6 +13,7 @@ This page uses the four canonical labels defined in the documentation index: [Do
 | Modern MCP protocol compatibility | **Partially Done** | iCode uses the official Kotlin SDK's active legacy client. Support for newer protocol behavior remains blocked until that SDK's client implements it. |
 | Real-provider assistant acceptance | **Needs Verification** | Provider, network, lifecycle, privacy, and process-death checks remain. |
 | Existing MCP transport, sign-in, and server acceptance | **Needs Verification** | Local stdio, remote HTTP, browser sign-in, lifecycle, and real-server checks remain. |
+| Coding agents: installing them, and their answers in chats | **Partially Done** | Agents install and answer through ACP. Their own modes and slash commands, questions, Continue, iCode's tools, and every check on a phone remain. |
 
 ## Architecture
 
@@ -263,7 +264,7 @@ iCode will add dual-era behavior when the official SDK's client supports it inst
 
 **Status: Partially Done**
 
-Settings › Assistant › Coding Agents installs, updates, and removes external coding agents that work through the Agent Client Protocol (ACP): Claude Agent, Codex, Gemini CLI, OpenCode, Cline, and Factory Droid, in that order. They do not answer in chats yet; the [roadmap](roadmap.md#external-coding-agents-through-acp) records what remains.
+Settings › Assistant › Coding Agents installs, updates, and removes external coding agents that work through the Agent Client Protocol (ACP): Claude Agent, Codex, Gemini CLI, OpenCode, Cline, and Factory Droid, in that order. An installed agent answers chats, as [Agents in chats](#agents-in-chats) describes; the [roadmap](roadmap.md#external-coding-agents-through-acp) records what remains.
 
 The list comes from the ACP registry's published file, `https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json`, read in the registry's own format each time the page opens. The last list read is kept in iCode's storage and shown when the registry cannot be reached, with why. Each row shows the agent's mark, its state, and Untested until the agent is verified on phones; none is yet. A row opens the agent's sheet: Install or Update, its website, its licence, and Remove.
 
@@ -287,7 +288,31 @@ Remove asks each time. **Keep sign-in and settings** removes the agent's program
 | Cline | `~/.cline` |
 | Factory Droid | `~/.factory` |
 
-A folder an environment variable moves elsewhere is not followed.
+A folder an environment variable moves elsewhere is not followed. Delete everything also forgets the keys entered in iCode for that agent and that it was signed in.
+
+### Agents in chats
+
+The model sheet has two tabs, Models and Agents. The Agents tab lists the offered agents with their marks, and Untested on each not yet verified on phones. Choosing an installed agent sets the chat shown to it, and new chats start with it until a model is chosen. Choosing one that is not installed opens Coding Agents. The composer's chip shows the agent's mark and name; iCode's modes do not apply to agents, so their chip is not shown.
+
+**Signing in.** When an agent is chosen and is not yet known to be signed in, iCode starts it and opens a session it does not keep, to learn whether the agent asks to be signed in first. If it does, a card above the message box shows every way the agent offers, and Send waits until one succeeds:
+
+- **By the agent.** A button asks the agent to sign in by itself.
+- **In the terminal.** A button runs the agent's own sign-in command, with the variables it names, in the chat's terminal tab, or a tab of its own for a chat not started yet. **Signed in? Check again** asks the agent once more.
+- **With keys.** Fields for the variables the agent names, hidden where it marks them secret, with a link to get a key where it gives one. Keys are encrypted with an Android Keystore key, given only to that agent's process as variables, never shown again, and the agent restarts to read them.
+
+A successful sign-in is remembered, and the agent is not checked again until it asks again: a message it refuses for sign-in shows the card and says to sign in first, then send again.
+
+**The first message.** An untested agent gets one short note above the message box, until its first message: that it is not tested on phones yet and may not start.
+
+**Sending.** Every open file with unsaved changes is saved before a message goes to an agent, so it works on the user's latest. One process serves each agent for every chat, started in the Linux runtime with the login's variables, the variables its receipt records, and its keys, and stopped after 10 minutes no chat uses it. Each chat has its own session with the agent, made in the chat's place: the workspace's folder in the runtime, or the runtime's home for a chat in no workspace. A new session is first sent the conversation so far, as a transcript, then the message; a chat whose last reply another model or agent wrote gets a new session, so the agent has all of it. Text files go with the message; pictures and documents are named, not sent. An agent that does not say it is ready within two minutes is reported with the last line it wrote to its error output.
+
+**Replies.** The agent's words stream into a reply and its thinking into reasoning. Each of its tool calls is a step: edits, deletes, and moves are changes, with the lines they changed; commands keep what they printed; everything else is a read. When the agent reports what its session cost, a small line under the reply shows what that message added, in the agent's currency. An agent ending its turn by refusing, or at its own length or step limit, is said in plain words.
+
+**Permissions.** A permission request shows the agent's own answers, in its words, refusals first, and waits for the user: iCode never answers one. It asks each time, in every mode. Where only Allow and Deny are shown, as in the bubble, they stand for the agent's answers for this time only. Stop cancels the agent's work; what it wrote is kept.
+
+**In the chat.** Agents' chats work at once, queue messages, and keep Undo's checkpoints as the built-in assistant's do. Agents take no message mid-turn, so Send now stops the agent's work and sends the message at once. Try again, Edit, and putting back the chat with Undo start the agent afresh: its next session is sent the chat as it stands. A deleted chat's sessions are not used again; what an agent keeps of them in its own folders stays until it is removed with everything.
+
+The agent's standard output is the protocol, which carries the chat, and is never logged. Its standard error goes to its own log in the runtime, `/tmp/icode-agents/<id>.log`, started afresh each time it starts. The ACP library logs through SLF4J, which has no provider in iCode, so nothing it would log is written anywhere.
 
 ## Security and privacy boundaries
 
@@ -303,4 +328,7 @@ Important boundaries are:
 - MCP output and instructions are untrusted external content even when the server itself is trusted to start.
 - Full access intentionally removes ordinary per-call approvals. Per-tool Runs choices and per-chat place grants can also widen access.
 - Approval parsing cannot turn PRoot into an OS sandbox or prove everything a shell command or third-party server will do.
+- A coding agent is third-party code with the full reach of the Linux runtime: every workspace, the runtime's home, and shared storage once All Files Access is granted. iCode's workspace boundary, place grants, and modes do not apply to an agent's own tools; only its own permission requests do.
+- A coding agent sends prompts, code, and tool output to its own vendor under that vendor's terms; iCode does not proxy that traffic. Switching a chat to an agent sends it the conversation so far.
+- Agents keep their own sign-in in their folders in the runtime's home: app-private, not Keystore-encrypted. Keys entered in iCode for an agent are Keystore-encrypted and given only to its process.
 - Avoid putting credentials in chat messages. If a key is typed into a chat so the assistant can save it, that original message remains part of the local chat and may be sent in later retained context.

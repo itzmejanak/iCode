@@ -48,7 +48,7 @@ object AssistantRules {
                 is AssistantMessage.Reply -> {
                     name("m${index}a", message.by)
                     if (message.reasoning.isNotBlank()) add(AssistantEntry.Reasoning("m${index}r", message.reasoning))
-                    if (message.text.isNotBlank()) add(AssistantEntry.Answer("m$index", message.text))
+                    if (message.text.isNotBlank() || message.cost != null) add(AssistantEntry.Answer("m$index", message.text, message.cost))
                     val results = resultsOf(state.messages, index).associateBy { it.callId }
                     message.calls.forEachIndexed { position, call ->
                         val result = results[call.id]

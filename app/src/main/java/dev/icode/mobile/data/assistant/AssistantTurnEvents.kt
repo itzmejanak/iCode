@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantAnswerer
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
@@ -42,7 +43,7 @@ internal class AssistantTurnEvents(
     val counted = ConcurrentHashMap<String, LineChanges>()
 
     /** Who answers the turn: its replies are kept as theirs (docs/assistant-and-mcp.md). */
-    @Volatile var chosen: AssistantChoice? = null
+    @Volatile var chosen: AssistantAnswerer? = null
 
     /** What the turn does now, on its step's line. */
     fun show(text: String) = update { it.copy(step = text) }
@@ -82,7 +83,7 @@ internal class AssistantTurnEvents(
     /** Its model does not see after all: the rest of the turn sends no picture. */
     override fun picturesRefused() {
         step.seesPictures = false
-        chosen?.let(seesNoPictures)
+        (chosen as? AssistantChoice)?.let(seesNoPictures)
     }
 
     companion object {
