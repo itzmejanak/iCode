@@ -31,6 +31,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.behindSheet
+import dev.icode.mobile.domain.AgentChatIntent
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantDraftFile
@@ -72,6 +73,8 @@ fun AssistantScreen(actions: NavigationActions) {
     var sheet by rememberSaveable { mutableStateOf<AssistantSheet?>(null) }
     // The chat's rows, each run of steps one: drawn, and opened in a sheet by key, at a step of a run.
     val rows = remember(state) { AssistantStepRules.rows(AssistantRules.entries(state)) }
+    // The coding agent answering the chat shown, if one is.
+    val answeringAgent = (state.answering as? AssistantAgent)?.let { chosen -> snapshot.agents.catalogue.firstOrNull { it.id == chosen.id } }
     var entryKey by rememberSaveable(state.workspace, state.session) { mutableStateOf<String?>(null) }
     var stepKey by rememberSaveable(state.workspace, state.session) { mutableStateOf<String?>(null) }
     val entry = rows.firstOrNull { it.key == entryKey }
@@ -132,11 +135,19 @@ fun AssistantScreen(actions: NavigationActions) {
                     IcodeOverflowMenu(
                         contentDescription = "More options for the assistant",
                         // Compact Chat is the context meter's, under the composer: one place for it.
-                        actions = listOf(
+                        actions = listOfNotNull(
                             IcodeMenuAction("Terminal", Icons.Outlined.Terminal, {
                                 gateway.dispatch(ICodeIntent.OpenAssistantTerminal)
                                 sheet = AssistantSheet.Terminal
                             }),
+                            // An agent's own program, in the chat's tab (owner's choice, 2026-11-18).
+                            answeringAgent?.takeIf { it.id in snapshot.agents.installed }?.let { agent ->
+                                IcodeMenuAction("Open ${agent.name} in Terminal", Icons.Outlined.Terminal, {
+                                    gateway.dispatch(ICodeIntent.OpenAssistantTerminal)
+                                    gateway.dispatch(AgentChatIntent.OpenProgram(agent.id))
+                                    sheet = AssistantSheet.Terminal
+                                })
+                            },
                             IcodeMenuAction("Assistant Settings", Icons.Outlined.Settings, { actions.navigate(Route.AssistantSettings) }),
                         ),
                     )
@@ -172,7 +183,7 @@ fun AssistantScreen(actions: NavigationActions) {
             if (snapshot.processes.isNotEmpty()) AssistantProcessesRow(snapshot.processes) { sheet = AssistantSheet.Processes }
             if (ready) {
                 // An agent answering: its sign-in first, or the first time an untested one is, its note (docs/assistant-and-mcp.md).
-                (state.answering as? AssistantAgent)?.let { chosen -> snapshot.agents.catalogue.firstOrNull { it.id == chosen.id } }?.let { agent ->
+                answeringAgent?.let { agent ->
                     val edges = Modifier.padding(horizontal = IcodeSpacing.Gutter)
                     val ways = state.signIns[agent.id]
                     when {

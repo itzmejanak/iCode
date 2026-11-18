@@ -19,6 +19,12 @@ import kotlinx.coroutines.withContext
 /** POSIX single-quoting for a guest shell script: everything literal, a quote closed, escaped and reopened. */
 internal fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
+/** [argv] as a line a shell runs, each word quoted, with [variables] set for it alone through `env`. */
+internal fun shellLine(argv: List<String>, variables: Map<String, String> = emptyMap()): String {
+    val set = variables.entries.joinToString(" ") { (name, value) -> "$name=${shellQuote(value)}" }
+    return (if (set.isEmpty()) "" else "env $set ") + argv.joinToString(" ", transform = ::shellQuote)
+}
+
 /**
  * One non-interactive command in the guest, with bounded streaming output, run for [context]: it
  * starts with that context's variables ([GuestEnvironment.of]), each call's own `environment` over them.

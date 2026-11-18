@@ -36,4 +36,7 @@ sealed interface AgentChatIntent : ICodeIntent.AssistantIntent {
 
     /** The chat shown's [setting] of [agent] set to [value]: one of its values, or "true" or "false". */
     data class Set(val agent: String, val setting: String, val value: String) : AgentChatIntent
+
+    /** [agent]'s own program in the chat shown's terminal tab, taking up the chat's session where it can. */
+    data class OpenProgram(val agent: String) : AgentChatIntent
 }

@@ -40,15 +40,16 @@ class AgentChatsTest {
     private val fake = FakeAgents()
     private val saved = AtomicInteger()
     private val runtime by lazy { TestRuntime(temp.root) }
+    private val tabs = java.util.concurrent.CopyOnWriteArrayList<Triple<String?, String, String>>()
+    private val chats by lazy { AssistantChats(AssistantChatStore(temp.newFolder("chats"))) }
     private val agentChats by lazy {
-        val chats = AssistantChats(AssistantChatStore(temp.newFolder("chats")))
         AgentChats(
             scope, AssistantPage(stateHolder, scope, chats), chats,
             AgentPreferences(InMemoryPreferences(), { it }, { it }),
             catalogue = { emptyList() },
             installed = { mapOf(CLAUDE to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) },
             placeOf = { runtime.workspace },
-            runInTab = { _, _, _ -> },
+            runInTab = { workspace, chat, command -> tabs += Triple(workspace, chat, command) },
             saveOpen = { saved.incrementAndGet() },
             states = stateHolder.snapshot.map { it.assistant },
             ask = null,
@@ -117,6 +118,19 @@ class AgentChatsTest {
         stateHolder.update { it.copy(assistant = it.assistant.copy(agent = null)) }
         until { page().agentChat == null }
         assertNull(page().agentChat)
+    }
+
+    @Test fun `an agent's own program opens in the chat's tab, the agent stopped so the chat's session has one writer`() {
+        chats.append("/workspaces/app", "c1", dev.icode.mobile.domain.AssistantMessage.User("Fix it"))
+        chats.agentSession("/workspaces/app", "c1", CLAUDE, "s-9")
+        fake.loads = true
+        agentChats.start()
+        stateHolder.update { it.copy(assistant = it.assistant.copy(opened = true, workspace = "/workspaces/app", session = "c1", agent = CLAUDE)) }
+        until { "s-9" in fake.loaded }
+        agentChats.handle(AgentChatIntent.OpenProgram(CLAUDE))
+        until { tabs.isNotEmpty() }
+        assertEquals(Triple<String?, String, String>("/workspaces/app", "c1", "'/root/claude' '--resume' 's-9'"), tabs.single())
+        until { !fake.programs.first().ended.isActive }
     }
 
     private companion object {

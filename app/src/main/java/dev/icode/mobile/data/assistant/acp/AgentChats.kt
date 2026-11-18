@@ -14,10 +14,11 @@ import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.GuestStdio
-import dev.icode.mobile.data.runtime.shellQuote
+import dev.icode.mobile.data.runtime.shellLine
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AgentChat
 import dev.icode.mobile.domain.AgentChatIntent
+import dev.icode.mobile.domain.AgentPrograms
 import dev.icode.mobile.domain.AgentSignInWay
 import dev.icode.mobile.domain.AssistantAgent
 import dev.icode.mobile.domain.AssistantCall
@@ -95,6 +96,7 @@ internal class AgentChats(
             }
             is AgentChatIntent.SignedIn -> scope.launch { prepareShown() }
             is AgentChatIntent.Set -> set(intent)
+            is AgentChatIntent.OpenProgram -> openProgram(intent.agent)
         }
     }
 
@@ -209,14 +211,33 @@ internal class AgentChats(
                     .onFailure { page.tell(AgentNotices.notSignedIn(name(agent), it.message ?: it.javaClass.simpleName)) }
                 is AgentSignInWay.InTerminal -> {
                     val command = installed()[agent]?.command ?: return@launch
-                    val variables = way.env.entries.joinToString(" ") { (name, value) -> "$name=${shellQuote(value)}" }
-                    val line = (if (variables.isEmpty()) "" else "env $variables ") + (command.take(1) + way.args).joinToString(" ", transform = ::shellQuote)
+                    val line = shellLine(command.take(1) + way.args, way.env)
                     val shown = page.current
                     runCatching { runInTab(shown.workspace, shown.session ?: SIGN_IN_TAB, line) }
                         .onFailure { page.tell(AgentNotices.notSignedIn(name(agent), it.message ?: it.javaClass.simpleName)) }
                 }
                 is AgentSignInWay.Keys -> Unit
             }
+        }
+    }
+
+    /**
+     * [agent]'s own program in the chat shown's terminal tab ([AgentPrograms]), with the variables its
+     * receipt records — not the keys kept in iCode, which the tab would show. One that takes up the chat's
+     * session stops the agent first, so the session has one writer; the chat's next message takes it up
+     * again with what was done in the terminal. An agent at work in a chat is not stopped.
+     */
+    private fun openProgram(agent: String) {
+        val shown = page.current
+        val session = shown.session ?: return
+        val install = installed()[agent] ?: return
+        val kept = chats.of(shown.workspace, session).agentSessions[agent]?.takeIf { AgentPrograms.resumes(agent) }
+        val command = AgentPrograms.command(agent, install.command, kept) ?: return
+        if (kept != null && shown.turns.any { it.by == AssistantAgent(agent) }) return page.tell(AgentNotices.working(name(agent)))
+        scope.launch {
+            if (kept != null) agents.restart(agent)
+            runCatching { runInTab(shown.workspace, session, shellLine(command, install.env)) }
+                .onFailure { page.tell(AgentNotices.notOpened(name(agent), it.message ?: it.javaClass.simpleName)) }
         }
     }
 

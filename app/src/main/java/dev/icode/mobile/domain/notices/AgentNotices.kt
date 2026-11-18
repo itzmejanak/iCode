@@ -20,6 +20,12 @@ object AgentNotices {
 
     fun notSignedIn(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't sign in to $name", output = words)
 
+    /** An agent that cannot stop to open in the terminal: it works in a chat. */
+    fun working(name: String) = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "$name is working in a chat", detail = "Open it in the terminal once it is done.")
+
+    /** An agent's own program that did not open in the terminal, with why. */
+    fun notOpened(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "Couldn't open $name in the terminal", output = words)
+
     /** A setting the agent refused to change, with why. */
     fun notSet(name: String, words: String) = Notice(NoticeTone.Problem, NoticeSource.Assistant, "$name kept its setting", output = words)
 

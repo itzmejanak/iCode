@@ -38,6 +38,8 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   where it stopped. An agent that has stopped picks up its own session again where it can.
 - A coding agent's questions show on the same card as an MCP server's: a short form, or a page
   the agent wants opened, answered or declined there.
+- An agent chat's menu opens the agent's own program in the chat's terminal tab. Claude Agent and
+  Codex carry on the chat's own conversation there, and the chat picks up what was done.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done
