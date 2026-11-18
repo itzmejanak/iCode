@@ -16,6 +16,7 @@ import com.agentclientprotocol.model.SessionUpdate
 import com.agentclientprotocol.model.StopReason
 import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantInstructions
+import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.domain.AgentCommand
@@ -61,7 +62,8 @@ internal class AcpTurn(
     private val costs = ConcurrentHashMap<Pair<String?, String>, Cost>()
 
     /**
-     * [message], after [history], answered by [agent] in [chat], in [place]; read to the user when [aloud].
+     * [message], after [history], answered by [agent] in [chat], in [place]; read to the user when [aloud], with
+     * iCode's [tools], gated for the chat, running the calls the agent makes to them meanwhile.
      * [approve] asks the user a call's permission with the agent's options and gives the one chosen, or
      * null when none is.
      */
@@ -73,6 +75,7 @@ internal class AcpTurn(
         message: AssistantMessage.User,
         events: AssistantEvents,
         aloud: Boolean = false,
+        tools: List<AssistantTool> = emptyList(),
         approve: suspend (AssistantCall, List<AssistantOption>) -> String?,
     ) = agents.use(agent) { running ->
         // Another answerer wrote since this agent last did: its session missed that, so it starts afresh.
@@ -83,6 +86,7 @@ internal class AcpTurn(
         replies.began(costs[chat])
         val operations = session.operations as ChatOperations
         operations.asking = { update, options -> ask(update, options, approve) }
+        operations.tools = tools
         var stopped: StopReason? = null
         try {
             val conversation = if (first && history.isNotEmpty()) AcpHandover.of(history, windows.of(agent), summarise) else null
@@ -100,6 +104,7 @@ internal class AcpTurn(
             throw cancelled
         } finally {
             operations.asking = null
+            operations.tools = emptyList()
             withContext(NonCancellable) {
                 replies.end()
                 replies.lastCost?.let { costs[chat] = it }
@@ -193,6 +198,10 @@ internal class ChatOperations(
 
     /** Told every update while the agent replays the session as it loads it, for a chat to take it up with all that was said. */
     @Volatile var replaying: ((SessionUpdate) -> Unit)? = null
+
+    /** The tools of iCode's the session was offered as it opened ([AgentToolServer]), and the turn's, gated, that run them while it works. */
+    @Volatile var offered: List<AssistantTool> = emptyList()
+    @Volatile var tools: List<AssistantTool> = emptyList()
 
     /**
      * The mode iCode set, until the agent says another: the protocol's answer to setting one carries none,

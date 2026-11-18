@@ -14,6 +14,7 @@ import com.agentclientprotocol.model.ElicitationCapabilities
 import com.agentclientprotocol.model.ElicitationFormCapabilities
 import com.agentclientprotocol.model.ElicitationUrlCapabilities
 import com.agentclientprotocol.model.Implementation
+import com.agentclientprotocol.model.McpServer
 import com.agentclientprotocol.model.SessionCapabilities
 import com.agentclientprotocol.model.SessionId
 import com.agentclientprotocol.model.SessionInfo
@@ -68,6 +69,8 @@ internal class AcpAgents(
     private val stopped: (agent: String) -> Unit = {},
     /** Where each chat's session with each agent is kept, to be taken up again once the agent has stopped. */
     private val records: Records = Records.None,
+    /** The MCP servers a new session is given: iCode's, for its tools ([AgentToolServer]). */
+    private val servers: suspend (Running, ChatOperations) -> List<McpServer> = { _, _ -> emptyList() },
     /** An agent's question, put to the user; none where nothing can ask one, and agents are not told they may. */
     private val asked: (suspend (agent: String, CreateElicitationRequest) -> CreateElicitationResponse)? = null,
 ) {
@@ -167,7 +170,7 @@ internal class AcpAgents(
      */
     private suspend fun open(agent: Running, chat: Pair<String?, String>, cwd: String, replay: ((SessionUpdate) -> Unit)?): Held {
         val operations = ChatOperations(agent.id, chat, { changed(agent.id, it) }) { request -> asked?.invoke(agent.id, request) ?: AcpQuestions.CANCELLED }
-        val parameters = SessionCreationParameters(cwd, emptyList())
+        val parameters = SessionCreationParameters(cwd, servers(agent, operations))
         // A new chat has no session to take up, nor a place in the chats' records.
         val recorded = chat.second != NEW_CHAT
         operations.replaying = replay

@@ -75,13 +75,26 @@ internal class AssistantToolbox(
             ProcessStatusTool(processes, execution.layout.paths),
             SendProcessInputTool(processes, execution.layout.paths),
             StopProcessTool(processes, execution.layout.paths),
-        ) + (if (phone.on) PhoneTools(phone, step).all() else emptyList())
-        val run = if (workspace.workspace == null) emptyList() else listOf(
-            RunAndroidAppTool(workspace, runs),
-            ListRunCommandsTool(workspace, runs),
-            SaveRunCommandTool(workspace, runs),
-            DeleteRunCommandTool(workspace, runs),
-        )
-        return files + run + speechProviderTools(speech) + languageServiceTools(languages, workspace) + AskUserTool(step)
+        ) + phoneTools(step)
+        return files + runTools(workspace) + speechProviderTools(speech) + languageServiceTools(languages, workspace) + AskUserTool(step)
     }
+
+    /**
+     * The tools a coding agent answering a chat in [workspace] is offered on [step] (docs/assistant-and-mcp.md):
+     * iCode's that agents have none of — the Run tab's for a workspace, the language servers', and the phone's
+     * while phone control is on. Files, terminals and processes are the agent's own.
+     */
+    fun forAgent(workspace: AssistantWorkspace, chat: String, step: AssistantStep): List<AssistantTool> =
+        runTools(workspace) + languageServiceTools(languages, workspace) + phoneTools(step)
+
+    /** The phone's tools, while phone control is on (docs/voice-and-phone-control.md). */
+    private fun phoneTools(step: AssistantStep): List<AssistantTool> = if (phone.on) PhoneTools(phone, step).all() else emptyList()
+
+    /** The Run tab's tools, for a workspace only: a chat in no workspace has none (docs/design-and-navigation.md). */
+    private fun runTools(workspace: AssistantWorkspace): List<AssistantTool> = if (workspace.workspace == null) emptyList() else listOf(
+        RunAndroidAppTool(workspace, runs),
+        ListRunCommandsTool(workspace, runs),
+        SaveRunCommandTool(workspace, runs),
+        DeleteRunCommandTool(workspace, runs),
+    )
 }

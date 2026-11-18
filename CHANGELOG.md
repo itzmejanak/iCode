@@ -48,6 +48,9 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
   when its work ends, instead of replacing the program under it.
 - A chat too long for a coding agent to take in whole goes to it as a summary of the older part,
   written by your chat model, and the newest part in full.
+- Coding agents can use iCode's own tools — Build & Run, code navigation and problems, phone control —
+  and your MCP servers, through iCode: they ask you first as the assistant does, and your servers'
+  keys never reach the agent.
 - An agent chat's menu opens the agent's own program in the chat's terminal tab. Claude Agent,
   Codex, and OpenCode carry on the chat's own conversation there, and the chat picks up what was done.
 

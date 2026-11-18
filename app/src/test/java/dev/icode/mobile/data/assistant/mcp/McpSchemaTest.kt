@@ -119,4 +119,21 @@ class McpSchemaTest {
             assertEquals("its schema is too large to read", refused.message)
         }
     }
+
+    @Test
+    fun `iCode's own parameters read back the same from the schema an agent is given`() {
+        val parameters = listOf(
+            AssistantParameter("path", "The file, relative to the workspace"),
+            AssistantParameter("line", "Its line", AssistantParameterType.Integer, required = false),
+            AssistantParameter("level", "How much", AssistantParameterType.Choice(listOf("low", "high"))),
+            AssistantParameter("flags", "Which", AssistantParameterType.Items(AssistantParameterType.Text), required = false),
+            AssistantParameter(
+                "target", "Where",
+                AssistantParameterType.Fields(listOf(AssistantParameter("device", "Its serial"), AssistantParameter("wait", "Wait", AssistantParameterType.Boolean, required = false))),
+            ),
+        )
+        val schema = McpSchema.schemaOf(parameters)
+        assertEquals(listOf("path", "level", "target"), schema.required)
+        assertEquals(parameters, McpSchema.parameters(schema))
+    }
 }

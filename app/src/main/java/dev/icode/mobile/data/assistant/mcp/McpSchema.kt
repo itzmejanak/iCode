@@ -21,6 +21,30 @@ internal object McpSchema {
     /** Why a tool's schema cannot be read: the tool is left out, with this said on its server's page. */
     class Unreadable(message: String) : Exception(message)
 
+    /** iCode's [parameters] as a tool's JSON Schema: how a coding agent reads iCode's tools over MCP. */
+    fun schemaOf(parameters: List<AssistantParameter>): ToolSchema =
+        ToolSchema(properties = JsonObject(parameters.associate { it.name to propertyOf(it) }), required = parameters.filter { it.required }.map { it.name })
+
+    private fun propertyOf(parameter: AssistantParameter): JsonObject =
+        JsonObject(typeOf(parameter.type) + listOfNotNull(parameter.description.takeIf(String::isNotEmpty)?.let { "description" to JsonPrimitive(it) }))
+
+    private fun typeOf(type: AssistantParameterType): Map<String, JsonElement> = when (type) {
+        AssistantParameterType.Text -> mapOf("type" to JsonPrimitive("string"))
+        AssistantParameterType.Integer -> mapOf("type" to JsonPrimitive("integer"))
+        AssistantParameterType.Boolean -> mapOf("type" to JsonPrimitive("boolean"))
+        AssistantParameterType.Number -> mapOf("type" to JsonPrimitive("number"))
+        AssistantParameterType.Null -> mapOf("type" to JsonPrimitive("null"))
+        is AssistantParameterType.Choice -> mapOf("type" to JsonPrimitive("string"), "enum" to JsonArray(type.values.map(::JsonPrimitive)))
+        is AssistantParameterType.Items -> mapOf("type" to JsonPrimitive("array"), "items" to JsonObject(typeOf(type.of)))
+        is AssistantParameterType.Fields -> mapOf(
+            "type" to JsonPrimitive("object"),
+            "properties" to JsonObject(type.fields.associate { it.name to propertyOf(it) }),
+            "required" to JsonArray(type.fields.filter { it.required }.map { JsonPrimitive(it.name) }),
+            "additionalProperties" to (type.more?.let { JsonObject(typeOf(it)) } ?: JsonPrimitive(false)),
+        )
+        is AssistantParameterType.OneOf -> mapOf("anyOf" to JsonArray(type.options.map(::propertyOf)))
+    }
+
     /** [schema]'s fields. Throws [Unreadable]. */
     fun parameters(schema: ToolSchema): List<AssistantParameter> {
         val reader = Reader(schema.defs)

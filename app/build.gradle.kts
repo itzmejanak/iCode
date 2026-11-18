@@ -222,8 +222,11 @@ dependencies {
     // The HTTP engine Koog's clients and the MCP client run on, handed to them explicitly. 3.5.2 is
     // the Ktor the MCP SDK needs; Koog 1.3.0 was built with 3.3.3 (docs/assistant-and-mcp.md).
     implementation("io.ktor:ktor-client-okhttp:3.5.2")
-    // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client only.
+    // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client; and its server,
+    // on 127.0.0.1 over Ktor's CIO engine, through which coding agents reach iCode's tools and the user's servers.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
+    implementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
+    implementation("io.ktor:ktor-server-cio:3.5.2")
     // Coding agents in the chats (docs/assistant-and-mcp.md): the official Agent Client Protocol SDK, its stdio
     // client only. Its logs go to SLF4J, and from there nowhere.
     implementation("com.agentclientprotocol:acp:0.34.0")
@@ -244,9 +247,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
-    // A real MCP server, over Streamable HTTP on this machine, for the client's tests (docs/assistant-and-mcp.md).
-    testImplementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
-    testImplementation("io.ktor:ktor-server-cio:3.5.2")
     // Speech providers' WebSockets, served on this machine for their adapters' tests (docs/voice-and-phone-control.md).
     testImplementation("io.ktor:ktor-server-websockets:3.5.2")
     // Android provides org.json in production; this supplies the same API to local JVM parser tests.

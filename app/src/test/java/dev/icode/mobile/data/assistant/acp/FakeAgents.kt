@@ -105,6 +105,9 @@ internal class FakeAgents : StdioPrograms {
     /** What each prompt was sent, as text; the folder each session was made in; each session cancelled. */
     val prompts = CopyOnWriteArrayList<String>()
     val sessions = CopyOnWriteArrayList<String>()
+
+    /** The MCP servers each new session was given. */
+    val servers = CopyOnWriteArrayList<List<com.agentclientprotocol.model.McpServer>>()
     val cancelled = CopyOnWriteArrayList<String>()
 
     @Volatile var answer: suspend FlowCollector<Event>.(ClientSessionOperations) -> Unit = {
@@ -174,6 +177,7 @@ internal class FakeAgents : StdioPrograms {
         override suspend fun createSession(sessionParameters: SessionCreationParameters): AgentSession {
             if (!signedIn) throw JsonRpcException(JsonRpcErrorCode.AUTH_REQUIRED.code, "Authentication required")
             sessions += sessionParameters.cwd
+            servers += sessionParameters.mcpServers
             return session(SessionId("s${ids.incrementAndGet()}"), sessionParameters)
         }
 

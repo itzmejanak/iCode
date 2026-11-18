@@ -246,6 +246,31 @@ class AcpSessionsTest {
         assertEquals(200_000L, kept[CLAUDE])
     }
 
+    @Test fun `a new session is given iCode's server, and a turn's tools are there only while it works`() = runBlocking {
+        val icode = com.agentclientprotocol.model.McpServer.Http("icode", "http://127.0.0.1:1/mcp", emptyList())
+        val tool = object : dev.icode.mobile.data.assistant.AssistantTool {
+            override val name = "list_problems"
+            override val description = "Lists the problems"
+            override val parameters = emptyList<dev.icode.mobile.data.assistant.AssistantParameter>()
+            override val kind = dev.icode.mobile.domain.AssistantToolKind.Read
+
+            override fun summary(arguments: org.json.JSONObject) = "List the problems"
+
+            override suspend fun run(arguments: org.json.JSONObject) = "None"
+        }
+        val first = AcpAgents(scope, fake, { emptyMap() }, { mapOf(OTHER to InstalledAgent("1.0.0", listOf("/root/agent"), emptyMap(), 0)) }, { emptyMap() }, "1.2.3", servers = { _, _ -> listOf(icode) })
+        val during = CopyOnWriteArrayList<Int>()
+        fake.answer = {
+            during += first.held(OTHER, CHAT)!!.operations.tools.size
+            emit(Event.SessionUpdateEvent(FakeAgents.chunk("Done.")))
+            emit(FakeAgents.ended())
+        }
+        withTimeout(20_000) { AcpTurn(first).answer(OTHER, CHAT, place, emptyList(), AssistantMessage.User("Check"), Recorded(), tools = listOf(tool)) { _, _ -> null } }
+        assertEquals(listOf(listOf(icode)), fake.servers.toList())
+        assertEquals(listOf(1), during.toList())
+        assertTrue("Gone once the turn ends", first.held(OTHER, CHAT)!!.operations.tools.isEmpty())
+    }
+
     @Test fun `an agent's question is asked as the card asks it, and the answer goes back as its fields' types`() = runBlocking {
         val shown = CopyOnWriteArrayList<McpQuestion>()
         val questioning = AcpAgents(

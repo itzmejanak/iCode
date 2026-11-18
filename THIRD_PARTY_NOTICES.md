@@ -29,8 +29,8 @@ This table names the principal direct dependencies. `app/build.gradle.kts` is th
 | Sora Editor and TextMate module | 0.24.6 | LGPL-2.1-or-later in the bundled Sora grammar/catalog records; verify artifact terms for release |
 | Sora `oniguruma-native` native Oniguruma binding | 0.24.6 | The locally resolved POM declares LGPL-2.1; the cached AAR contains no embedded license text, so native-engine notices require release-audit verification |
 | Koog | 1.3.0 | Apache-2.0 |
-| Ktor and OkHttp | Gradle-managed | Apache-2.0 |
-| MCP Kotlin SDK client | 0.16.0 | Apache-2.0, with earlier contributions identified under MIT by the upstream project |
+| Ktor (client, and the CIO server) and OkHttp | Gradle-managed | Apache-2.0 |
+| MCP Kotlin SDK client and server | 0.16.0 | Apache-2.0, with earlier contributions identified under MIT by the upstream project |
 | Agent Client Protocol Kotlin SDK (`acp`, with `acp-model`) | 0.34.0 | Apache-2.0, as declared by the locally resolved POMs |
 | SLF4J no-op provider (`slf4j-nop`, with `slf4j-api`) | 2.0.17 | MIT, as its bundled `META-INF/LICENSE.txt` states |
 | JetBrains Markdown | 0.7.17 | Apache-2.0 |

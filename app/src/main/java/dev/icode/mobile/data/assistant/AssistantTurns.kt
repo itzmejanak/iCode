@@ -187,7 +187,9 @@ internal class AssistantTurns(
             page.listed(workspace)
             page.refresh(workspace, session)
             events.show(THINKING)
-            answering.answer(agent.id, chat, place, history, message, events, aloud) { call, options -> questions.choose(workspace, session, call, options) }
+            // iCode's tools and the user's servers, served to the agent: they ask as the assistant's do in Ask first (owner's choice, 2026-11-18).
+            val offered = gate(tools.forAgent(place, session, events.step), place) { AssistantPermission.AskFirst }
+            answering.answer(agent.id, chat, place, history, message, events, aloud, offered) { call, options -> questions.choose(workspace, session, call, options) }
         }
 
         /** [asked] added to the chat, with the checkpoint Undo goes back to. */
@@ -206,11 +208,7 @@ internal class AssistantTurns(
             events.step.seesPictures = setup.model.images
             val offer = tools.of(setup.place, session, events.step, setup.settings.mode)
             val phone = offer.tools.any { it.name.startsWith(PHONE_TOOLS) }
-            val gated = offer.tools.map { tool ->
-                AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { events.step.current }) { call, changes ->
-                    events.counted[call.id] = changes
-                }
-            }
+            val gated = gate(offer.tools, setup.place, ::permission)
             // The first request after a compaction made while it works says whether it helped: one still near full is not made again.
             var compacted = false
             var compacts = true
@@ -276,6 +274,11 @@ internal class AssistantTurns(
             }
 
         fun setup() = AssistantSetup.of(settings(), chats.of(workspace, session).answerer, providers, ::place)
+
+        /** [offered], each call through the gate in [place] as [permission] says, on the turn's step. */
+        private fun gate(offered: List<AssistantTool>, place: AssistantWorkspace, permission: () -> AssistantPermission) = offered.map { tool ->
+            AssistantGate(tool, place, chats, page, questions, workspace, session, permission, { events.step.current }) { call, changes -> events.counted[call.id] = changes }
+        }
 
         /** The chat's place: its workspace's folder, or the runtime's home for none. */
         private fun place(): AssistantWorkspace {

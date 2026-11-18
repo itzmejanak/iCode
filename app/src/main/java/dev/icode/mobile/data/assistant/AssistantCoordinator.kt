@@ -3,7 +3,7 @@ package dev.icode.mobile.data.assistant
 import android.content.Context
 import android.os.Environment
 import dev.icode.mobile.data.agents.CodingAgentsCoordinator
-import dev.icode.mobile.data.assistant.acp.AgentChats
+import dev.icode.mobile.data.assistant.acp.agentChatsOf
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.mcp.McpServers
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
@@ -20,9 +20,7 @@ import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.McpAnswer
 import dev.icode.mobile.domain.McpIntent
-import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.domain.ResumeAssistantChat
 import dev.icode.mobile.domain.UndoIntent
 import dev.icode.mobile.domain.notices.AssistantNotices
@@ -44,6 +42,8 @@ internal class AssistantCoordinator(
     private val chats: AssistantChats,
     /** The tools a turn may use, made for the place it works in and the step it is on ([AssistantToolbox.forWorkspace]). */
     tools: (AssistantWorkspace, chat: String, step: AssistantStep) -> List<AssistantTool>,
+    /** Those of iCode's a coding agent is offered ([AssistantToolbox.forAgent]). */
+    agentTools: (AssistantWorkspace, chat: String, step: AssistantStep) -> List<AssistantTool> = { _, _, _ -> emptyList() },
     /** The open workspace's location; null on the home screen. */
     private val activeRoot: () -> String?,
     /** A workspace by its location: its name and runtime path. Throws when it is gone. */
@@ -69,20 +69,19 @@ internal class AssistantCoordinator(
     /** Where the places' checkpoints are kept for Undo ([AssistantCheckpoints]); none in tests that need none. */
     checkpoints: File? = null,
     /** The coding agents in the chats, made over the page and the chats (docs/assistant-and-mcp.md); none in tests that need none. */
-    agentChatsOf: (
-        (AssistantPage, AssistantChats, (String?) -> AssistantWorkspace, (suspend ((Long) -> McpQuestion) -> McpAnswer)?, suspend (List<AssistantMessage>) -> String?) -> AgentChats
-    )? = null,
+    agentChatsOf: AgentChatsOf? = null,
 ) {
     private val checkpointing = checkpoints?.let(::AssistantCheckpoints)
     private val page = AssistantPage(stateHolder, scope, chats)
     private val placeOf = { workspace: String? -> AssistantWorkspace(workspace?.let(::File), paths) }
-    private val agentChats = agentChatsOf?.invoke(page, chats, placeOf, mcp?.let { servers -> servers::ask }, ::summary)
+    private val offer = AssistantTools.of(tools, mcp, agentTools)
+    private val agentChats = agentChatsOf?.invoke(page, chats, placeOf, mcp?.let { servers -> servers::ask }, ::summary, ::offeredToAgents)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val questions = AssistantQuestions(page)
     private val queue: AssistantQueue = AssistantQueue(chats, page) { turns }
     private val turns: AssistantTurns = AssistantTurns(
-        page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
+        page, scope, engine, providers, settings::settings, chats, offer, describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
         storageAccess, questions, queue, settings::seesNoPictures, checkpointing, agentChats,
     )
@@ -236,6 +235,13 @@ internal class AssistantCoordinator(
     }
 
     /**
+     * The tools an agent's session in [chat]'s place is offered as it opens, for their names and schemas: the
+     * user's servers among them, connected for this, idle again where no chat is working.
+     */
+    private suspend fun offeredToAgents(chat: Pair<String?, String>): List<AssistantTool> =
+        offer.forAgent(placeOf(chat.first), chat.second, AssistantStep()).also { if (page.current.turns.isEmpty()) offer.done() }
+
+    /**
      * [messages] summarized by the model chosen for chats, as a compaction is written, for an agent a whole
      * chat would not fit ([dev.icode.mobile.data.assistant.acp.AcpHandover]); null with none set up.
      */
@@ -264,7 +270,7 @@ internal class AssistantCoordinator(
         ) = AssistantCoordinator(
             icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
-            toolbox::forWorkspace, activeRoot, source::describeRoot, paths,
+            toolbox::forWorkspace, toolbox::forAgent, activeRoot, source::describeRoot, paths,
             attachments = { openText ->
                 AssistantAttachments(
                     ContentResolverPhoneFiles(context.applicationContext.contentResolver),
@@ -281,7 +287,7 @@ internal class AssistantCoordinator(
             openTab = toolbox::openTab,
             shares = File(context.applicationContext.cacheDir, "assistant-share"),
             checkpoints = File(context.applicationContext.filesDir, "assistant/checkpoints"),
-            agentChatsOf = AgentChats.maker(context, icode, scope, toolbox, save),
+            agentChatsOf = agentChatsOf(context, icode, scope, toolbox, save),
         )
     }
 }

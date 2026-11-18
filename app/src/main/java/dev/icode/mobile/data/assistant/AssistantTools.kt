@@ -15,6 +15,12 @@ internal interface AssistantTools {
     /** The tools a chat in [place] is offered on [step] in [mode], and what their servers tell the model. */
     suspend fun of(place: AssistantWorkspace, chat: String, step: AssistantStep, mode: AssistantMode): Offered
 
+    /**
+     * The tools a coding agent answering a chat in [place] is offered on [step] (docs/assistant-and-mcp.md):
+     * iCode's own that it has none of, then the user's servers', each as the user chose.
+     */
+    suspend fun forAgent(place: AssistantWorkspace, chat: String, step: AssistantStep): List<AssistantTool>
+
     /** The turn that asked ended: a server's question still waiting goes, and its servers idle from now. */
     fun done()
 
@@ -26,12 +32,21 @@ internal interface AssistantTools {
         fun offers(mode: AssistantMode, tool: AssistantTool): Boolean =
             mode == AssistantMode.Code || mode == AssistantMode.Orchestrator || tool.kind == AssistantToolKind.Read
 
-        /** [own], iCode's tools, first; then [mcp]'s servers', in what room is left ([McpRules.MAX_TOOLS]). */
-        fun of(own: (AssistantWorkspace, String, AssistantStep) -> List<AssistantTool>, mcp: McpServers?): AssistantTools = object : AssistantTools {
+        /** [own], iCode's tools, first — [agents'][forAgents] for an agent — then [mcp]'s servers', in what room is left ([McpRules.MAX_TOOLS]). */
+        fun of(
+            own: (AssistantWorkspace, String, AssistantStep) -> List<AssistantTool>,
+            mcp: McpServers?,
+            forAgents: (AssistantWorkspace, String, AssistantStep) -> List<AssistantTool> = { _, _, _ -> emptyList() },
+        ): AssistantTools = object : AssistantTools {
             override suspend fun of(place: AssistantWorkspace, chat: String, step: AssistantStep, mode: AssistantMode): Offered {
                 val mine = (own(place, chat, step) + mcp?.let { mcpServerTools(place.place, it) }.orEmpty()).filter { offers(mode, it) }
                 val theirs = mcp?.offer(place.place, step, mine.map { it.name }.toSet(), McpRules.MAX_TOOLS - mine.size) { offers(mode, it) }
                 return Offered(mine + theirs?.tools.orEmpty(), theirs?.instructions.orEmpty())
+            }
+
+            override suspend fun forAgent(place: AssistantWorkspace, chat: String, step: AssistantStep): List<AssistantTool> {
+                val mine = forAgents(place, chat, step)
+                return mine + mcp?.offer(place.place, step, mine.map { it.name }.toSet(), McpRules.MAX_TOOLS - mine.size) { true }?.tools.orEmpty()
             }
 
             override fun done() {

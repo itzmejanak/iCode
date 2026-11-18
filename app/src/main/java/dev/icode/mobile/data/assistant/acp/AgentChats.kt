@@ -1,21 +1,15 @@
 package dev.icode.mobile.data.assistant.acp
 
-import android.content.Context
 import com.agentclientprotocol.model.CreateElicitationRequest
 import com.agentclientprotocol.model.CreateElicitationResponse
-import dev.icode.mobile.BuildConfig
-import dev.icode.mobile.data.agents.AgentReceipts
 import dev.icode.mobile.data.assistant.AgentAnswers
 import dev.icode.mobile.data.assistant.AssistantChats
 import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantPage
+import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnException
-import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
-import dev.icode.mobile.data.runtime.GuestContext
-import dev.icode.mobile.data.runtime.GuestStdio
 import dev.icode.mobile.data.runtime.shellLine
-import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AgentChat
 import dev.icode.mobile.domain.AgentChatIntent
 import dev.icode.mobile.domain.AgentSignInWay
@@ -36,7 +30,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withLock
 
 /**
  * The coding agents in the chats (docs/assistant-and-mcp.md): the one a chat is answered by, chosen in
@@ -65,6 +58,8 @@ internal class AgentChats(
     private val releases: Flow<Map<String, String>> = emptyFlow(),
     /** Older messages summarized by the chat's model, for an agent a whole chat would not fit ([AcpHandover]). */
     private val summarise: suspend (List<AssistantMessage>) -> String? = { null },
+    /** iCode's tools for the agents, whose sessions' tokens end with them; none in tests that need none. */
+    private val tools: AgentToolServer? = null,
     /**
      * The agents, told back of their sessions' changes ([offered]) and of their stops ([stopped]), their
      * sessions kept in the chats, and their questions put to the user ([asked]).
@@ -136,12 +131,13 @@ internal class AgentChats(
         message: AssistantMessage.User,
         events: AssistantEvents,
         aloud: Boolean,
+        tools: List<AssistantTool>,
         approve: suspend (AssistantCall, List<AssistantOption>) -> String?,
     ) {
         saveOpen()
         said(id)
         try {
-            turn.answer(id, chat, place, history, message, events, aloud, approve)
+            turn.answer(id, chat, place, history, message, events, aloud, tools, approve)
         } catch (needed: AcpAgents.SignInNeeded) {
             page.state { it.copy(signIns = it.signIns + (id to needed.methods)) }
             throw AssistantTurnException("Sign in to ${name(id)} first, then send it again")
@@ -151,7 +147,10 @@ internal class AgentChats(
         }
     }
 
-    override fun forget(chat: Pair<String?, String>) = turn.forget(chat)
+    override fun forget(chat: Pair<String?, String>) {
+        tools?.forget { it.chat == chat }
+        turn.forget(chat)
+    }
 
     /** The chat shown answered by [id] from now on, and new chats too; it starts for the chat as it is shown. */
     private fun choose(id: String) {
@@ -211,7 +210,10 @@ internal class AgentChats(
     }
 
     /** [agent] stopped: the chat shown no longer has what it offered, until it starts again. */
-    private fun stopped(agent: String) = page.state { if (it.agentChat?.agent == agent) it.copy(agentChat = null) else it }
+    private fun stopped(agent: String) {
+        tools?.forget { it.agent == agent }
+        page.state { if (it.agentChat?.agent == agent) it.copy(agentChat = null) else it }
+    }
 
     private fun set(intent: AgentChatIntent.Set) {
         val chat = shownOf(page.current).chat
@@ -249,43 +251,8 @@ internal class AgentChats(
         page.state { it.copy(untestedSaid = it.untestedSaid + id) }
     }
 
-    companion object {
+    private companion object {
         /** The tab a sign-in runs in from a new chat, which has no tab of its own yet. */
-        private const val SIGN_IN_TAB = "agent-sign-in"
-
-        /** The guest folder the agents' logs go in: what each wrote on stderr since it last started. */
-        private const val LOGS = "/tmp/icode-agents"
-
-        /**
-         * The agents in the chats as iCode runs them: in the runtime, with the login's variables, their
-         * receipts' commands and their kept keys; [save] saves an open file, under the workspace's lock.
-         */
-        fun maker(
-            context: Context,
-            icode: ICodeStateHolder,
-            scope: CoroutineScope,
-            toolbox: AssistantToolbox,
-            save: suspend (String) -> Boolean,
-        ): (AssistantPage, AssistantChats, (String?) -> AssistantWorkspace, (suspend ((Long) -> McpQuestion) -> McpAnswer)?, suspend (List<AssistantMessage>) -> String?) -> AgentChats {
-            val layout = toolbox.execution.layout
-            val receipts = AgentReceipts(layout.home)
-            val preferences = AgentPreferences(context)
-            val saveOpen: suspend () -> Unit = {
-                icode.mutations.withLock { icode.current.openDocuments.filter { it.dirty }.forEach { save(it.location) } }
-            }
-            return { page, chats, placeOf, ask, summarise ->
-                AgentChats(
-                    scope, page, chats, preferences, { icode.current.agents.catalogue }, receipts::installed, placeOf, toolbox::runInTab, saveOpen,
-                    icode.snapshot.map { it.assistant }, ask, icode.snapshot.map { snapshot -> snapshot.agents.installed.mapValues { it.value.version } }.distinctUntilChanged(), summarise,
-                ) { changed, stopped, records, asked ->
-                    AcpAgents(
-                        scope, GuestStdio(layout, GuestContext.Command, LOGS, tag = "agent"),
-                        login = { toolbox.execution.environment.of(GuestContext.Command).variables },
-                        installed = receipts::installed, keys = preferences::keys, version = BuildConfig.VERSION_NAME,
-                        changed = changed, stopped = stopped, records = records, asked = asked,
-                    )
-                }
-            }
-        }
+        const val SIGN_IN_TAB = "agent-sign-in"
     }
 }
