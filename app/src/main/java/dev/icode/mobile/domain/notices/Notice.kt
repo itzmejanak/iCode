@@ -152,6 +152,7 @@ enum class NoticeTarget(val label: String) {
     RuntimeTools("Open Runtime Tools"),
     Languages("Open Language Servers"),
     McpServers("Open MCP Servers"),
+    CodingAgents("Open Coding Agents"),
     Assistant("Open Assistant"),
     /** The Assistant outside the workspace, where a chat in no workspace is (docs/design-and-navigation.md). */
     AssistantOutside("Open Assistant"),

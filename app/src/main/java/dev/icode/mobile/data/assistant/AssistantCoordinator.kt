@@ -2,15 +2,18 @@ package dev.icode.mobile.data.assistant
 
 import android.content.Context
 import android.os.Environment
+import dev.icode.mobile.data.agents.CodingAgentsCoordinator
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.mcp.McpServers
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.runtime.GuestPaths
+import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
+import dev.icode.mobile.domain.AgentIntent
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantDraftFile
 import dev.icode.mobile.domain.ICodeIntent
@@ -49,6 +52,8 @@ internal class AssistantCoordinator(
     storageAccess: () -> Boolean,
     /** The MCP servers, whose tools join a turn's after iCode's own (docs/assistant-and-mcp.md); none in tests that need none. */
     private val mcp: McpServers? = null,
+    /** The coding agents' installs (docs/assistant-and-mcp.md); none in tests that need none. */
+    private val agents: CodingAgentsCoordinator? = null,
     /** A chat deleted: what it left in the runtime goes, its terminal tabs ([AssistantToolbox.forget]). */
     private val forget: suspend (workspace: String?, chat: String) -> Unit = { _, _ -> },
     /** A chat's own terminal tab, opened if it has none ([AssistantToolbox.openTab]); throws with why it cannot be. */
@@ -86,6 +91,7 @@ internal class AssistantCoordinator(
             settings.shown()
             page.state { it.copy(catalogue = catalogue) }
             mcp?.start()
+            agents?.start()
             for (intent in intents) apply(intent)
         }
     }
@@ -130,6 +136,7 @@ internal class AssistantCoordinator(
             ICodeIntent.CommitMessageTaken -> commitMessages.taken()
             is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
             is McpIntent -> mcp?.handle(intent)
+            is AgentIntent -> agents?.handle(intent)
         }
     }
 
@@ -226,6 +233,7 @@ internal class AssistantCoordinator(
             source: WorkspaceFileSource,
             paths: GuestPaths,
             git: CliGitService,
+            packages: RuntimePackageInstaller,
         ) = AssistantCoordinator(
             icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
@@ -241,6 +249,7 @@ internal class AssistantCoordinator(
             git = { workspace, arguments -> git.run(workspace, arguments) },
             storageAccess = Environment::isExternalStorageManager,
             mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot),
+            agents = CodingAgentsCoordinator.create(context, icode, scope, packages),
             forget = toolbox::forget,
             openTab = toolbox::openTab,
             shares = File(context.applicationContext.cacheDir, "assistant-share"),

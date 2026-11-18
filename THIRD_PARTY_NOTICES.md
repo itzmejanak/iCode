@@ -51,6 +51,7 @@ The Android package configuration excludes dependency `META-INF/LICENSE*` and `M
 | 357 TextMate language and format definitions | Machine-readable source, commit, path, and license fields in `app/src/main/assets/textmate/catalog.json`; human-readable catalog in [`docs/editor-grammar-provenance.md`](docs/editor-grammar-provenance.md); imported by `tools/import-grammars.py` |
 | Material Icon Theme file and folder icons | `app/src/main/assets/file-icons/`; imported by `tools/import-file-icons.py`; `app/src/main/resources/licenses/MIT-Material-Icon-Theme.txt` |
 | Lobe Icons 1.103.0 assistant provider marks (OpenAI, Anthropic, Gemini, OpenRouter, Ollama) | `app/src/main/res/drawable/mark_*.xml`, each converted from the package's `icons/<name>.svg` path data and naming its source file; `app/src/main/resources/licenses/MIT-Lobe-Icons.txt`. The marks themselves are their owners' trademarks, shown only to name the provider. |
+| ACP Registry agent marks (Claude Agent, OpenCode, Cline, Factory Droid) | `app/src/main/res/drawable/mark_agent_*.xml`, each converted from the registry's `<id>/icon.svg` at commit `df2ae8ac66a6` and naming its source file; the registry is Apache-2.0 (github.com/agentclientprotocol/registry), its licence in `app/src/main/resources/licenses/Apache-2.0-ACP-Registry.txt`. Codex and Gemini CLI use the Lobe Icons marks above, which are the same marks. The marks themselves are their owners' trademarks, shown only to name the agent. |
 | Theme palettes | `app/src/main/java/dev/icode/mobile/designsystem/palettes/`; provenance and notices in `app/src/main/resources/licenses/MIT-Theme-Palettes.txt` |
 
 The grammar catalog includes multiple licenses, including MIT, Apache-2.0, BSD variants, ISC, MPL-2.0, LGPL, GPL-3.0, Unlicense, and the TextMate Bundle License. Consult each catalog entry rather than applying one license to the whole grammar set.
@@ -66,6 +67,8 @@ The Ubuntu base image and optional runtime tools are not bundled in the APK. Whe
 - optional Android NDK toolchains;
 - Node.js; and
 - uv/uvx.
+
+Coding agents are not bundled either. When you install one in Settings › Assistant › Coding Agents, iCode downloads the release the ACP registry names: a build from its maker's release page, or an npm package and its dependencies from the npm registry. Each agent keeps its own terms; its sheet links the licence its registry entry records. At registry commit `df2ae8ac66a6` these are: Claude Agent, proprietary; Codex, Apache-2.0; Gemini CLI, Apache-2.0; OpenCode, MIT; Cline, Apache-2.0; Factory Droid, proprietary.
 
 These components retain their own upstream terms. The Android SDK license shown before SDK installation is stored at `app/src/main/assets/runtime/licences/android-sdk-license.txt`. The runtime manifest is provenance and integrity metadata, not a substitute for each downloaded component's license.
 

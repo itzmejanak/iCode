@@ -21,6 +21,11 @@ Notable user-visible changes to iCode are recorded here. The format follows [Kee
 - Undo on a message puts the files and the chat back to before it, or only the files, or only the
   chat. Everything since is undone, and files changed outside the chat since are listed first so
   you can decide.
+- Settings › Assistant › Coding Agents installs, updates, and removes Claude Agent, Codex, Gemini
+  CLI, OpenCode, Cline, and Factory Droid from the ACP registry, installing Node.js first where an
+  agent needs it. Updates are checked when the page opens and once a day, with Update All for
+  several; removing asks whether the agent's sign-in and settings stay. Agents do not answer in
+  chats yet.
 
 ### Changed
 - A turn no longer stops at 40 steps to ask whether to keep going. It works until the task is done

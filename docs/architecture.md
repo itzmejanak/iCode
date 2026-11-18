@@ -276,6 +276,10 @@ Chats are files under `<filesDir>/assistant/chats`, one JSON line for the chat a
 
 Only enabled and trusted workspace servers contribute tools. `McpRules.MAX_TOOLS` bounds tools included in one model request and is not a guest process cap. The protocol behavior is limited by the official MCP SDK version pinned in `app/build.gradle.kts`.
 
+### Coding agents
+
+`data/agents/CodingAgentsCoordinator.kt` owns Settings › Assistant › Coding Agents, created and started by the assistant coordinator, which passes it `AgentIntent`s as it does MCP's. `AgentRegistry.kt` reads the ACP registry's published list, with the one parser of its format, and keeps the last list under `<filesDir>/agents/registry.json`. `AgentInstalls.kt` installs a release into the runtime's home, a build through `fetchPinned` and `Archives`, an npm package through `npm` in the guest after `RuntimePackageInstaller.ensure` has Node.js; `AgentReceipts.kt` reads and writes each agent's receipt. `AgentUpdateWorker.kt` is the daily WorkManager check, which reaches the notice store and the shade directly, as iCode may not be running. `domain/CodingAgents.kt` holds the agent, receipt, state, and intent types and the offered agents with their own folders.
+
 ## Voice and phone control
 
 `data/voice/VoiceCoordinator.kt` owns listening and speaking sessions, selected providers, microphone checks, speech state, sentence streaming, audio focus, and interruption. Provider abstractions and adapters are under `data/voice/speech/`. Android speech recognition and text-to-speech remain the defaults; network providers use encrypted credentials and no silent provider fallback.
@@ -298,6 +302,7 @@ The app does not use Room or an application SQLite database. Persistence is spli
 | Dirty document recovery | `<filesDir>/document-drafts` through `DocumentDraftStore.kt`. |
 | Assistant chats and attachments | `<filesDir>/assistant/chats` through `AssistantChatStore.kt`. |
 | Assistant Undo checkpoints | `<filesDir>/assistant/checkpoints` through `AssistantCheckpoints.kt`. |
+| Coding agents and their receipts | The runtime's home, `~/.local/share/icode/agents` and `~/.icode/agents`, through `AgentInstalls.kt` and `AgentReceipts.kt`; the registry's last list in `<filesDir>/agents/registry.json`. |
 | Appearance, editor, terminal, explorer, Git, and workspace preferences | DataStore through `data/settings/AndroidWorkspacePreferencesRepository.kt`. |
 | Language services, runs, notices, phone/voice state, assistant/MCP/provider metadata, and interruption ledgers | Feature-owned private SharedPreferences stores. |
 | Git/provider/MCP/speech secrets | Ciphertext in private stores, keys in Android Keystore through `data/io/KeystoreCipher.kt`. |

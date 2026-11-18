@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- opencode/icon.svg from the ACP Registry at df2ae8ac66a6 (Apache-2.0, THIRD_PARTY_NOTICES.md); the mark is its owner's trademark. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M13 14H3V2H13V14ZM10.5 4.4H5.5V11.6H10.5V4.4Z" />
+</vector>

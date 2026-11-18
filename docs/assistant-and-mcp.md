@@ -259,6 +259,36 @@ iCode currently uses version 0.16.0 of the official Kotlin MCP SDK. Its active c
 
 iCode will add dual-era behavior when the official SDK's client supports it instead of maintaining a second protocol client. Legacy stdio, Streamable HTTP, HTTP+SSE fallback, prompts, resources, tools, sign-in, and elicitation remain available. A modern-only server may not connect today. The [modern MCP roadmap](roadmap.md#mcp-modern-protocol-support) is the sole owner of the missing protocol scope and acceptance evidence.
 
+## Coding agents
+
+**Status: Partially Done**
+
+Settings › Assistant › Coding Agents installs, updates, and removes external coding agents that work through the Agent Client Protocol (ACP): Claude Agent, Codex, Gemini CLI, OpenCode, Cline, and Factory Droid, in that order. They do not answer in chats yet; the [roadmap](roadmap.md#external-coding-agents-through-acp) records what remains.
+
+The list comes from the ACP registry's published file, `https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json`, read in the registry's own format each time the page opens. The last list read is kept in iCode's storage and shown when the registry cannot be reached, with why. Each row shows the agent's mark, its state, and Untested until the agent is verified on phones; none is yet. A row opens the agent's sheet: Install or Update, its website, its licence, and Remove.
+
+An agent installs from its newest release in the registry, into the Linux runtime:
+
+- **A build.** The registry's Linux ARM64 build is used when it carries a SHA-256. It is downloaded, checked against that digest, unpacked (zip, tar.gz, or tar.bz2, or used as is when it is the program itself), and its program made runnable. A build without a digest is never installed. Its download size is shown before Install where the server states it.
+- **An npm package.** Otherwise the registry's npm package is installed at its exact version with `npm install --prefix`, after Node.js is installed from Runtime Tools if it is not already. Its size is shown once it is installed: npm finds its dependencies only as it installs.
+
+Each release goes in its own folder, `~/.local/share/icode/agents/<id>/<version>`, and a receipt in `~/.icode/agents/<id>.json` records its version, the command and variables it starts with, and the space it takes. The receipt is written last; the release it replaces stays until then and is removed after. A failed or cancelled install leaves nothing behind. Downloads and npm runs can be cancelled; getting Node.js ready and unpacking cannot. Several agents can install at once. Installing needs the Linux runtime.
+
+Opening the page checks for newer releases, and an installed agent with one shows Update; with several, Update All updates each. Once a day, while the phone has a connection and at least one agent is installed, a background check reads the registry and tells newer releases once, as a notice that opens this page. Nothing is downloaded until the user taps Update. Downloads use any connection, as runtime tools do.
+
+Remove asks each time. **Keep sign-in and settings** removes the agent's program and receipt and leaves its own folders, so installing it again finds them. **Delete everything** also deletes the folders the agent keeps in the runtime's home, as its source or its maker's documentation names them:
+
+| Agent | Folders deleted with everything |
+|---|---|
+| Claude Agent | `~/.claude`, `~/.claude.json` |
+| Codex | `~/.codex` |
+| Gemini CLI | `~/.gemini` |
+| OpenCode | `~/.local/share/opencode`, `~/.config/opencode`, `~/.cache/opencode`, `~/.local/state/opencode` |
+| Cline | `~/.cline` |
+| Factory Droid | `~/.factory` |
+
+A folder an environment variable moves elsewhere is not followed.
+
 ## Security and privacy boundaries
 
 The [privacy policy](../PRIVACY.md) explains what leaves the device. The [security policy](../SECURITY.md) defines supported versions, reporting, and scope.

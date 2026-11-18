@@ -44,6 +44,7 @@ class RouteTest {
         Route.ShizukuSetup, // 2026-11-03: Shizuku's one-page state and setup (docs/voice-and-phone-control.md)
         Route.McpServers, // 2026-11-05: MCP servers for the assistant's chats (docs/assistant-and-mcp.md)
         Route.McpServer, // 2026-11-05: one MCP server — its fields, tools, log (docs/assistant-and-mcp.md)
+        Route.CodingAgents, // 2026-11-17: external coding agents — install, update, remove (docs/assistant-and-mcp.md)
         Route.ManageStorage, // 2026-10-27: what storage holds, kind by kind, and the explorer's views of it (docs/workspaces-and-files.md)
     )
 

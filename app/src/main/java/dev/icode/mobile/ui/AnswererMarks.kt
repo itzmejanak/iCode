@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Hub
+import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +36,22 @@ internal fun AssistantProviderKind.mark(): ImageVector = when (this) {
     AssistantProviderKind.OpenRouter -> ImageVector.vectorResource(R.drawable.mark_openrouter)
     AssistantProviderKind.Ollama -> ImageVector.vectorResource(R.drawable.mark_ollama)
     AssistantProviderKind.OpenAICompatible -> Icons.Outlined.Hub
+}
+
+/**
+ * The mark of the coding agent [id] (docs/assistant-and-mcp.md): the ACP registry's icon
+ * (res/drawable/mark_agent_*.xml), or its maker's mark from Lobe Icons where the registry's is that same
+ * one — Codex's OpenAI, Gemini CLI's Gemini. The marks are their owners' trademarks.
+ */
+@Composable
+internal fun agentMark(id: String): ImageVector = when (id) {
+    "claude-acp" -> ImageVector.vectorResource(R.drawable.mark_agent_claude)
+    "codex-acp" -> ImageVector.vectorResource(R.drawable.mark_openai)
+    "gemini" -> ImageVector.vectorResource(R.drawable.mark_gemini)
+    "opencode" -> ImageVector.vectorResource(R.drawable.mark_agent_opencode)
+    "cline" -> ImageVector.vectorResource(R.drawable.mark_agent_cline)
+    "factory-droid" -> ImageVector.vectorResource(R.drawable.mark_agent_droid)
+    else -> Icons.Outlined.SmartToy
 }
 
 /**

@@ -74,6 +74,12 @@ Commands and developer tools installed in the Linux runtime can make arbitrary n
 
 When you approve runtime or tool installation, iCode downloads the Ubuntu root filesystem and selected tools or SDK components from the sources recorded in the bundled runtime manifest. [Runtime and terminal](docs/runtime-and-terminal.md#exact-role-of-the-runtime-manifest) documents that manifest's role and integrity boundary. Ubuntu `apt` contacts configured package repositories. Pinned direct downloads are checked against their recorded digest where the manifest provides one.
 
+### Coding agents
+
+Opening Settings › Assistant › Coding Agents reads the ACP registry's list of agents from `cdn.agentclientprotocol.com`, and asks each listed build's server for its download size. While at least one agent is installed, a background check reads the same list once a day. These requests send nothing about you or your work; like any connection, they show the phone's network address to the server. The last list read is kept in app-private storage.
+
+Installing an agent downloads its release from its maker's release page, or its npm package and dependencies from the npm registry, into the Linux runtime's home, with a record of the installed version. Installed agents can run in the runtime like any other tool there. Removing an agent deletes its program and that record; choosing to delete everything also deletes the folders it keeps in the runtime's home, where it may keep its sign-in, settings, and sessions.
+
 ### Website, updates, and notices
 
 Website-backed features are disabled in builds without an `ICODE_WEB_URL`. When configured, iCode can request app configuration and links, release/update metadata, notices, report policy, and a runtime manifest. Update checks include the app's update channel, ABI, and version code. An accepted update downloads an APK from the release URL, verifies its SHA-256, and sends it to Android's package installer.
@@ -121,6 +127,7 @@ You can turn sharing off in **Settings › Application › Share Device Info**. 
 
 - Delete a chat to remove its local messages, retained attachment copies, and the file copies kept for its Undo.
 - Delete a workspace to remove its files and workspace-associated chats.
+- Remove a coding agent in Settings › Assistant › Coding Agents, choosing Delete everything, to remove it with the folders it keeps in the runtime's home.
 - Use Android's **Clear storage** to remove iCode's app-private workspaces, runtime, chats, settings, drafts, keys, and credentials.
 - On uninstall, Android may offer to retain app data because iCode marks workspace data as important; the choice and result are controlled by Android.
 - Contact each external provider about data already sent to that service.
