@@ -167,7 +167,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     // Accent colour picker. 1.1.4 is the newest release built for Kotlin 2.3 and
     // Compose 1.10+; later ones need Kotlin 2.4 (docs/design-and-navigation.md).
-    implementation("com.github.skydoves:colorpicker-compose:1.1.4")
+    implementation("com.github.skydoves:colorpicker-compose:1.3.0")
     implementation("org.apache.commons:commons-compress:1.27.1")
     // Commons Compress's own optional dependency for .7z and .xz (0BSD, pure Java;
     // docs/workspaces-and-files.md).
