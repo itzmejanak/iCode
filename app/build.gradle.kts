@@ -221,7 +221,7 @@ dependencies {
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
     // JSON for the language servers' protocol (docs/editor-and-language-services.md): the version Koog and the MCP SDK
     // already resolve, declared because the language client uses it directly.
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
     // The coroutines the MCP SDK runs on; Android's dispatcher at the same version.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // Shizuku (docs/voice-and-phone-control.md): its binder, the user's permission, and a UserService of
