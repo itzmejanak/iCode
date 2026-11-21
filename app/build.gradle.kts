@@ -238,7 +238,7 @@ dependencies {
     testImplementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
     testImplementation("io.ktor:ktor-server-cio:3.5.2")
     // Speech providers' WebSockets, served on this machine for their adapters' tests (docs/voice-and-phone-control.md).
-    testImplementation("io.ktor:ktor-server-websockets:3.5.2")
+    testImplementation("io.ktor:ktor-server-websockets:3.6.1")
     // Android provides org.json in production; this supplies the same API to local JVM parser tests.
     testImplementation("org.json:json:20260814")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
