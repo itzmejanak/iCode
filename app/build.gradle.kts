@@ -236,7 +236,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     // A real MCP server, over Streamable HTTP on this machine, for the client's tests (docs/assistant-and-mcp.md).
     testImplementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
-    testImplementation("io.ktor:ktor-server-cio:3.5.2")
+    testImplementation("io.ktor:ktor-server-cio:3.6.1")
     // Speech providers' WebSockets, served on this machine for their adapters' tests (docs/voice-and-phone-control.md).
     testImplementation("io.ktor:ktor-server-websockets:3.5.2")
     // Android provides org.json in production; this supplies the same API to local JVM parser tests.
