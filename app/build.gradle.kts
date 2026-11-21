@@ -216,7 +216,7 @@ dependencies {
     implementation("ai.koog:http-client-ktor:$koogVersion")
     // The HTTP engine Koog's clients and the MCP client run on, handed to them explicitly. 3.5.2 is
     // the Ktor the MCP SDK needs; Koog 1.3.0 was built with 3.3.3 (docs/assistant-and-mcp.md).
-    implementation("io.ktor:ktor-client-okhttp:3.5.2")
+    implementation("io.ktor:ktor-client-okhttp:3.6.1")
     // MCP servers' tools for the assistant (docs/assistant-and-mcp.md): the official SDK's client only.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
     // JSON for the language servers' protocol (docs/editor-and-language-services.md): the version Koog and the MCP SDK
